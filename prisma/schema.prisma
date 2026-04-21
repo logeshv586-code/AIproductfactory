@@ -1,0 +1,137 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model GitHubRepo {
+  id              String   @id @default(cuid())
+  repoId          Int      @unique
+  name            String
+  fullName        String   @unique
+  description     String?
+  htmlUrl         String
+  homepage        String?
+  language        String?
+  stargazersCount Int      @default(0)
+  forksCount      Int      @default(0)
+  openIssuesCount Int      @default(0)
+  watchersCount   Int      @default(0)
+  topics          String   @default("[]") // JSON array
+  ownerLogin      String
+  ownerAvatarUrl  String
+  ownerHtmlUrl    String
+  licenseName     String?
+  licenseSpdxId   String?
+  archived        Boolean  @default(false)
+  trendScore      Float    @default(0)
+  growthRate      Float    @default(0)
+  category        String   @default("Other")
+  innovationSignals String @default("[]") // JSON array
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  pushedAt        DateTime?
+  repoCreatedAt   DateTime?
+
+  ideas           IdeaInspiration[]
+  collections     CollectionRepos[]
+}
+
+model ProductIdea {
+  id              String   @id @default(cuid())
+  title           String
+  tagline         String
+  description     String
+  targetAudience  String
+  keyFeatures     String   @default("[]") // JSON array
+  techStack       String   @default("[]") // JSON array
+  marketPotential String   @default("medium") // high, medium, low
+  difficulty      String   @default("intermediate") // beginner, intermediate, advanced
+  monetization    String   @default("[]") // JSON array
+  uniqueValue     String
+  strategy        String   @default("all")
+  status          String   @default("generated") // generated, saved, exploring, building
+  rating          Int      @default(0) // 0-5 stars
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  inspiredByRepos IdeaInspiration[]
+  collections     CollectionIdeas[]
+}
+
+model IdeaInspiration {
+  id        String      @id @default(cuid())
+  ideaId    String
+  repoId    String
+  idea      ProductIdea @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+  repo      GitHubRepo  @relation(fields: [repoId], references: [id], onDelete: Cascade)
+
+  @@unique([ideaId, repoId])
+}
+
+model Collection {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  color       String   @default("#6366f1")
+  icon        String   @default("folder")
+  isPublic    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  repos       CollectionRepos[]
+  ideas       CollectionIdeas[]
+}
+
+model CollectionRepos {
+  collectionId String     @id
+  repoId       String
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  repo         GitHubRepo @relation(fields: [repoId], references: [id], onDelete: Cascade)
+}
+
+model CollectionIdeas {
+  collectionId String      @id
+  ideaId       String
+  collection   Collection  @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  idea         ProductIdea @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+}
+
+model TrendSnapshot {
+  id            String   @id @default(cuid())
+  snapshotDate  DateTime @default(now())
+  topLanguages  String   @default("[]") // JSON
+  topTopics     String   @default("[]") // JSON
+  emergingTech  String   @default("[]") // JSON
+  hotCategories String   @default("[]") // JSON
+  insights      String   @default("[]") // JSON
+  createdAt     DateTime @default(now())
+}
+
+model ProductBuild {
+  id              String   @id @default(cuid())
+  title           String
+  tagline         String
+  description     String
+  targetAudience  String
+  uniqueValue     String
+  capabilities    String   @default("[]") // JSON - capability categories
+  buildVariants   String   @default("[]") // JSON - build variant objects
+  productScore    String   @default("{}") // JSON - score object
+  exampleOutput   String   @default("{}") // JSON - example output
+  monetization    String   @default("[]") // JSON - monetization phases
+  keyFeatures     String   @default("[]") // JSON
+  inspiredBy      String   @default("[]") // JSON - repo names
+  strategy        String   @default("ai-product-builder")
+  status          String   @default("generated") // generated, saved, building
+  selectedTier    String   @default("intermediate") // simple, intermediate, advanced
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}

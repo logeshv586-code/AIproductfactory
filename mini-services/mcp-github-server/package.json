@@ -1,0 +1,17 @@
+{
+  "name": "mcp-github-server",
+  "version": "1.0.0",
+  "description": "MCP Server for GitHub - Fetch top repos and generate product ideas",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "bun --hot src/index.ts",
+    "start": "bun src/index.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0"
+  },
+  "devDependencies": {
+    "bun-types": "^1.3.4",
+    "typescript": "^5"
+  }
+}
