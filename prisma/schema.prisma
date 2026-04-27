@@ -38,7 +38,7 @@ model GitHubRepo {
   updatedAt       DateTime @updatedAt
   pushedAt        DateTime?
   repoCreatedAt   DateTime?
-
+  
   ideas           IdeaInspiration[]
   collections     CollectionRepos[]
 }
@@ -115,23 +115,21 @@ model TrendSnapshot {
   createdAt     DateTime @default(now())
 }
 
-model ProductBuild {
-  id              String   @id @default(cuid())
-  title           String
-  tagline         String
-  description     String
-  targetAudience  String
-  uniqueValue     String
-  capabilities    String   @default("[]") // JSON - capability categories
-  buildVariants   String   @default("[]") // JSON - build variant objects
-  productScore    String   @default("{}") // JSON - score object
-  exampleOutput   String   @default("{}") // JSON - example output
-  monetization    String   @default("[]") // JSON - monetization phases
-  keyFeatures     String   @default("[]") // JSON
-  inspiredBy      String   @default("[]") // JSON - repo names
-  strategy        String   @default("ai-product-builder")
-  status          String   @default("generated") // generated, saved, building
-  selectedTier    String   @default("intermediate") // simple, intermediate, advanced
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+model PipelineRun {
+  id          String   @id @default(cuid())
+  requestId   String   @unique
+  buildId     String?
+  idea        String
+  mode        String
+  status      String   @default("queued") // queued, running, failed, completed
+  currentStep String?
+  progress    Int      @default(0)
+  source      String?
+  steps       String   @default("[]") // JSON array
+  output      String?  // JSON object
+  errors      String   @default("[]") // JSON array
+  startedAt   DateTime @default(now())
+  completedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

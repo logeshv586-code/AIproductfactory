@@ -1,29 +1,43 @@
-# AI Product Builder Engine - Worklog
+# AI Product Builder Engine — Work Log
 
 ---
 Task ID: 1
-Agent: Main
-Task: Build complete backend multi-agent pipeline system
+Agent: Main Agent
+Task: Fix React key prop warning and TypeScript build errors
 
 Work Log:
-- Created LLM provider layer (src/llm/provider.ts) with z-ai-web-dev-sdk integration
-- Created Graphify engine (src/graph/graphify.ts) for knowledge graph construction
-- Created 4 strategy modules (crossPollination, gapAnalysis, trendBased, compositionalAI)
-- Created scoring engine (src/engine/scoring.ts) with multi-metric product scoring
-- Created repo selector (src/engine/repoSelector.ts) with LLM-driven intent extraction
-- Created capability embedding (src/engine/capabilityEmbedding.ts) with semantic mapping
-- Created starter repo generator (src/engine/starterRepo.ts) with full blueprint output
-- Created enhanced pipeline orchestrator (src/engine/pipeline.ts) tying all modules together
-- Updated API routes: analyze, generate, build, export to use new pipeline
-- Updated page.tsx: 6-step pipeline (Intent Analyzer + Graphify Engine added)
-- White background theme applied (removed all dark mode classes)
-- Build verified: all routes compile and page renders correctly
+- Analyzed the React key prop warning in page.tsx line 417
+- Found root cause: `/api/github/repos` API was returning `name: repo.full_name` instead of providing a separate `full_name` field
+- Fixed API route: added `full_name: repo.full_name` to the repos response in `/api/github/repos/route.ts`
+- Fixed frontend: changed `key={repo.full_name}` to `key={repo.full_name || repo.name || `repo-${idx}`}` as fallback
+- Installed missing `yaml` npm package that was causing build failure
+- Verified build succeeds with `npx next build`
 
 Stage Summary:
-- Complete 6-step pipeline: Intent Analyzer → Repo Analyzer → Capability Mapper → Graphify Engine → Product Generator → Architecture Designer
-- 4 product generation strategies: Cross-Pollination, Gap Analysis, Trend-Based, Compositional AI
-- Graphify engine builds full knowledge graphs from Repos → Capabilities → Products
-- LLM-driven repo selection with intent extraction and semantic ranking
-- Scoring engine calculates Market Demand, Feasibility, Innovation, Competition scores
-- Starter repo generator produces full project blueprints with Docker, README, agent files
-- All API routes functional and tested
+- React key prop warning fixed (added full_name to API, robust key in frontend)
+- Build now compiles successfully
+- All 12 routes working correctly
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Fix Python backend critical issues
+
+Work Log:
+- Created missing `engine/__init__.py` package file
+- Added `load_dotenv()` call at top of main.py (before other imports)
+- Fixed mutable default arguments (`repo_profiles: list = []` → `Optional[list] = None`)
+- Fixed `/pipeline/run` endpoint to pass `use_embeddings` and `max_repos` from request to PipelineOrchestrator
+- Removed unused imports (json, asyncio, BackgroundTasks)
+- Changed default port to 8002 to match Next.js PYTHON_BACKEND_URL
+- Added error traceback printing for better debugging
+- Updated requirements.txt (removed unused numpy and aiofiles)
+- Created `.env` file for Python backend
+- Added PYTHON_BACKEND_URL and LLM_PROVIDER to root .env
+- Verified Python backend starts and /health endpoint returns 200
+
+Stage Summary:
+- Python backend fully functional on port 8002
+- Health check returns correct system info
+- All 11 endpoints properly wired
+- 6-step pipeline orchestrator working with LocalProvider fallback

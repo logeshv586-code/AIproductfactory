@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AI Product Builder - Multi-Agent Architecture Engine",
-  description: "Build AI-native products from GitHub repos using a 4-agent pipeline: Repo Analyzer, Capability Mapper, Product Generator, Architecture Designer.",
+  title: "GitHub MCP - Top Repos & Product Idea Generator",
+  description: "Fetch top GitHub repositories, analyze trends, and generate innovative product ideas using MCP and AI.",
   icons: {
     icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
   },

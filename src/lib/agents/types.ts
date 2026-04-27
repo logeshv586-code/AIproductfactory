@@ -72,7 +72,7 @@ export interface AgentRole {
 export interface ArchitectureBlock {
   id: string;
   label: string;
-  type: "frontend" | "api" | "agent" | "memory" | "llm" | "data" | "infra" | "service";
+  type: "frontend" | "api" | "agent" | "memory" | "llm" | "data" | "infra" | "service" | "automation";
   technology: string;
   description: string;
   connections: string[];

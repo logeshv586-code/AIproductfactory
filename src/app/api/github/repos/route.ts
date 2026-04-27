@@ -131,7 +131,8 @@ export async function GET(request: NextRequest) {
 
     const analyzed = repos.map((repo) => ({
       id: repo.id,
-      name: repo.full_name,
+      name: repo.name,
+      full_name: repo.full_name,
       description: repo.description,
       stars: repo.stargazers_count,
       forks: repo.forks_count,

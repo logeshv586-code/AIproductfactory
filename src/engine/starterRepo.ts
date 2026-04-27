@@ -252,7 +252,6 @@ function generatePackageJson(product: ProductBuild, variant: BuildVariant): Reco
       react: "^19.0.0",
       "react-dom": "^19.0.0",
       "@prisma/client": "latest",
-      "z-ai-web-dev-sdk": "latest",
       tailwindcss: "^4.0.0",
       "framer-motion": "^11.0.0",
       "@xyflow/react": "^12.0.0",
@@ -335,7 +334,7 @@ export class ${className}Agent {
 
   async execute(input: string, context?: Record<string, any>): Promise<string> {
     // TODO: Implement ${agent.name} logic
-    console.log(\`[${this.role}] Processing: \${input}\`);
+    console.log(\`[\${this.role}] Processing: \${input}\`);
     return \`Processed by ${agent.name}: \${input}\`;
   }
 

@@ -1,0 +1,187 @@
+[
+  {
+    "kind": "prob_weight",
+    "key": "score:build_moh6kojr",
+    "content": {
+      "composite": 0.5,
+      "idea": "AI coding assistant that reads GitHub PRs"
+    },
+    "ts": 1777293403.762,
+    "tags": []
+  },
+  {
+    "kind": "idea",
+    "key": "idea:build_moh6kojr",
+    "content": {
+      "idea": "AI coding assistant that reads GitHub PRs",
+      "expanded": {},
+      "prob": 0.5
+    },
+    "ts": 1777293452.392,
+    "tags": [
+      "idea"
+    ]
+  },
+  {
+    "kind": "prob_weight",
+    "key": "score:build_moh6oima",
+    "content": {
+      "composite": 0.5,
+      "idea": "AI coding assistant that reads GitHub PRs"
+    },
+    "ts": 1777293581.674,
+    "tags": []
+  },
+  {
+    "kind": "idea",
+    "key": "idea:build_moh6oima",
+    "content": {
+      "idea": "AI coding assistant that reads GitHub PRs",
+      "expanded": {},
+      "prob": 0.5
+    },
+    "ts": 1777293630.325,
+    "tags": [
+      "idea"
+    ]
+  },
+  {
+    "kind": "prob_weight",
+    "key": "score:build_moh6tbuo",
+    "content": {
+      "composite": 0.5,
+      "idea": "DevOps automation platform"
+    },
+    "ts": 1777293761.122,
+    "tags": []
+  },
+  {
+    "kind": "idea",
+    "key": "idea:build_moh6tbuo",
+    "content": {
+      "idea": "DevOps automation platform",
+      "expanded": {},
+      "prob": 0.5
+    },
+    "ts": 1777293809.712,
+    "tags": [
+      "idea"
+    ]
+  },
+  {
+    "kind": "build",
+    "key": "build:build_moh6oima",
+    "content": {
+      "idea": "AI coding assistant that reads GitHub PRs",
+      "status": "complete",
+      "outputPath": "C:\\Users\\e629\\Desktop\\idea\\.factory_output\\build_moh6oima",
+      "components": [
+        "core_engine.ts",
+        "api_gateway.ts",
+        "data_layer.ts"
+      ],
+      "probScore": 0.5
+    },
+    "ts": 1777293823.546,
+    "tags": [
+      "build"
+    ]
+  },
+  {
+    "kind": "repo",
+    "key": "repo:donnemartin/system-design-primer",
+    "content": {
+      "summary": "Learn how to design large-scale systems. Prep for the system design interview.  Includes Anki flashcards.",
+      "language": "Python",
+      "relevanceScore": 0
+    },
+    "ts": 1777293860.499,
+    "tags": [
+      "repo"
+    ]
+  },
+  {
+    "kind": "repo",
+    "key": "repo:vinta/awesome-python",
+    "content": {
+      "summary": "An opinionated list of Python frameworks, libraries, tools, and resources",
+      "language": "Python",
+      "relevanceScore": 0
+    },
+    "ts": 1777293860.501,
+    "tags": [
+      "repo"
+    ]
+  },
+  {
+    "kind": "repo",
+    "key": "repo:practical-tutorials/project-based-learning",
+    "content": {
+      "summary": "Curated list of project-based tutorials",
+      "language": "unknown",
+      "relevanceScore": 0
+    },
+    "ts": 1777293860.504,
+    "tags": [
+      "repo"
+    ]
+  },
+  {
+    "kind": "repo",
+    "key": "repo:TheAlgorithms/Python",
+    "content": {
+      "summary": "All Algorithms implemented in Python",
+      "language": "Python",
+      "relevanceScore": 0
+    },
+    "ts": 1777293860.506,
+    "tags": [
+      "repo"
+    ]
+  },
+  {
+    "kind": "repo",
+    "key": "repo:tensorflow/tensorflow",
+    "content": {
+      "summary": "An Open Source Machine Learning Framework for Everyone",
+      "language": "C++",
+      "relevanceScore": 0
+    },
+    "ts": 1777293860.508,
+    "tags": [
+      "repo"
+    ]
+  },
+  {
+    "kind": "prob_weight",
+    "key": "prob_weights:global",
+    "content": {
+      "feasibility": 0.4595,
+      "novelty": 0.2703,
+      "demand": 0.2703
+    },
+    "ts": 1777294063.753,
+    "tags": [
+      "prob"
+    ]
+  },
+  {
+    "kind": "build",
+    "key": "build:build_moh6tbuo",
+    "content": {
+      "idea": "DevOps automation platform",
+      "status": "complete",
+      "outputPath": "C:\\Users\\e629\\Desktop\\idea\\.factory_output\\build_moh6tbuo",
+      "components": [
+        "core_engine.ts",
+        "api_gateway.ts",
+        "data_layer.ts"
+      ],
+      "probScore": 0.5
+    },
+    "ts": 1777294063.755,
+    "tags": [
+      "build"
+    ]
+  }
+]
