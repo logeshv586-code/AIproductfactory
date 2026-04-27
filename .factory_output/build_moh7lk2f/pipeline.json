@@ -1,0 +1,69 @@
+{
+  "buildId": "build_moh7lk2f",
+  "idea": "rpa automation using ai to automous agent building",
+  "probScore": {
+    "feasibility": 0.5,
+    "novelty": 0.5,
+    "demand": 0.5,
+    "composite": 0.5
+  },
+  "reposUsed": [
+    "donnemartin/system-design-primer",
+    "vinta/awesome-python",
+    "practical-tutorials/project-based-learning",
+    "TheAlgorithms/Python",
+    "tensorflow/tensorflow"
+  ],
+  "components": [
+    "core_engine.ts",
+    "api_gateway.ts",
+    "data_layer.ts"
+  ],
+  "timeline": [
+    {
+      "step": "ProbabilityEngine",
+      "ts": 1777295074263,
+      "detail": "Scoring feasibility, novelty, demand"
+    },
+    {
+      "step": "IdeaExpander",
+      "ts": 1777295123279,
+      "detail": "Expanding market, users, features, USP"
+    },
+    {
+      "step": "SignalCollector",
+      "ts": 1777295172093,
+      "detail": "web + github + RAG"
+    },
+    {
+      "step": "RepoProfiling",
+      "ts": 1777295207799,
+      "detail": "Processing top 5 repos"
+    },
+    {
+      "step": "PlannerAgent (DeerFlow)",
+      "ts": 1777295207807,
+      "detail": "Building dynamic task DAG"
+    },
+    {
+      "step": "SystemDesignerAgent",
+      "ts": 1777295241505,
+      "detail": "Designing architecture"
+    },
+    {
+      "step": "RepoComposerAgent",
+      "ts": 1777295290434,
+      "detail": "Creating integration plan"
+    },
+    {
+      "step": "CodeGeneratorAgent",
+      "ts": 1777295324128,
+      "detail": "Generating 3 components"
+    },
+    {
+      "step": "OutputScaffold",
+      "ts": 1777295440757,
+      "detail": "Writing output files"
+    }
+  ]
+}
