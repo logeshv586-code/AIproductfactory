@@ -12,6 +12,7 @@ export interface UserIntent {
   techPreferences: string[];
   capabilities: CapabilityCategory[];
   summary: string;
+  requiredRoles?: string[]; // Added for targeted retries
 }
 
 export interface RankedRepo {
@@ -19,7 +20,7 @@ export interface RankedRepo {
   description: string;
   score: number;
   reason: string;
-  role: CapabilityCategory | "general";
+  role: CapabilityCategory | "general" | string;
   confidence: number;
 }
 
@@ -56,10 +57,28 @@ export async function rankRepos(
   repos: Array<{ name: string; description: string | null; stars: number; language: string | null; topics: string[] }>,
   intent: UserIntent
 ): Promise<RankedRepo[]> {
+  const roleToQueryMap: Record<string, string[]> = {
+    'workflow': ['n8n', 'temporal', 'airflow', 'zapier'],
+    'execution': ['playwright', 'selenium', 'puppeteer', 'webdriver'],
+    'agent': ['autogen', 'langchain', 'llamaindex', 'crewai'],
+    'orchestration': ['langgraph']
+  };
+
+  const targetedQueries: string[] = [];
+  if (intent.requiredRoles) {
+    intent.requiredRoles.forEach(role => {
+      if (roleToQueryMap[role]) {
+        targetedQueries.push(...roleToQueryMap[role]);
+      }
+    });
+  }
+
   const prompt = `You are selecting the BEST repositories to build a product.
 
 User Intent:
 ${JSON.stringify(intent, null, 2)}
+
+Targeted Overrides (Must strongly prioritize if present): ${targetedQueries.join(', ')}
 
 Available Repositories:
 ${repos.map((r, i) => `${i + 1}. ${r.name}: ${r.description || "No description"} (${r.stars} stars, ${r.language || "unknown"})`).join("\n")}
@@ -81,7 +100,7 @@ Return top 7 repos as JSON array:
     return ranked.sort((a, b) => b.score - a.score);
   } catch {
     // Fallback: semantic similarity ranking
-    return rankReposLocal(repos, intent);
+    return rankReposLocal(repos, intent, targetedQueries);
   }
 }
 
@@ -93,6 +112,17 @@ export async function selectBestRepos(
   repos: Array<{ name: string; description: string | null; stars: number; language: string | null; topics: string[] }>
 ): Promise<{ intent: UserIntent; rankedRepos: RankedRepo[] }> {
   const intent = await extractIntent(userInput);
+  const rankedRepos = await rankRepos(repos, intent);
+  return { intent, rankedRepos };
+}
+
+/**
+ * Retries or runs targeted matching.
+ */
+export async function selectBestReposFromIntent(
+  intent: UserIntent,
+  repos: Array<{ name: string; description: string | null; stars: number; language: string | null; topics: string[] }>
+): Promise<{ intent: UserIntent; rankedRepos: RankedRepo[] }> {
   const rankedRepos = await rankRepos(repos, intent);
   return { intent, rankedRepos };
 }
@@ -137,9 +167,10 @@ function extractIntentLocal(userInput: string): UserIntent {
 
 async function rankReposLocal(
   repos: Array<{ name: string; description: string | null; stars: number; language: string | null; topics: string[] }>,
-  intent: UserIntent
+  intent: UserIntent,
+  targetedQueries: string[] = []
 ): Promise<RankedRepo[]> {
-  const intentText = `${intent.domain} ${intent.features.join(" ")} ${intent.capabilities.join(" ")}`;
+  const intentText = `${intent.domain} ${intent.features.join(" ")} ${intent.capabilities.join(" ")} ${targetedQueries.join(" ")}`;
 
   const scored = repos.map((repo) => {
     const repoText = `${repo.name} ${repo.description || ""} ${repo.topics.join(" ")}`.toLowerCase();
@@ -148,7 +179,12 @@ async function rankReposLocal(
     // Simple keyword overlap scoring
     const intentWords = intentLower.split(/\s+/);
     const matchCount = intentWords.filter((w) => w.length > 2 && repoText.includes(w)).length;
-    const keywordScore = Math.min(matchCount / Math.max(intentWords.length, 1) * 10, 10);
+    let keywordScore = Math.min(matchCount / Math.max(intentWords.length, 1) * 10, 10);
+    
+    // Targeted boost
+    if (targetedQueries.some(q => repoText.includes(q.toLowerCase()))) {
+      keywordScore += 5; // Heavy boost for explicitly targeting
+    }
 
     // Star-based popularity score
     const starScore = Math.min(repo.stars / 10000, 3);

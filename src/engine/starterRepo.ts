@@ -30,7 +30,7 @@ export function generateStarterRepo(product: ProductBuild, variantTier: string =
     name: slug,
     description: product.tagline,
     variant: variant.tier,
-    folderStructure: generateFolderStructure(variant),
+    folderStructure: generateFolderStructure(variant, product),
     readme: generateFullReadme(product, variant),
     dockerCompose: generateDockerCompose(variant),
     envExample: generateEnvExample(variant),
@@ -41,7 +41,7 @@ export function generateStarterRepo(product: ProductBuild, variantTier: string =
   };
 }
 
-function generateFolderStructure(variant: BuildVariant): Record<string, any> {
+function generateFolderStructure(variant: BuildVariant, product: ProductBuild): Record<string, any> {
   const structure: Record<string, any> = {
     "src/": {
       "app/": {
@@ -87,6 +87,10 @@ function generateFolderStructure(variant: BuildVariant): Record<string, any> {
     "package.json": "Dependencies",
   };
 
+  for (const folder of product.compositionPlan?.structures.folders || []) {
+    structure[folder.path] = folder.purpose;
+  }
+
   return structure;
 }
 
@@ -107,6 +111,23 @@ ${product.uniqueValue}
 ## Architecture
 ${variant.techStack?.map(t => `- **${t.layer}**: ${t.technologies.join(", ")}`).join("\n") || "See architecture diagram"}
 
+## Repository Combination
+${product.compositionPlan?.selectedRepos?.map(repo => `- **${repo.fullName}** (${repo.capability}): ${repo.why}`).join("\n") || "See capability mapping"}
+
+## Combination Steps
+${product.compositionPlan?.combinationSteps?.map(step => `1. **${step.title}** using ${step.repos.join(", ")}: ${step.summary}`).join("\n") || "See system flow"}
+
+## Requirements
+${product.compositionPlan?.requirements?.map(requirement => `- **${requirement.category}**: ${requirement.items.join(", ")}`).join("\n") || "See environment configuration"}
+
+## Coding Type
+- **Languages**: ${product.compositionPlan?.codingType.languages.join(", ") || "TypeScript"}
+- **Frameworks**: ${product.compositionPlan?.codingType.frameworks.join(", ") || "Next.js"}
+- **Interfaces**: ${product.compositionPlan?.codingType.interfaces.join(", ") || "REST API"}
+
+## Code Structure
+${product.compositionPlan?.structures.folders?.map(folder => `- **${folder.path}**: ${folder.purpose}`).join("\n") || "See generated folder structure"}
+
 ## Agents
 ${variant.agents?.map(a => `- **${a.name}** (${a.role}): ${a.description}`).join("\n") || "See agent documentation"}
 
@@ -122,6 +143,7 @@ ${product.capabilities.map(c => `- **${c.label}**: ${c.description}`).join("\n")
 - Innovation: ${product.productScore.innovation}/10
 - Ecosystem Maturity: ${product.productScore.ecosystemMaturity}/10
 - **Final Score: ${product.productScore.finalScore}/10**
+- **Success Chance: ${product.productScore.successPercentage}%**
 
 ## Build Variant: ${variant.label}
 - **Tier**: ${variant.tier}

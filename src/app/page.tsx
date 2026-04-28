@@ -40,8 +40,18 @@ interface RepoData {
 interface ComposedProduct {
   name: string; description: string; systemFlow: string
   capabilities: string[]; targetUsers: string[]; keyFeatures: string[]
-  reposUsed: string[]; scores: { trend: number; innovation: number; feasibility: number; competition: number; final_score: number }
+  reposUsed: string[]; scores: { trend: number; innovation: number; feasibility: number; competition: number; final_score: number; success_probability?: number; success_percentage?: number }
   architecture: any; starterBlueprint: any; strategy: string
+  compositionPlan?: {
+    selectedRepos: Array<{ fullName: string; capability: string; why: string; role: string; language?: string | null }>
+    combinationSteps: Array<{ order: number; title: string; repos: string[]; summary: string; requirements: string[]; output: string }>
+    requirements: Array<{ category: string; items: string[] }>
+    codingType: { languages: string[]; frameworks: string[]; interfaces: string[] }
+    structures: {
+      services: Array<{ name: string; purpose: string; repos: string[] }>
+      folders: Array<{ path: string; purpose: string }>
+    }
+  }
 }
 
 interface GraphNode {
@@ -117,6 +127,10 @@ const PIPELINE_MODE_META: Record<FactoryMode, { label: string; summary: string; 
 }
 
 const formatStars = (n: number): string => n >= 1000 ? `${(n / 1000).toFixed(1)}k` : n.toString()
+const getSuccessPercentage = (product: ComposedProduct): number =>
+  typeof product.scores.success_percentage === 'number'
+    ? product.scores.success_percentage
+    : Math.round(product.scores.final_score * 100)
 
 // ============================================================
 // Main Component
@@ -240,6 +254,28 @@ export default function Home() {
   // ── Derived data ────────────────────────────────────────────────────
   const topProduct = factoryResult?.composedProducts?.[0]
   const graphStats = factoryResult?.graphStats
+  const selectedRepoRecipe = selectedProduct
+    ? (selectedProduct.compositionPlan?.selectedRepos?.length
+      ? selectedProduct.compositionPlan.selectedRepos.map(repo => ({
+          name: repo.fullName,
+          capability: repo.capability,
+          why: repo.why,
+          role: repo.role,
+        }))
+      : (selectedProduct.reposUsed || []).map((repoName, idx) => {
+          const repoProfile = factoryResult?.repoProfiles.find(r => r.fullName === repoName || r.fullName.includes(repoName))
+          return {
+            name: repoName,
+            capability: selectedProduct.capabilities[idx % Math.max(selectedProduct.capabilities.length, 1)] || 'general',
+            why: repoProfile?.reason || 'Source capability framework',
+            role: repoProfile?.summary || 'Product building block',
+          }
+        }))
+    : []
+  const selectedRequirements = selectedProduct?.compositionPlan?.requirements || []
+  const selectedCodingType = selectedProduct?.compositionPlan?.codingType || null
+  const selectedCombinationSteps = selectedProduct?.compositionPlan?.combinationSteps || []
+  const selectedStructures = selectedProduct?.compositionPlan?.structures || null
 
   // ============================================================
   // RENDER
@@ -459,6 +495,7 @@ export default function Home() {
                             <p className="text-xs text-muted-foreground line-clamp-2">{topProduct.description}</p>
                             <div className="flex items-center gap-2 mt-2">
                               <Badge className="bg-emerald-100 text-emerald-800 text-xs">Score: {(topProduct.scores.final_score * 100).toFixed(0)}%</Badge>
+                              <Badge className="bg-blue-100 text-blue-800 text-xs">Success: {getSuccessPercentage(topProduct).toFixed(0)}%</Badge>
                               <Badge variant="outline" className="text-xs">{topProduct.strategy}</Badge>
                             </div>
                           </div>
@@ -921,6 +958,7 @@ export default function Home() {
                               <div className="text-right">
                                 <p className="text-lg font-bold text-emerald-600">{(product.scores.final_score * 100).toFixed(0)}%</p>
                                 <p className="text-[10px] text-muted-foreground">Final Score</p>
+                                <p className="text-[10px] font-medium text-blue-600 mt-1">Success {getSuccessPercentage(product).toFixed(0)}%</p>
                               </div>
                             </div>
                             <p className="text-sm text-muted-foreground line-clamp-2 mb-3">{product.description}</p>
@@ -990,6 +1028,37 @@ export default function Home() {
                               {selectedProduct.targetUsers?.map(u => <Badge key={u} variant="secondary" className="text-[10px] bg-blue-50 text-blue-700 border-blue-100">{u}</Badge>)}
                             </div>
                           </div>
+                          <div className="rounded-lg border border-emerald-100 bg-emerald-50/70 p-3">
+                            <p className="text-xs font-medium flex items-center gap-1.5"><Award className="w-3.5 h-3.5 text-emerald-600" /> Product Success Chance</p>
+                            <p className="text-2xl font-bold text-emerald-700 mt-1">{getSuccessPercentage(selectedProduct).toFixed(0)}%</p>
+                            <p className="text-[10px] text-emerald-800/80 mt-1">Derived from overall score, feasibility, and competition strength.</p>
+                          </div>
+                          {selectedRequirements.length > 0 && (
+                            <div>
+                              <p className="text-xs font-medium mb-1.5 flex items-center gap-1.5"><Shield className="w-3.5 h-3.5 text-amber-500" /> Requirements</p>
+                              <div className="space-y-1.5">
+                                {selectedRequirements.slice(0, 3).map(req => (
+                                  <div key={req.category} className="rounded-lg border border-slate-100 bg-white/70 p-2">
+                                    <p className="text-[11px] font-semibold capitalize">{req.category}</p>
+                                    <p className="text-[10px] text-muted-foreground">{req.items.slice(0, 2).join(' • ')}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {selectedCodingType && (
+                            <div>
+                              <p className="text-xs font-medium mb-1.5 flex items-center gap-1.5"><Code className="w-3.5 h-3.5 text-violet-500" /> Coding Type</p>
+                              <div className="flex flex-wrap gap-1.5">
+                                {selectedCodingType.languages.map(lang => (
+                                  <Badge key={lang} variant="outline" className="text-[10px] bg-violet-50 text-violet-700 border-violet-100">{lang}</Badge>
+                                ))}
+                                {selectedCodingType.frameworks.slice(0, 3).map(framework => (
+                                  <Badge key={framework} variant="outline" className="text-[10px] bg-slate-50">{framework}</Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </CardContent>
                       </Card>
 
@@ -1014,28 +1083,25 @@ export default function Home() {
                               <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-dashed bg-slate-200" style={{ backgroundImage: 'linear-gradient(to bottom, #e2e8f0 50%, transparent 50%)', backgroundSize: '1px 8px' }} />
                               
                               <div className="space-y-6 relative">
-                                {selectedProduct.reposUsed?.map((repoName, idx) => {
-                                  const repoProfile = factoryResult?.repoProfiles.find(r => r.fullName === repoName || r.fullName.includes(repoName))
-                                  const repoCap = factoryResult?.capabilities.find(c => c.repo === repoName || (repoProfile && c.name === repoProfile.fullName))
-                                  
+                                {selectedRepoRecipe.map((repo, idx) => {
                                   return (
-                                    <div key={repoName} className="flex gap-4 items-start translate-z-0">
+                                    <div key={`${repo.name}-${idx}`} className="flex gap-4 items-start translate-z-0">
                                       <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-sm z-10 ${idx % 2 === 0 ? 'bg-orange-100 text-orange-600' : 'bg-blue-100 text-blue-600'}`}>
-                                        {repoCap ? React.createElement(CAPABILITY_ICONS[repoCap.capability] || Github, { className: 'w-6 h-6' }) : <Github className="w-6 h-6" />}
+                                        {React.createElement(CAPABILITY_ICONS[repo.capability] || Github, { className: 'w-6 h-6' })}
                                       </div>
                                       <div className="flex-1 min-w-0 pt-0.5">
                                         <div className="flex items-center gap-2 mb-1">
-                                          <p className="text-sm font-bold truncate">{repoName}</p>
-                                          {repoCap && <Badge className="text-[9px] py-0 h-4 bg-white/80 border-slate-200" variant="outline">{repoCap.capability}</Badge>}
+                                          <p className="text-sm font-bold truncate">{repo.name}</p>
+                                          <Badge className="text-[9px] py-0 h-4 bg-white/80 border-slate-200 capitalize" variant="outline">{repo.capability}</Badge>
                                         </div>
                                         <p className="text-[11px] text-muted-foreground line-clamp-1 italic mb-2">
-                                          {repoProfile?.reason || 'Source capability framework'}
+                                          {repo.why}
                                         </p>
                                         
                                         {/* Show what this repo contributes to the target product */}
                                         <div className="flex items-center gap-2 text-[10px] font-medium text-indigo-600 bg-indigo-50/50 w-fit px-2 py-0.5 rounded-full border border-indigo-100/50">
                                           <Zap className="w-3 h-3" /> 
-                                          Contributes: {selectedProduct.capabilities[idx % selectedProduct.capabilities.length]}
+                                          Contributes: {repo.role}
                                         </div>
                                       </div>
                                     </div>
@@ -1056,6 +1122,24 @@ export default function Home() {
                                     </div>
                                   </div>
                                 </div>
+
+                                {selectedCombinationSteps.length > 0 && (
+                                  <div className="pt-2">
+                                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">How They Combine</h4>
+                                    <div className="space-y-2">
+                                      {selectedCombinationSteps.map(step => (
+                                        <div key={step.order} className="rounded-xl border border-slate-100 bg-white/80 p-3">
+                                          <div className="flex items-center gap-2 mb-1">
+                                            <Badge variant="outline" className="text-[10px]">{step.order}</Badge>
+                                            <p className="text-xs font-semibold capitalize">{step.title}</p>
+                                          </div>
+                                          <p className="text-[11px] text-muted-foreground">{step.summary}</p>
+                                          <p className="text-[10px] text-indigo-600 mt-1">Output: {step.output}</p>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -1230,6 +1314,38 @@ export default function Home() {
                       </CardContent>
                     </Card>
                   </div>
+
+                  {selectedStructures && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <Card className="border-0 shadow-sm">
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-base flex items-center gap-2"><Layers className="w-4 h-4 text-violet-500" /> Code Structure</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-2">
+                          {selectedStructures.folders.map(folder => (
+                            <div key={folder.path} className="p-3 rounded-lg border border-slate-200">
+                              <p className="font-mono text-xs font-semibold">{folder.path}</p>
+                              <p className="text-xs text-muted-foreground mt-1">{folder.purpose}</p>
+                            </div>
+                          ))}
+                        </CardContent>
+                      </Card>
+                      <Card className="border-0 shadow-sm">
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-base flex items-center gap-2"><Server className="w-4 h-4 text-emerald-500" /> Services</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-2">
+                          {selectedStructures.services.map(service => (
+                            <div key={service.name} className="p-3 rounded-lg border border-slate-200">
+                              <p className="font-medium text-sm">{service.name}</p>
+                              <p className="text-xs text-muted-foreground mt-1">{service.purpose}</p>
+                              <p className="text-[10px] text-emerald-600 mt-1">{service.repos.join(', ')}</p>
+                            </div>
+                          ))}
+                        </CardContent>
+                      </Card>
+                    </div>
+                  )}
                 </>
               ) : factoryResult?.architecture ? (
                 <>

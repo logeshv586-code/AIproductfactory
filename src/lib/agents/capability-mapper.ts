@@ -69,6 +69,7 @@ export function mapCapabilities(repos: RepoInput[]): {
         why,
         stars: repo.stars,
         category: cap,
+        language: repo.language,
       });
 
       // Create edge from repo to capability

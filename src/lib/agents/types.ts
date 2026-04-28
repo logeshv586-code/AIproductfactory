@@ -43,6 +43,64 @@ export interface MappedRepo {
   why: string;
   stars: number;
   category: CapabilityCategory;
+  language?: string | null;
+}
+
+export interface CompositionRepo {
+  name: string;
+  fullName: string;
+  capability: string;
+  role: string;
+  why: string;
+  language?: string | null;
+  url?: string;
+  stars?: number;
+}
+
+export interface CompositionStep {
+  order: number;
+  title: string;
+  repos: string[];
+  summary: string;
+  requirements: string[];
+  output: string;
+}
+
+export interface CompositionRequirement {
+  category: "runtime" | "integration" | "data" | "security" | "deployment";
+  items: string[];
+}
+
+export interface CompositionService {
+  name: string;
+  purpose: string;
+  repos: string[];
+}
+
+export interface CompositionFolder {
+  path: string;
+  purpose: string;
+}
+
+export interface ProductCompositionPlan {
+  selectedRepos: CompositionRepo[];
+  repoRoles: Array<{
+    repo: string;
+    capability: string;
+    responsibility: string;
+    integrationType: string;
+  }>;
+  combinationSteps: CompositionStep[];
+  requirements: CompositionRequirement[];
+  codingType: {
+    languages: string[];
+    frameworks: string[];
+    interfaces: string[];
+  };
+  structures: {
+    services: CompositionService[];
+    folders: CompositionFolder[];
+  };
 }
 
 export interface BuildVariant {
@@ -93,6 +151,8 @@ export interface ProductScore {
   competition: "low" | "medium" | "high";
   ecosystemMaturity: number;
   finalScore: number;
+  successProbability: number;
+  successPercentage: number;
 }
 
 export interface ExampleOutput {
@@ -123,6 +183,7 @@ export interface ProductBuild {
   keyFeatures: string[];
   inspiredBy: string[];
   strategy: string;
+  compositionPlan?: ProductCompositionPlan;
 }
 
 export interface AnalysisResult {

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { getPythonBackendUrl, getPythonHealth } from '@/lib/factory/python-health'
 import { createPipelineRun, type PipelineMode, type PipelineRunStatus, updatePipelineRun } from '@/lib/factory/pipeline-run'
+import { buildProductCompositionPlan } from '@/lib/agents/composition-plan'
 import { createLogger } from '@/lib/structured-logging'
 
 export const maxDuration = 180
@@ -11,9 +12,20 @@ const PYTHON_BACKEND = getPythonBackendUrl()
 const MIN_ACCEPTABLE_PRODUCT_SCORE = Number(process.env.MIN_ACCEPTABLE_PRODUCT_SCORE || 0.4)
 
 const BuildRequestSchema = z.object({
-  idea: z.string().trim().min(1, 'A product idea is required'),
+  idea: z.string().trim().optional(),
+  industry: z.string().trim().optional(),
+  fields: z.array(z.string().trim().min(1)).default([]),
   maxRepos: z.number().int().min(1).max(10).default(3),
   mode: z.enum(['full', 'fast']).default('full'),
+  outputFormat: z.enum(['pipeline', 'strict-json']).default('pipeline'),
+}).superRefine((value, ctx) => {
+  if (!value.idea?.trim() && !value.industry?.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Provide either an idea or an industry',
+      path: ['idea'],
+    })
+  }
 })
 
 const RepoProfileSchema = z.object({
@@ -121,6 +133,21 @@ function errorMessage(error: unknown): string {
 
 function currentProgress(step: string) {
   return STEP_PROGRESS[step] ?? 0
+}
+
+function resolveBuildIndustry(body: FactoryBuildRequest) {
+  return body.industry?.trim() || 'General Business'
+}
+
+function resolveBuildIdea(body: FactoryBuildRequest) {
+  const idea = body.idea?.trim()
+  if (idea) return idea
+
+  const industry = body.industry?.trim() || 'General Business'
+  const fields = body.fields.filter(Boolean)
+  return fields.length > 0
+    ? `${industry} workflow platform with ${fields.join(', ')}`
+    : `${industry} workflow orchestration platform`
 }
 
 function failureResponse(input: {
@@ -245,6 +272,24 @@ function normalizeProductScore(rawScore: unknown): number | null {
   return rawScore
 }
 
+function normalizePipelineScores(scores: any) {
+  const finalScore = typeof scores?.final_score === 'number' ? scores.final_score : 0
+  const feasibility = typeof scores?.feasibility === 'number' ? scores.feasibility : finalScore
+  const competition = typeof scores?.competition === 'number' ? scores.competition : 0.6
+  const successProbability = typeof scores?.success_probability === 'number'
+    ? scores.success_probability
+    : Math.min(0.98, Math.max(0.05, finalScore * 0.55 + feasibility * 0.30 + competition * 0.15))
+  const successPercentage = typeof scores?.success_percentage === 'number'
+    ? scores.success_percentage
+    : Math.round(successProbability * 100)
+
+  return {
+    ...scores,
+    success_probability: Number(successProbability.toFixed(3)),
+    success_percentage: Number(successPercentage.toFixed(1)),
+  }
+}
+
 function validateQualityGate(responseBody: z.infer<typeof FactoryBaseResponseSchema>) {
   if (responseBody.mode !== 'full' || !responseBody.success) return
 
@@ -264,7 +309,51 @@ function validateQualityGate(responseBody: z.infer<typeof FactoryBaseResponseSch
   }
 }
 
+function deriveReposForProduct(
+  product: any,
+  selectedRepos: Array<{
+    fullName: string
+    summary: string
+    language: string
+    reason: string
+    role: string
+    stars: number
+  }>
+) {
+  const reposUsed = Array.isArray(product?.repos_used) ? product.repos_used : []
+  const matched = selectedRepos.filter(repo =>
+    reposUsed.some((used: string) =>
+      repo.fullName === used ||
+      repo.fullName.endsWith(`/${used}`) ||
+      repo.fullName.includes(used)
+    )
+  )
+
+  return matched.length > 0 ? matched : selectedRepos.slice(0, 6)
+}
+
+function normalizeArchitecture(architecture: any) {
+  if (!architecture) return null
+  return {
+    components: architecture.components || [],
+    dataFlows: architecture.dataFlows || architecture.data_flows || [],
+    techStack: architecture.techStack || architecture.tech_stack || [],
+    deployment: architecture.deployment || '',
+    diagramDescription: architecture.diagramDescription || architecture.diagram_description || '',
+  }
+}
+
 function normalizePythonResult(result: any, requestId: string, runId: string | null, mode: PipelineMode, buildId: string) {
+  const normalizedRepoProfiles = (result.selected_repos || []).map((r: any) => ({
+    fullName: r.name,
+    stars: r.stars || 0,
+    language: r.language || '',
+    summary: r.description || '',
+    relevanceScore: r.relevance_score || 0,
+    reason: r.selection_reasoning || '',
+    role: r.suggested_role || r.capability || '',
+  }))
+
   return {
     success: true,
     requestId,
@@ -290,34 +379,57 @@ function normalizePythonResult(result: any, requestId: string, runId: string | n
       features: result.composed_products?.[0]?.key_features || [],
       usp: result.composed_products?.[0]?.description || '',
       risks: ['Market competition', 'Technical complexity'],
-      suggestedStack: result.composed_products?.[0]?.architecture?.tech_stack || [],
+      suggestedStack: result.composed_products?.[0]?.architecture?.tech_stack || result.composed_products?.[0]?.architecture?.techStack || [],
     },
-    repoProfiles: (result.selected_repos || []).map((r: any) => ({
-      fullName: r.name,
-      stars: r.stars || 0,
-      language: r.language || '',
-      summary: r.description || '',
-      relevanceScore: r.relevance_score || 0,
-      reason: r.selection_reasoning || '',
+    repoProfiles: normalizedRepoProfiles.map((r: any) => ({
+      fullName: r.fullName,
+      stars: r.stars,
+      language: r.language,
+      summary: r.summary,
+      relevanceScore: r.relevanceScore,
+      reason: r.reason,
     })),
-    architecture: result.composed_products?.[0]?.architecture || null,
+    architecture: normalizeArchitecture(result.composed_products?.[0]?.architecture),
     integrationPlan: null,
     generatedComponents: [],
     graphData: result.graphify_nodes_and_edges || { nodes: [], edges: [] },
     graphStats: result.graph_stats || { total_nodes: 0, total_edges: 0, node_types: {}, edge_types: {} },
-    composedProducts: (result.composed_products || []).map((p: any) => ({
-      name: p.name,
-      description: p.description,
-      systemFlow: p.system_flow,
-      capabilities: p.capabilities,
-      targetUsers: p.target_users,
-      keyFeatures: p.key_features,
-      reposUsed: p.repos_used,
-      scores: p.scores,
-      architecture: p.architecture,
-      starterBlueprint: p.starter_blueprint,
-      strategy: p.strategy,
-    })),
+    composedProducts: (result.composed_products || []).map((p: any) => {
+      const productRepos = deriveReposForProduct(p, normalizedRepoProfiles)
+      const compositionPlan = buildProductCompositionPlan({
+        productTitle: p.name,
+        capabilities: Array.isArray(p.capabilities) ? p.capabilities : [],
+        repos: productRepos.map((repo: any) => ({
+          name: repo.fullName.split('/').pop() || repo.fullName,
+          fullName: repo.fullName,
+          summary: repo.summary,
+          language: repo.language,
+          why: repo.reason,
+          role: repo.role,
+          stars: repo.stars,
+        })),
+        techStack: p.architecture?.tech_stack || [],
+        architecture: p.architecture ? {
+          components: p.architecture.components,
+          dataFlows: p.architecture.data_flows,
+        } : null,
+      })
+
+      return {
+        name: p.name,
+        description: p.description,
+        systemFlow: p.system_flow,
+        capabilities: p.capabilities,
+        targetUsers: p.target_users,
+        keyFeatures: p.key_features,
+        reposUsed: p.repos_used,
+        scores: normalizePipelineScores(p.scores),
+        architecture: normalizeArchitecture(p.architecture),
+        starterBlueprint: p.starter_blueprint,
+        strategy: p.strategy,
+        compositionPlan,
+      }
+    }),
     capabilities: result.capabilities || [],
     timeline: result.timeline || [],
     errors: [],
@@ -431,11 +543,27 @@ export async function POST(request: NextRequest) {
 
     const body: FactoryBuildRequest = parsed.data
     mode = body.mode
+    const resolvedIndustry = resolveBuildIndustry(body)
+    const resolvedIdea = resolveBuildIdea(body)
+
+    if (body.outputFormat === 'strict-json') {
+      const { composeProductSystem } = await import('@/lib/factory/core/product-system-composer')
+      const system = await composeProductSystem({
+        industry: resolvedIndustry,
+        idea: body.idea?.trim() || undefined,
+        fields: body.fields,
+        maxRepos: body.maxRepos,
+      })
+
+      return NextResponse.json(system, {
+        headers: { 'x-request-id': requestId },
+      })
+    }
 
     try {
       const run = await createPipelineRun({
         requestId,
-        idea: body.idea,
+        idea: resolvedIdea,
         mode: body.mode,
       })
       runId = run.id
@@ -456,7 +584,7 @@ export async function POST(request: NextRequest) {
     await advanceRunStep(runId, logger, timeline, currentStep, 'Searching GitHub candidate repos')
     let repos: any[] = []
     try {
-      repos = await fetchRepoCandidates(body.idea, logger)
+      repos = await fetchRepoCandidates(resolvedIdea, logger)
       addTimelineEntry(timeline, currentStep, `Loaded ${repos.length} GitHub candidates`)
       await safelyUpdateRun(runId, logger, {
         status: 'running',
@@ -521,7 +649,7 @@ export async function POST(request: NextRequest) {
             'X-Request-Id': requestId,
           },
           body: JSON.stringify({
-            idea: body.idea,
+            idea: resolvedIdea,
             repos,
             strategy: 'all',
             use_embeddings: true,
@@ -659,7 +787,7 @@ export async function POST(request: NextRequest) {
 
     const { AIProductFactory } = await import('@/lib/factory/controller')
     const factory = new AIProductFactory()
-    const state = await factory.build(body.idea, body.maxRepos)
+    const state = await factory.build(resolvedIdea, body.maxRepos)
 
     currentStep = 'response_validation'
     await advanceRunStep(runId, logger, timeline, currentStep, 'Validating fast mode output', 'running', {

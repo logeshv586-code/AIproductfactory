@@ -58,6 +58,18 @@ export function scoreProduct(input: ScoringInput): ProductScore {
     competitionModifier) * 10
   ) / 10);
 
+  const competitionSuccess = competition === "low" ? 0.75 : competition === "medium" ? 0.6 : 0.45;
+  const successProbability = Math.min(
+    0.98,
+    Math.max(
+      0.05,
+      (finalScore / 10) * 0.55 +
+      (technicalFeasibility / 10) * 0.30 +
+      competitionSuccess * 0.15
+    )
+  );
+  const successPercentage = Math.round(successProbability * 100);
+
   return {
     marketDemand: Math.round(marketDemand * 10) / 10,
     technicalFeasibility: Math.round(technicalFeasibility * 10) / 10,
@@ -65,6 +77,8 @@ export function scoreProduct(input: ScoringInput): ProductScore {
     competition,
     ecosystemMaturity: Math.round(ecosystemMaturity * 10) / 10,
     finalScore,
+    successProbability: Number(successProbability.toFixed(3)),
+    successPercentage,
   };
 }
 

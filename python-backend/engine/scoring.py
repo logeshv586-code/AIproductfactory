@@ -17,7 +17,8 @@ def score_product(
     """
     Score a product on 4 axes and compute a weighted final score.
 
-    Returns dict with: trend, innovation, feasibility, competition, final_score
+    Returns dict with: trend, innovation, feasibility, competition, final_score,
+    success_probability, success_percentage
     """
     # ── Trend Score (30%) ────────────────────────────────────────────────
     # Based on average star count of repos used
@@ -98,12 +99,25 @@ def score_product(
         competition_score * 0.20
     )
 
+    success_probability = min(
+        0.98,
+        max(
+            0.05,
+            final_score * 0.55 +
+            feasibility_score * 0.30 +
+            competition_score * 0.15,
+        ),
+    )
+    success_percentage = round(success_probability * 100, 1)
+
     return {
         "trend": round(trend_score, 3),
         "innovation": round(innovation_score, 3),
         "feasibility": round(feasibility_score, 3),
         "competition": round(competition_score, 3),
         "final_score": round(final_score, 3),
+        "success_probability": round(success_probability, 3),
+        "success_percentage": success_percentage,
     }
 
 

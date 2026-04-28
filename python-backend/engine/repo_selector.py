@@ -86,7 +86,7 @@ async def rank_repos(
         {
             "role": "system",
             "content": """You are a repo selection agent. Given a product intent and list of repos,
-rank the top 5 most relevant repos. For each repo, provide:
+rank the top 7 most relevant repos. For each repo, provide:
 - score: relevance score 0-1
 - reason: one-line explanation of why it's relevant
 - role: suggested role in the product (e.g., "Core AI Engine", "Data Storage", "API Layer")
@@ -139,7 +139,7 @@ REPOS:
     # Sort by relevance score
     result.sort(key=lambda r: r.get("relevance_score", 0), reverse=True)
 
-    return result[:5]  # Return top 5
+    return result[:7]  # Return top 7
 
 
 async def select_best_repos(
@@ -152,7 +152,7 @@ async def select_best_repos(
 
     Returns:
       - intent: Extracted user intent
-      - selected_repos: Top 5 repos with scores and reasoning
+      - selected_repos: Top repos with scores and reasoning
     """
     if provider is None:
         provider = get_provider()

@@ -5,7 +5,7 @@
 
 import { Capability, MappedRepo, BuildVariant, ProductBuild, ProductScore, ExampleOutput, MonetizationPhase, TechLayer, AgentRole, ArchitectureBlock, FlowStep, CapabilityCategory } from "./types";
 import { AnalyzedRepo } from "./repo-analyzer";
-import { CAPABILITY_LABELS } from "./repo-analyzer";
+import { buildProductCompositionPlan } from "./composition-plan";
 
 const BUILD_TEMPLATES: Record<string, {
   simple: { repos: CapabilityCategory[]; tech: TechLayer[]; agents: AgentRole[] };
@@ -78,7 +78,6 @@ export function generateProducts(
   focus?: string
 ): ProductBuild[] {
   const products: ProductBuild[] = [];
-  const capCategories = capabilities.map(c => c.category);
 
   // Generate 2-3 product ideas based on capabilities
   const combos = generateCapabilityCombos(capabilities);
@@ -89,11 +88,10 @@ export function generateProducts(
 
     const title = generateProductName(combo, analyzedRepos);
     const tagline = generateTagline(combo);
-    const description = generateDescription(combo, analyzedRepos);
-
-    const simpleRepos = getReposForBuild(combo, template.simple.repos);
-    const intermediateRepos = getReposForBuild(combo, template.intermediate.repos);
-    const advancedRepos = getReposForBuild(combo, template.advanced.repos);
+    const simpleRepos = getReposForBuild(combo, template.simple.repos, { maxRepos: 3, maxPerCapability: 1 });
+    const intermediateRepos = getReposForBuild(combo, template.intermediate.repos, { maxRepos: 5, maxPerCapability: 2 });
+    const advancedRepos = getReposForBuild(combo, template.advanced.repos, { maxRepos: 8, maxPerCapability: 2 });
+    const description = generateDescription(combo, analyzedRepos, advancedRepos);
 
     const buildVariants: BuildVariant[] = [
       {
@@ -144,6 +142,14 @@ export function generateProducts(
       { phase: 4, label: "Enterprise SaaS", description: "Self-hosted, compliance, SLA, dedicated support", timeline: "12+ months", revenue: "$50K+ MRR" },
     ];
 
+    const compositionPlan = buildProductCompositionPlan({
+      productTitle: title,
+      capabilities: combo.map(c => c.category),
+      repos: advancedRepos,
+      techStack: template.advanced.tech,
+      agents: template.advanced.agents,
+    });
+
     products.push({
       title,
       tagline,
@@ -156,8 +162,9 @@ export function generateProducts(
       exampleOutput,
       monetization,
       keyFeatures: generateKeyFeatures(combo),
-      inspiredBy: combo.flatMap(c => c.repos.slice(0, 2)).map(r => r.fullName),
+      inspiredBy: compositionPlan.selectedRepos.map(repo => repo.fullName),
       strategy: "ai-product-builder",
+      compositionPlan,
     });
   }
 
@@ -222,10 +229,12 @@ function generateTagline(combo: Capability[]): string {
   return `The unified platform for ${labels.slice(0, -1).join(", ")} and ${labels[labels.length - 1]}`;
 }
 
-function generateDescription(combo: Capability[], repos: AnalyzedRepo[]): string {
-  const topRepos = repos.slice(0, 3).map(r => r.name.split("/").pop() || r.name);
+function generateDescription(combo: Capability[], repos: AnalyzedRepo[], selectedRepos: MappedRepo[]): string {
+  const topRepos = selectedRepos.length > 0
+    ? selectedRepos.slice(0, 4).map(r => r.name)
+    : repos.slice(0, 3).map(r => r.name.split("/").pop() || r.name);
   const capLabels = combo.map(c => c.label);
-  return `This product synthesizes the best open-source innovations from ${topRepos.join(", ")} into a unified AI-native system. By combining ${capLabels.join(", ")} capabilities, it creates a seamless experience that is greater than the sum of its parts. The system leverages modern AI stack patterns including agents, RAG pipelines, and intelligent memory to deliver production-ready intelligence.`;
+  return `This product synthesizes the best open-source innovations from ${topRepos.join(", ")} into a unified AI-native system. By combining ${capLabels.join(", ")} capabilities and supporting repos across orchestration, execution, and delivery, it creates a seamless product that is greater than the sum of its parts. The system leverages modern AI stack patterns including agents, RAG pipelines, memory, and workflow automation to deliver a build-ready product architecture.`;
 }
 
 function generateTargetAudience(combo: Capability[]): string {
@@ -267,12 +276,39 @@ function generateKeyFeatures(combo: Capability[]): string[] {
   return combo.flatMap(c => featureMap[c.category]?.slice(0, 2) || []);
 }
 
-function getReposForBuild(combo: Capability[], requiredCaps: CapabilityCategory[]): MappedRepo[] {
+function getReposForBuild(
+  combo: Capability[],
+  requiredCaps: CapabilityCategory[],
+  options: { maxRepos: number; maxPerCapability: number }
+): MappedRepo[] {
   const repos: MappedRepo[] = [];
-  for (const cap of requiredCaps) {
+  const seen = new Set<string>();
+  const orderedCaps = Array.from(new Set([...requiredCaps, ...combo.map(c => c.category)]));
+
+  for (let round = 0; round < options.maxPerCapability; round++) {
+    for (const cap of orderedCaps) {
+      const matching = combo.find(c => c.category === cap);
+      const repo = matching?.repos?.[round];
+      if (repo && !seen.has(repo.fullName)) {
+        repos.push(repo);
+        seen.add(repo.fullName);
+      }
+      if (repos.length >= options.maxRepos) {
+        return repos;
+      }
+    }
+  }
+
+  for (const cap of orderedCaps) {
     const matching = combo.find(c => c.category === cap);
-    if (matching && matching.repos.length > 0) {
-      repos.push(matching.repos[0]); // Top repo for this capability
+    for (const repo of matching?.repos || []) {
+      if (!seen.has(repo.fullName)) {
+        repos.push(repo);
+        seen.add(repo.fullName);
+      }
+      if (repos.length >= options.maxRepos) {
+        return repos;
+      }
     }
   }
   return repos;
@@ -353,6 +389,17 @@ function calculateProductScore(combo: Capability[], repos: AnalyzedRepo[]): Prod
   const ecosystemMaturity = Math.min(10, 3 + Math.min(totalStars / 30000, 5) + (combo.some(c => c.repos.length > 3) ? 1 : 0));
 
   const finalScore = Math.round(((marketDemand * 0.3 + technicalFeasibility * 0.25 + innovation * 0.25 + ecosystemMaturity * 0.2) + (competition === "low" ? 0.5 : competition === "medium" ? 0 : -0.5)) * 10) / 10;
+  const competitionSuccess = competition === "low" ? 0.75 : competition === "medium" ? 0.6 : 0.45;
+  const successProbability = Math.min(
+    0.98,
+    Math.max(
+      0.05,
+      (Math.min(10, finalScore) / 10) * 0.55 +
+      (technicalFeasibility / 10) * 0.30 +
+      competitionSuccess * 0.15
+    )
+  );
+  const successPercentage = Math.round(successProbability * 100);
 
   return {
     marketDemand: Math.round(marketDemand * 10) / 10,
@@ -361,6 +408,8 @@ function calculateProductScore(combo: Capability[], repos: AnalyzedRepo[]): Prod
     competition,
     ecosystemMaturity: Math.round(ecosystemMaturity * 10) / 10,
     finalScore: Math.min(10, finalScore),
+    successProbability: Number(successProbability.toFixed(3)),
+    successPercentage,
   };
 }
 

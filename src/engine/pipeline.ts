@@ -10,11 +10,19 @@ import { generateProducts } from "@/lib/agents/product-generator";
 import { designArchitecture, generateExportData } from "@/lib/agents/architecture-designer";
 import { buildGraph, toReactFlowFormat, type GraphifyGraph } from "@/graph/graphify";
 import { scoreProduct } from "@/engine/scoring";
-import { selectBestRepos, type UserIntent, type RankedRepo } from "@/engine/repoSelector";
+import { selectBestRepos, selectBestReposFromIntent, type UserIntent, type RankedRepo } from "@/engine/repoSelector";
 import { crossPollinate, type CrossPollinationResult } from "@/engine/strategies/crossPollination";
 import { analyzeGaps, type GapAnalysisResult } from "@/engine/strategies/gapAnalysis";
 import { generateTrendBased, type TrendBasedResult } from "@/engine/strategies/trendBased";
 import { composeAI, type CompositionalResult } from "@/engine/strategies/compositionalAI";
+import { 
+  mapToArchitecturalRoles, 
+  validateArchitectureCoverage, 
+  generateSystemArchitecture,
+  type RoleBasedMapping,
+  type SystemArchitecture 
+} from "@/engine/architectureComposer";
+
 
 // ============================================================
 // Pipeline Step Definitions (6-step enhanced pipeline)
@@ -41,6 +49,7 @@ export interface EnhancedPipelineResult extends AnalysisResult {
   trendBased: TrendBasedResult[];
   compositionalAI: CompositionalResult[];
   graphifyGraph: GraphifyGraph | null;
+  systemArchitecture?: SystemArchitecture;
 }
 
 // ============================================================
@@ -165,6 +174,42 @@ export async function runEnhancedPipeline(
   const step6Start = Date.now();
   updateStep(5, "running");
 
+  // --- BEGIN NEW ARCHITECTURE GRAPH & RETRY LOGIC ---
+  let systemArchitecture: SystemArchitecture | undefined;
+  
+  if (rankedRepos && rankedRepos.length > 0) {
+    let mapping = mapToArchitecturalRoles(rankedRepos);
+    let validation = validateArchitectureCoverage(mapping);
+    systemArchitecture = generateSystemArchitecture(rankedRepos, mapping, validation);
+
+    // Soft Gate: Trigger targeted retry if confidence is too low or invalid
+    if ((systemArchitecture.confidence < 0.4 || !validation.isValid) && intent && validation.missingRoles.length > 0) {
+      updateStep(5, "running", Date.now() - step6Start, `Low confidence (${systemArchitecture.confidence.toFixed(2)}) or missing roles. Executing targeted retry...`);
+      
+      // Do NOT mutate original intent, instead create an augmented clone
+      const augmentedIntent = {
+        ...intent,
+        requiredRoles: validation.missingRoles as string[]
+      };
+
+      try {
+        const retrySelection = await selectBestReposFromIntent(augmentedIntent, repos);
+        const retryRankedRepos = retrySelection.rankedRepos;
+        const retryMapping = mapToArchitecturalRoles(retryRankedRepos);
+        const retryValidation = validateArchitectureCoverage(retryMapping);
+        const retryArch = generateSystemArchitecture(retryRankedRepos, retryMapping, retryValidation);
+
+        if (retryArch.confidence > systemArchitecture.confidence || retryValidation.isValid) {
+           rankedRepos = retryRankedRepos;
+           systemArchitecture = retryArch;
+        }
+      } catch (err) {
+        console.warn("Architecture retry failed:", err);
+      }
+    }
+  }
+  // --- END ARCHITECTURE LOGIC ---
+
   const allKnowledgeNodes: KnowledgeGraphNode[] = [...capNodes];
   const allKnowledgeEdges: KnowledgeGraphEdge[] = [...capEdges];
 
@@ -194,7 +239,7 @@ export async function runEnhancedPipeline(
     console.error("Graphify build error:", err);
   }
 
-  updateStep(5, "completed", Date.now() - step6Start, `Designed ${enhancedProducts.length} architectures + Graphify complete`);
+  updateStep(5, "completed", Date.now() - step6Start, `System Architecture generated: ${systemArchitecture?.status ?? "none"}. Graphify complete.`);
 
   // =====================
   // Return Complete Result
@@ -216,6 +261,7 @@ export async function runEnhancedPipeline(
     trendBased: trendResults,
     compositionalAI: compositionalResults,
     graphifyGraph,
+    systemArchitecture,
   };
 }
 

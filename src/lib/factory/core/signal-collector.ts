@@ -7,6 +7,12 @@ import { webSearch } from '@/lib/search'
 import { z } from 'zod'
 import { getMemory } from '../core/rag-memory'
 import type { ExpandedIdea } from '../core/idea-expander'
+import {
+  classifyIntent,
+  rankByIntent,
+  isGenericCollection,
+  type IntentProfile,
+} from './intent-classifier'
 
 export interface RepoCandidate {
   fullName: string
@@ -66,18 +72,39 @@ export class SignalCollector {
     return results
   }
 
-  // GitHub repo search
+  // GitHub repo search — domain-aware
+  //
+  // Pipeline:
+  //   1. classifyIntent(idea)  → tags + curated GitHub queries + negative filters
+  //   2. fan-out search across intent queries (NOT generic "Python stars:>100")
+  //   3. hard-exclude awesome-*/tutorial/algorithms collections
+  //   4. local domain-aware scoring (keywordMatch*3 + log(stars)*0.2 - 50 generic)
+  //   5. LLM re-rank only the top-N survivors (cheaper + better signal)
   async collectGithubRepos(expanded: ExpandedIdea): Promise<RepoCandidate[]> {
-    const queries = expanded.suggestedStack.length > 0
-      ? expanded.suggestedStack.slice(0, 3)
-      : [expanded.original]
+    const intent: IntentProfile = classifyIntent(expanded.original)
+    console.log(
+      `[SignalCollector] intent: tags=[${intent.tags.join(', ')}] confidence=${intent.confidence.toFixed(2)}`
+    )
+
+    // Build query set: intent queries take priority. Fall back to suggestedStack
+    // ONLY when intent confidence is low (unknown domain).
+    let queries: string[]
+    if (intent.confidence >= 0.5 && intent.queries.length > 0) {
+      queries = intent.queries
+    } else {
+      const stack = expanded.suggestedStack.slice(0, 3)
+      queries = stack.length > 0
+        ? stack.map(tech => `${tech} stars:>100`)
+        : [`${expanded.original} stars:>100`]
+    }
+    console.log(`[SignalCollector] github queries: ${queries.length}`)
 
     const allItems: any[] = []
-    for (const tech of queries) {
+    for (const q of queries) {
       try {
-        const query = encodeURIComponent(`${tech} stars:>100`)
+        const query = encodeURIComponent(q)
         const data = await githubFetch(
-          `/search/repositories?q=${query}&sort=stars&order=desc&per_page=5`,
+          `/search/repositories?q=${query}&sort=stars&order=desc&per_page=8`,
           this.githubToken
         )
         const items = (data.items || []).map((item: any) => ({
@@ -99,19 +126,46 @@ export class SignalCollector {
 
     // Deduplicate
     const seen = new Set<string>()
-    const unique = allItems.filter(item => {
+    let unique = allItems.filter(item => {
       if (seen.has(item.fullName)) return false
       seen.add(item.fullName)
       return true
     })
+    const beforeFilter = unique.length
 
-    // Rank with LLM
-    const ranked = await this.rankRepos(expanded, unique)
+    // Hard-exclude generic collections / tutorials / algorithm dumps
+    unique = unique.filter(
+      item => !isGenericCollection(item.fullName, item.description, item.topics, intent.negativeFilters)
+    )
+    if (beforeFilter !== unique.length) {
+      console.log(`[SignalCollector] filtered ${beforeFilter - unique.length} generic/tutorial repos`)
+    }
+
+    // Domain-aware local scoring (works even with no LLM)
+    const scored = rankByIntent(unique, intent, { topK: 15 })
+    for (const s of scored) {
+      const candidate = unique.find(u => u.fullName === s.fullName)
+      if (candidate) {
+        candidate.relevanceScore = s.score
+        candidate.reason = s.reasons.join('; ')
+      }
+    }
+    let preLLM: RepoCandidate[] = scored
+      .map(s => unique.find(u => u.fullName === s.fullName))
+      .filter(Boolean) as RepoCandidate[]
+
+    // LLM re-rank ONLY the top survivors. We pass intent context so the LLM
+    // optimizes for domain fit, not popularity.
+    const ranked = await this.rankRepos(expanded, preLLM, intent)
     console.log(`[SignalCollector] github repos: ${ranked.length} ranked candidates`)
     return ranked
   }
 
-  private async rankRepos(expanded: ExpandedIdea, candidates: RepoCandidate[]): Promise<RepoCandidate[]> {
+  private async rankRepos(
+    expanded: ExpandedIdea,
+    candidates: RepoCandidate[],
+    intent?: IntentProfile,
+  ): Promise<RepoCandidate[]> {
     if (candidates.length === 0) return candidates
 
     try {
@@ -119,6 +173,7 @@ export class SignalCollector {
         full_name: c.fullName,
         stars: c.stars,
         description: c.description,
+        topics: c.topics,
       }))
 
       const schema = z.object({
@@ -129,10 +184,21 @@ export class SignalCollector {
         }))
       })
 
+      const intentBlock = intent
+        ? `INTENT_TAGS: ${intent.tags.join(', ') || '(none)'}
+DOMAIN_KEYWORDS: ${intent.positiveKeywords.join(', ')}
+NEGATIVE_FILTERS (auto-excluded already): ${intent.negativeFilters.slice(0, 8).join(', ')}…
+RULES:
+- Optimize for INTENT MATCH, not GitHub popularity.
+- Penalize generic collections / tutorials / algorithm dumps.
+- Prefer concrete frameworks (e.g. langchain, playwright, temporal) over awesome-lists.
+`
+        : ''
+
       const data = await llm.generateJSON(
         schema,
-        `IDEA:\n${expanded.original}\nFEATURES:\n${expanded.features.join(', ')}\n\nREPOS:\n${JSON.stringify(repoList, null, 2)}`,
-        `You are a repo selection agent. Given an expanded product idea and a list of GitHub repos, rank them by relevance. For each repo return a score 0-1 and a one-line reason.`,
+        `IDEA:\n${expanded.original}\nFEATURES:\n${expanded.features.join(', ')}\n\n${intentBlock}REPOS:\n${JSON.stringify(repoList, null, 2)}`,
+        `You are a domain-aware repo selection agent. Given a product idea, an INTENT profile, and a list of GitHub repos, rank repos by *intent-specific relevance* — not by stars. Score 0-1, one-line reason. Stars matter only as a tiebreaker.`,
         { temperature: 0.3 }
       )
 
@@ -141,7 +207,10 @@ export class SignalCollector {
       for (const c of candidates) {
         const rank = rankMap.get(c.fullName)
         if (rank) {
-          c.relevanceScore = rank.score
+          // Blend LLM score with our local domain-aware score so LLM can't
+          // single-handedly resurrect a generic repo.
+          const local = c.relevanceScore // already populated by rankByIntent
+          c.relevanceScore = (rank.score * 10) * 0.6 + local * 0.4
           c.reason = rank.reason
         }
       }
@@ -149,8 +218,8 @@ export class SignalCollector {
       candidates.sort((a, b) => b.relevanceScore - a.relevanceScore)
     } catch (e) {
       console.error('[SignalCollector] ranking error:', e)
-      // Fallback: sort by stars
-      candidates.sort((a, b) => b.stars - a.stars)
+      // Fallback: keep the local domain-aware score (already on candidates)
+      candidates.sort((a, b) => b.relevanceScore - a.relevanceScore)
     }
 
     return candidates
