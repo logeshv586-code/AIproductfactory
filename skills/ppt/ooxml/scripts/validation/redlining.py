@@ -27,33 +27,33 @@ class RedliningValidator:
             print(f"FAILED - Modified document.xml not found at {modified_file}")
             return False
 
-        # First, check if there are any tracked changes by Z.AI to validate
+        # First, check if there are any tracked changes by ProductFactory to validate
         try:
             import xml.etree.ElementTree as ET
 
             tree = ET.parse(modified_file)
             root = tree.getroot()
 
-            # Check for w:del or w:ins tags authored by Z.AI
+            # Check for w:del or w:ins tags authored by ProductFactory
             del_elements = root.findall(".//w:del", self.namespaces)
             ins_elements = root.findall(".//w:ins", self.namespaces)
 
-            # Filter to only include changes by Z.AI
+            # Filter to only include changes by ProductFactory
             zai_del_elements = [
                 elem
                 for elem in del_elements
-                if elem.get(f"{{{self.namespaces['w']}}}author") == "Z.AI"
+                if elem.get(f"{{{self.namespaces['w']}}}author") == "ProductFactory"
             ]
             zai_ins_elements = [
                 elem
                 for elem in ins_elements
-                if elem.get(f"{{{self.namespaces['w']}}}author") == "Z.AI"
+                if elem.get(f"{{{self.namespaces['w']}}}author") == "ProductFactory"
             ]
 
-            # Redlining validation is only needed if tracked changes by Z.AI have been used.
+            # Redlining validation is only needed if tracked changes by ProductFactory have been used.
             if not zai_del_elements and not zai_ins_elements:
                 if self.verbose:
-                    print("PASSED - No tracked changes by Z.AI found.")
+                    print("PASSED - No tracked changes by ProductFactory found.")
                 return True
 
         except Exception:
@@ -91,7 +91,7 @@ class RedliningValidator:
                 print(f"FAILED - Error parsing XML files: {e}")
                 return False
 
-            # Remove Z.AI's tracked changes from both documents
+            # Remove ProductFactory's tracked changes from both documents
             self._remove_zai_tracked_changes(original_root)
             self._remove_zai_tracked_changes(modified_root)
 
@@ -108,13 +108,13 @@ class RedliningValidator:
                 return False
 
             if self.verbose:
-                print("PASSED - All changes by Z.AI are properly tracked")
+                print("PASSED - All changes by ProductFactory are properly tracked")
             return True
 
     def _generate_detailed_diff(self, original_text, modified_text):
         """Generate detailed word-level differences using git word diff."""
         error_parts = [
-            "FAILED - Document text doesn't match after removing Z.AI's tracked changes",
+            "FAILED - Document text doesn't match after removing ProductFactory's tracked changes",
             "",
             "Likely causes:",
             "  1. Modified text inside another author's <w:ins> or <w:del> tags",
@@ -215,7 +215,7 @@ class RedliningValidator:
         return None
 
     def _remove_zai_tracked_changes(self, root):
-        """Remove tracked changes authored by Z.AI from the XML root."""
+        """Remove tracked changes authored by ProductFactory from the XML root."""
         ins_tag = f"{{{self.namespaces['w']}}}ins"
         del_tag = f"{{{self.namespaces['w']}}}del"
         author_attr = f"{{{self.namespaces['w']}}}author"
@@ -224,19 +224,19 @@ class RedliningValidator:
         for parent in root.iter():
             to_remove = []
             for child in parent:
-                if child.tag == ins_tag and child.get(author_attr) == "Z.AI":
+                if child.tag == ins_tag and child.get(author_attr) == "ProductFactory":
                     to_remove.append(child)
             for elem in to_remove:
                 parent.remove(elem)
 
-        # Unwrap content in w:del elements where author is "Z.AI"
+        # Unwrap content in w:del elements where author is "ProductFactory"
         deltext_tag = f"{{{self.namespaces['w']}}}delText"
         t_tag = f"{{{self.namespaces['w']}}}t"
 
         for parent in root.iter():
             to_process = []
             for child in parent:
-                if child.tag == del_tag and child.get(author_attr) == "Z.AI":
+                if child.tag == del_tag and child.get(author_attr) == "ProductFactory":
                     to_process.append((child, list(parent).index(child)))
 
             # Process in reverse order to maintain indices

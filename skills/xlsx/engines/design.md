@@ -540,7 +540,7 @@ for i, row_data in enumerate(data):
 total_row_num = 5 + len(data)
 style_total_row(ws, row_num=total_row_num, col_start=2, col_end=last_col)
 
-wb.properties.creator = "Z.ai"
+wb.properties.creator = "ProductFactory"
 wb.save("output.xlsx")
 ```
 

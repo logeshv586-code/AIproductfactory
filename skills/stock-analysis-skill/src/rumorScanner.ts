@@ -6,7 +6,7 @@
  * 扫描范围：M&A传闻 / 内部人交易 / 分析师调整 / SEC监管动态 / 市场早期信号
  */
 
-import ZAI from "z-ai-web-dev-sdk";
+import ZAI from "product-factory-sdk";
 import { RumorItem, RumorScanResult, RumorType } from "./types";
 
 // ── 评分逻辑（移植自原版 calculate_rumor_score）─────────

@@ -1,12 +1,12 @@
 ---
 name: image-understand
-description: Implement specialized image understanding capabilities using the z-ai-web-dev-sdk. Use this skill when the user needs to analyze static images, extract visual information, perform OCR, detect objects, classify images, or understand visual content. Optimized for PNG, JPEG, GIF, WebP, and BMP formats.
+description: Implement specialized image understanding capabilities using the product-factory-sdk. Use this skill when the user needs to analyze static images, extract visual information, perform OCR, detect objects, classify images, or understand visual content. Optimized for PNG, JPEG, GIF, WebP, and BMP formats.
 license: MIT
 ---
 
 # Image Understanding Skill
 
-This skill provides specialized image understanding functionality using the z-ai-web-dev-sdk package, enabling AI models to analyze, describe, and extract information from static images.
+This skill provides specialized image understanding functionality using the product-factory-sdk package, enabling AI models to analyze, describe, and extract information from static images.
 
 ## Skills Path
 
@@ -27,48 +27,48 @@ Image Understanding focuses specifically on static image analysis, providing cap
 - Quality assessment
 - Accessibility (alt text generation)
 
-**IMPORTANT**: z-ai-web-dev-sdk MUST be used in backend code only. Never use it in client-side code.
+**IMPORTANT**: product-factory-sdk MUST be used in backend code only. Never use it in client-side code.
 
 ## Prerequisites
 
-The z-ai-web-dev-sdk package is already installed. Import it as shown in the examples below.
+The product-factory-sdk package is already installed. Import it as shown in the examples below.
 
 ## CLI Usage (For Simple Tasks)
 
-For quick image analysis tasks, you can use the z-ai CLI instead of writing code. This is ideal for simple image descriptions, testing, or automation.
+For quick image analysis tasks, you can use the ProductFactory CLI instead of writing code. This is ideal for simple image descriptions, testing, or automation.
 
 ### Basic Image Analysis
 
 ```bash
 # Describe an image from URL
-z-ai vision --prompt "What's in this image?" --image "https://example.com/photo.jpg"
+ProductFactory vision --prompt "What's in this image?" --image "https://example.com/photo.jpg"
 
 # Using short options
-z-ai vision -p "Describe this image" -i "https://example.com/image.png"
+ProductFactory vision -p "Describe this image" -i "https://example.com/image.png"
 ```
 
 ### Analyze Local Images
 
 ```bash
 # Analyze a local image file
-z-ai vision -p "What objects are in this photo?" -i "./photo.jpg"
+ProductFactory vision -p "What objects are in this photo?" -i "./photo.jpg"
 
 # Save response to file
-z-ai vision -p "Describe the scene" -i "./landscape.png" -o description.json
+ProductFactory vision -p "Describe the scene" -i "./landscape.png" -o description.json
 ```
 
 ### Multiple Images Comparison
 
 ```bash
 # Compare multiple images
-z-ai vision \
+ProductFactory vision \
   -p "Compare these two images and highlight the differences" \
   -i "./photo1.jpg" \
   -i "./photo2.jpg" \
   -o comparison.json
 
 # Analyze a series of images
-z-ai vision \
+ProductFactory vision \
   --prompt "What patterns do you see across these images?" \
   --image "https://example.com/img1.jpg" \
   --image "https://example.com/img2.jpg" \
@@ -79,14 +79,14 @@ z-ai vision \
 
 ```bash
 # Enable chain-of-thought reasoning for complex tasks
-z-ai vision \
+ProductFactory vision \
   -p "Count all people in this image and describe what each person is doing" \
   -i "./crowd.jpg" \
   --thinking \
   -o analysis.json
 
 # Complex object detection with reasoning
-z-ai vision \
+ProductFactory vision \
   -p "Identify all safety hazards in this workplace image" \
   -i "./workplace.jpg" \
   --thinking
@@ -96,7 +96,7 @@ z-ai vision \
 
 ```bash
 # Stream the analysis in real-time
-z-ai vision -p "Provide a detailed description" -i "./photo.jpg" --stream
+ProductFactory vision -p "Provide a detailed description" -i "./photo.jpg" --stream
 ```
 
 ### CLI Parameters
@@ -140,7 +140,7 @@ For better performance and reliability, use base64 encoding to pass images to th
 ### Single Image Analysis
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 
 async function analyzeImage(imageUrl, prompt) {
   const zai = await ZAI.create();
@@ -184,7 +184,7 @@ const objectDetection = await analyzeImage(
 ### Multiple Images Comparison
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 
 async function compareImages(imageUrls, question) {
   const zai = await ZAI.create();
@@ -226,7 +226,7 @@ const comparison = await compareImages(
 ### Base64 Image Support (Recommended)
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 import fs from 'fs';
 import path from 'path';
 
@@ -285,7 +285,7 @@ const result = await analyzeLocalImage(
 ### OCR and Text Extraction
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 
 async function extractText(imageUrl, options = {}) {
   const zai = await ZAI.create();
@@ -324,7 +324,7 @@ const businessCardInfo = await extractText(
 ### Object Detection and Counting
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 
 async function detectObjects(imageUrl, objectType) {
   const zai = await ZAI.create();
@@ -363,7 +363,7 @@ const allObjects = await detectObjects(
 ### Image Classification and Tagging
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 
 async function classifyAndTag(imageUrl) {
   const zai = await ZAI.create();
@@ -409,7 +409,7 @@ console.log('Tags:', classification.tags);
 ### Quality Assessment
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 
 async function assessImageQuality(imageUrl) {
   const zai = await ZAI.create();
@@ -445,7 +445,7 @@ Provide specific feedback for each criterion.`;
 ### Accessibility - Alt Text Generation
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 
 async function generateAltText(imageUrl, context = '') {
   const zai = await ZAI.create();
@@ -480,7 +480,7 @@ const altText = await generateAltText(
 ### Scene Understanding
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 
 async function understandScene(imageUrl) {
   const zai = await ZAI.create();
@@ -516,7 +516,7 @@ async function understandScene(imageUrl) {
 ### Process Multiple Images
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 
 class ImageBatchProcessor {
   constructor() {
@@ -663,7 +663,7 @@ async function safeImageAnalysis(imageUrl, prompt) {
 
 ```javascript
 import express from 'express';
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 import multer from 'multer';
 
 const app = express();
@@ -768,7 +768,7 @@ initZAI().then(() => {
 
 ```javascript
 // pages/api/image-understand.js
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 
 let zaiInstance = null;
 
@@ -825,7 +825,7 @@ export default async function handler(req, res) {
 ## Troubleshooting
 
 **Issue**: "SDK must be used in backend"
-- **Solution**: Ensure z-ai-web-dev-sdk is only imported and used in server-side code, never in client/browser code
+- **Solution**: Ensure product-factory-sdk is only imported and used in server-side code, never in client/browser code
 
 **Issue**: Image not loading or being analyzed
 - **Solution**: Verify the image URL is accessible, returns correct MIME type, and is in a supported format
@@ -844,7 +844,7 @@ export default async function handler(req, res) {
 
 ## Remember
 
-- Always use z-ai-web-dev-sdk in backend code only
+- Always use product-factory-sdk in backend code only
 - The SDK is already installed - import as shown in examples
 - Use `image_url` content type for static images
 - Base64 encoding is recommended for better performance

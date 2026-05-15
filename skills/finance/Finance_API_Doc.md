@@ -9,10 +9,10 @@ Finance API provides comprehensive financial data access interfaces, including r
 **This API is accessed through the web-dev-ai-gateway unified proxy service.**
 
 **Gateway Configuration:**
-- **Gateway Base URL:** `GATEWAY_URL` (e.g., `https://internal-api.z.ai`)
+- **Gateway Base URL:** `GATEWAY_URL` (e.g., `https://internal-api.ProductFactory`)
 - **API Path Prefix:** `API_PREFIX` (e.g., `/external/finance`)
 - **Authentication:** Automatic (gateway injects `x-rapidapi-host` and `x-rapidapi-key`)
-- **Required Header:** `X-Z-AI-From: Z`
+- **Required Header:** `X-ProductFactory-From: Z`
 
 **URL Structure:**
 ```
@@ -20,9 +20,9 @@ Finance API provides comprehensive financial data access interfaces, including r
 ```
 
 **Example:**
-- Full URL: `https://internal-api.z.ai/external/finance/v1/markets/search?search=Apple`
+- Full URL: `https://internal-api.ProductFactory/external/finance/v1/markets/search?search=Apple`
 - Breakdown:
-  - `https://internal-api.z.ai` - Gateway base URL (`GATEWAY_URL`)
+  - `https://internal-api.ProductFactory` - Gateway base URL (`GATEWAY_URL`)
   - `/external/finance` - API path prefix (`API_PREFIX`)
   - `/v1/markets/search` - API endpoint path
 
@@ -32,7 +32,7 @@ Finance API provides comprehensive financial data access interfaces, including r
 ```bash
 # Get real-time quote for Apple
 curl -X GET "{GATEWAY_URL}{API_PREFIX}/v1/markets/quote?ticker=AAPL&type=STOCKS" \
-  -H "X-Z-AI-From: Z"
+  -H "X-ProductFactory-From: Z"
 ```
 
 
@@ -50,7 +50,7 @@ curl -X GET "{GATEWAY_URL}{API_PREFIX}/v1/markets/quote?ticker=AAPL&type=STOCKS"
 **curl example (via Gateway):**
 ```bash
 curl -X GET "{GATEWAY_URL}{API_PREFIX}/v2/markets/tickers?page=1&type=STOCKS" \
-  -H "X-Z-AI-From: Z"
+  -H "X-ProductFactory-From: Z"
 ```
 
 ---
@@ -63,7 +63,7 @@ curl -X GET "{GATEWAY_URL}{API_PREFIX}/v2/markets/tickers?page=1&type=STOCKS" \
 **curl example (via Gateway):**
 ```bash
 curl -X GET "{GATEWAY_URL}{API_PREFIX}/v1/markets/search?search=Apple" \
-  -H "X-Z-AI-From: Z"
+  -H "X-ProductFactory-From: Z"
 ```
 
 **Purpose:** Used to find specific stock or company ticker codes
@@ -82,7 +82,7 @@ curl -X GET "{GATEWAY_URL}{API_PREFIX}/v1/markets/search?search=Apple" \
 **curl example (via Gateway):**
 ```bash
 curl -X GET "{GATEWAY_URL}{API_PREFIX}/v1/markets/quote?ticker=AAPL&type=STOCKS" \
-  -H "X-Z-AI-From: Z"
+  -H "X-ProductFactory-From: Z"
 ```
 
 ---
@@ -388,14 +388,14 @@ GET /v1/markets/stock/modules?ticker=AAPL&module=earnings
 ```bash
 # Get data for multiple stocks at once (snapshots endpoint) via Gateway
 curl -X GET "{GATEWAY_URL}{API_PREFIX}/v1/markets/stock/quotes?ticker=AAPL,MSFT,GOOGL,AMZN,TSLA" \
-  -H "X-Z-AI-From: Z"
+  -H "X-ProductFactory-From: Z"
 ```
 
 ### 2. Time Range Query
 ```bash
 # Get historical data with specific interval via Gateway
 curl -X GET "{GATEWAY_URL}{API_PREFIX}/v1/markets/stock/history?symbol=AAPL&interval=1d&diffandsplits=false" \
-  -H "X-Z-AI-From: Z"
+  -H "X-ProductFactory-From: Z"
 ```
 
 ### 3. Combined Query Example
@@ -407,7 +407,7 @@ import requests
 
 # Gateway automatically handles authentication
 headers = {
-    'X-Z-AI-From': 'Z'
+    'X-ProductFactory-From': 'Z'
 }
 
 gateway_url = '{GATEWAY_URL}{API_PREFIX}/v1'
@@ -430,7 +430,7 @@ financials = requests.get(f'{gateway_url}/markets/stock/modules?ticker={symbol}&
 
 ### Gateway Usage
 
-1. **Authentication Header** - Always include `X-Z-AI-From: Z` header
+1. **Authentication Header** - Always include `X-ProductFactory-From: Z` header
 
 ### API Usage
 

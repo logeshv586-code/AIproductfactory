@@ -1,7 +1,7 @@
 {
   "name": "podcast-generate-online",
   "version": "1.0.0",
-  "description": "Generate podcast audio from text using z-ai LLM and TTS",
+  "description": "Generate podcast audio from text using ProductFactory LLM and TTS",
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
@@ -13,11 +13,11 @@
     "podcast",
     "tts",
     "llm",
-    "z-ai"
+    "ProductFactory"
   ],
   "license": "MIT",
   "dependencies": {
-    "z-ai-web-dev-sdk": "*"
+    "product-factory-sdk": "*"
   },
   "devDependencies": {
     "@types/node": "^20",

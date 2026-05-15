@@ -1,7 +1,7 @@
 ---
 name: charts
 metadata:
-  author: Z.AI
+  author: ProductFactory
   version: "1.0"
 description: >
   Professional chart and diagram creation skill. Covers all types of visual data

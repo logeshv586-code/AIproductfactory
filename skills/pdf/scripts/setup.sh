@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ---
 # name: pdf-setup
-# author: Z.AI
+# author: ProductFactory
 # version: "1.0"
 # description: Environment setup for the PDF skill. Checks and installs all required dependencies.
 # ---

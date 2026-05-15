@@ -3,7 +3,7 @@
  * 七段式决策仪表盘 + 美股可附加股息分析
  */
 
-import ZAI from "z-ai-web-dev-sdk";
+import ZAI from "product-factory-sdk";
 import { StockData, AnalysisResult, OutputFormat, Market, Verdict, PositionInfo } from "./types";
 import { validateStockData } from "./dataFetcher";
 import { analyzeDividend, formatDividendMarkdown } from "./dividend";

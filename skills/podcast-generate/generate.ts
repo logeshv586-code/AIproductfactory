@@ -3,14 +3,14 @@
  * generate.ts - 统一入口（纯 SDK 版本）
  * 原资料 -> podcast_script.md + podcast.wav
  *
- * 只使用 z-ai-web-dev-sdk，不依赖 z-ai CLI
+ * 只使用 product-factory-sdk，不依赖 ProductFactory CLI
  *
  * Usage:
  *   tsx generate.ts --input=material.txt --out_dir=out
  *   tsx generate.ts --input=material.md --out_dir=out --duration=5
  */
 
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';

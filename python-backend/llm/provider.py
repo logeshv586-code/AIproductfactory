@@ -128,6 +128,53 @@ class ClaudeProvider(LLMProvider):
         return await openai_provider.get_embedding(text)
 
 
+class NvidiaProvider(LLMProvider):
+    """NVIDIA Hosted GLM-5.1 provider."""
+
+    def __init__(self, api_key: Optional[str] = None, model: str = "z-ai/glm-5.1"):
+        # Use the specific key provided in apisample.py
+        self.api_key = api_key or "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"
+        self.model = model
+        self.base_url = "https://integrate.api.nvidia.com/v1"
+        self._client = None
+
+    @property
+    def client(self):
+        if self._client is None:
+            from openai import AsyncOpenAI
+            self._client = AsyncOpenAI(
+                api_key=self.api_key,
+                base_url=self.base_url,
+            )
+        return self._client
+
+    async def chat(self, messages: list[dict[str, str]], temperature: float = 1.0,
+                   max_tokens: int = 16384) -> str:
+        try:
+            # GLM-5.1 specific settings from apisample.py
+            response = await self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                top_p=1,
+                extra_body={
+                    "chat_template_kwargs": {
+                        "enable_thinking": True,
+                        "clear_thinking": False
+                    }
+                }
+            )
+            return response.choices[0].message.content or ""
+        except Exception as e:
+            print(f"[Nvidia] chat error: {e}")
+            return ""
+
+    async def get_embedding(self, text: str) -> list[float]:
+        # NVIDIA hosted models might not all support embeddings, fallback to zero vector or OpenAI
+        return [0.0] * 1536
+
+
 class LocalProvider(LLMProvider):
     """Local / mock provider for development and testing."""
 
@@ -254,9 +301,12 @@ class LocalProvider(LLMProvider):
 
 def get_provider(provider_name: Optional[str] = None) -> LLMProvider:
     """Factory function to get the configured LLM provider."""
-    name = provider_name or os.environ.get("LLM_PROVIDER", "local")
+    # Default to nvidia as requested
+    name = provider_name or os.environ.get("LLM_PROVIDER", "nvidia")
 
-    if name == "openai":
+    if name == "nvidia":
+        return NvidiaProvider()
+    elif name == "openai":
         return OpenAIProvider()
     elif name == "claude":
         return ClaudeProvider()

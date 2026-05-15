@@ -1,4 +1,4 @@
-import ZAI, { VisionMessage } from 'z-ai-web-dev-sdk';
+import ZAI, { VisionMessage } from 'product-factory-sdk';
 
 async function main(videoUrl: string, prompt: string) {
 	try {

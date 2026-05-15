@@ -1,12 +1,12 @@
 ---
 name: web-search
-description: Implement web search capabilities using the z-ai-web-dev-sdk. Use this skill when the user needs to search for real-time information from the web, retrieve up-to-date content beyond the knowledge cutoff, or find the latest news and data. Returns structured search results with URLs, snippets, and metadata.
+description: Implement web search capabilities using the product-factory-sdk. Use this skill when the user needs to search for real-time information from the web, retrieve up-to-date content beyond the knowledge cutoff, or find the latest news and data. Returns structured search results with URLs, snippets, and metadata.
 license: MIT
 ---
 
 # Web Search Skill
 
-This skill guides the implementation of web search functionality using the z-ai-web-dev-sdk package, enabling applications to search the web and retrieve current information.
+This skill guides the implementation of web search functionality using the product-factory-sdk package, enabling applications to search the web and retrieve current information.
 
 ## Installation Path
 
@@ -20,36 +20,36 @@ Extract this skill package to the above path in your project.
 
 The Web Search skill allows you to build applications that can search the internet, retrieve current information, and access real-time data from web sources.
 
-**IMPORTANT**: z-ai-web-dev-sdk MUST be used in backend code only. Never use it in client-side code.
+**IMPORTANT**: product-factory-sdk MUST be used in backend code only. Never use it in client-side code.
 
 ## Prerequisites
 
-The z-ai-web-dev-sdk package is already installed. Import it as shown in the examples below.
+The product-factory-sdk package is already installed. Import it as shown in the examples below.
 
 ## CLI Usage (For Simple Tasks)
 
-For simple web search queries, you can use the z-ai CLI instead of writing code. This is ideal for quick information retrieval, testing search functionality, or command-line automation.
+For simple web search queries, you can use the ProductFactory CLI instead of writing code. This is ideal for quick information retrieval, testing search functionality, or command-line automation.
 
 ### Basic Web Search
 
 ```bash
 # Simple search query
-z-ai function --name "web_search" --args '{"query": "artificial intelligence"}'
+ProductFactory function --name "web_search" --args '{"query": "artificial intelligence"}'
 
 # Using short options
-z-ai function -n web_search -a '{"query": "latest tech news"}'
+ProductFactory function -n web_search -a '{"query": "latest tech news"}'
 ```
 
 ### Search with Custom Parameters
 
 ```bash
 # Limit number of results
-z-ai function \
+ProductFactory function \
   -n web_search \
   -a '{"query": "machine learning", "num": 5}'
 
 # Search with recency filter (results from last N days)
-z-ai function \
+ProductFactory function \
   -n web_search \
   -a '{"query": "cryptocurrency news", "num": 10, "recency_days": 7}'
 ```
@@ -58,13 +58,13 @@ z-ai function \
 
 ```bash
 # Save results to JSON file
-z-ai function \
+ProductFactory function \
   -n web_search \
   -a '{"query": "climate change research", "num": 5}' \
   -o search_results.json
 
 # Recent news with file output
-z-ai function \
+ProductFactory function \
   -n web_search \
   -a '{"query": "AI breakthroughs", "num": 3, "recency_days": 1}' \
   -o ai_news.json
@@ -74,19 +74,19 @@ z-ai function \
 
 ```bash
 # Search for specific topics
-z-ai function \
+ProductFactory function \
   -n web_search \
   -a '{"query": "quantum computing applications", "num": 8}' \
   -o quantum.json
 
 # Find recent scientific papers
-z-ai function \
+ProductFactory function \
   -n web_search \
   -a '{"query": "genomics research", "num": 5, "recency_days": 30}' \
   -o genomics.json
 
 # Technology news from last 24 hours
-z-ai function \
+ProductFactory function \
   -n web_search \
   -a '{"query": "tech industry updates", "recency_days": 1}' \
   -o today_tech.json
@@ -147,7 +147,7 @@ interface SearchFunctionResultItem {
 ### Simple Search Query
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 
 async function searchWeb(query) {
   const zai = await ZAI.create();
@@ -168,7 +168,7 @@ console.log('Search Results:', searchResults);
 ### Search with Custom Result Count
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 
 async function searchWithLimit(query, numberOfResults) {
   const zai = await ZAI.create();
@@ -191,7 +191,7 @@ const moreResults = await searchWithLimit('JavaScript frameworks', 20);
 ### Formatted Search Results
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 
 async function getFormattedResults(query) {
   const zai = await ZAI.create();
@@ -229,7 +229,7 @@ results.forEach(result => {
 ### Search with Result Processing
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 
 class SearchProcessor {
   constructor() {
@@ -313,7 +313,7 @@ console.log('Sorted by date:', processor.sortByDate(results));
 ### News Search
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 
 async function searchNews(topic, timeframe = 'recent') {
   const zai = await ZAI.create();
@@ -355,7 +355,7 @@ aiNews.forEach(item => {
 ### Research Assistant
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 
 class ResearchAssistant {
   constructor() {
@@ -459,7 +459,7 @@ console.log('Topic Comparison:', comparison);
 ### Search Result Validation
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 
 async function validateSearchResults(query) {
   const zai = await ZAI.create();
@@ -548,7 +548,7 @@ const goodWithContext = await searchWeb('React hooks tutorial for beginners');
 ### 2. Error Handling
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 
 async function safeSearch(query, retries = 3) {
   let lastError;
@@ -593,7 +593,7 @@ async function safeSearch(query, retries = 3) {
 ### 3. Result Caching
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 
 class CachedSearch {
   constructor(cacheDuration = 3600000) { // 1 hour default
@@ -725,7 +725,7 @@ class RateLimitedSearch {
 
 ```javascript
 import express from 'express';
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 
 const app = express();
 app.use(express.json());
@@ -815,7 +815,7 @@ initZAI().then(() => {
 ### Search with AI Summary
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 
 async function searchAndSummarize(query) {
   const zai = await ZAI.create();
@@ -868,7 +868,7 @@ console.log('Sources:', result.sources);
 ## Troubleshooting
 
 **Issue**: "SDK must be used in backend"
-- **Solution**: Ensure z-ai-web-dev-sdk is only imported and used in server-side code
+- **Solution**: Ensure product-factory-sdk is only imported and used in server-side code
 
 **Issue**: Empty or no results returned
 - **Solution**: Try different query terms, check internet connectivity, verify API status
@@ -902,7 +902,7 @@ console.log('Sources:', result.sources);
 
 ## Remember
 
-- Always use z-ai-web-dev-sdk in backend code only
+- Always use product-factory-sdk in backend code only
 - The SDK is already installed - import as shown in examples
 - Search results are returned as an array of SearchFunctionResultItem objects
 - Implement proper error handling and retries for production

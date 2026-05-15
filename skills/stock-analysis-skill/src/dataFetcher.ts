@@ -2,7 +2,7 @@
  * dataFetcher.ts — 全部通过 finance skill 获取数据
  */
 
-import ZAI from "z-ai-web-dev-sdk";
+import ZAI from "product-factory-sdk";
 import { Market, FetchMode, StockData } from "./types";
 
 export function detectMarket(code: string): Market {

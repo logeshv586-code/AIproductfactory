@@ -36,6 +36,13 @@ from agents.repo_analyzer import analyze_repos
 from agents.capability_mapper import map_capabilities, map_capabilities_with_embedding
 from agents.product_generator import generate_products, generate_all_strategies
 from agents.architecture_designer import design_architecture
+from agents.planner import generate_plan
+from agents.research_agent import conduct_research
+from core.skill_engine import get_skill_engine
+from core.graph_rag import get_graph_rag
+from intelligence.feasibility_engine import evaluate_feasibility
+from intelligence.self_improvement import suggest_improvements
+from execution.execution_agent import get_execution_agent
 from llm.provider import get_provider, LLMProvider
 
 
@@ -283,6 +290,124 @@ async def build_graph_endpoint(
         graph = build_graph(repos, capabilities, products)
         stats = get_graph_stats(graph)
         return {"success": True, "graph": graph, "stats": stats}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# v2 Endpoints
+# ═══════════════════════════════════════════════════════════════════════════
+
+class ResearchRequest(BaseModel):
+    idea: str
+    domain: str
+
+class PlanRequest(BaseModel):
+    idea: str
+    architecture: dict[str, Any]
+    repos: list[dict[str, Any]]
+
+@app.post("/research/conduct")
+async def conduct_research_endpoint(request: ResearchRequest):
+    """Conduct deep intelligence research on an idea."""
+    try:
+        provider = get_provider()
+        research = await conduct_research(request.idea, request.domain, provider)
+        return {"success": True, "research": research}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/plan/generate")
+async def generate_plan_endpoint(request: PlanRequest):
+    """Generate a structured implementation plan."""
+    try:
+        provider = get_provider()
+        plan = await generate_plan(request.idea, request.architecture, request.repos, provider)
+        return {"success": True, "plan": plan}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/skills/list")
+async def list_skills_endpoint():
+    """List all available AI skills."""
+    try:
+        engine = get_skill_engine()
+        return {"success": True, "skills": engine.list_skills()}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/skills/{name}")
+async def get_skill_endpoint(name: str):
+    """Get details of a specific skill."""
+    try:
+        engine = get_skill_engine()
+        skill = engine.get_skill(name)
+        if not skill:
+            raise HTTPException(status_code=404, detail="Skill not found")
+        return {"success": True, "skill": skill}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+class ChatRequest(BaseModel):
+    message: str
+
+@app.post("/knowledge/chat")
+async def knowledge_chat_endpoint(request: ChatRequest):
+    """Chat with the AI's persistent knowledge memory."""
+    try:
+        rag = get_graph_rag()
+        response = await rag.query(request.message)
+        return {"success": True, "response": response}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+class FeasibilityRequest(BaseModel):
+    architecture: dict[str, Any]
+
+class ImprovementRequest(BaseModel):
+    product: dict[str, Any]
+    feasibility: dict[str, Any]
+
+@app.post("/intelligence/feasibility")
+async def evaluate_feasibility_endpoint(request: FeasibilityRequest):
+    """Evaluate the feasibility of a product architecture."""
+    try:
+        provider = get_provider()
+        report = await evaluate_feasibility(request.architecture, provider)
+        return {"success": True, "report": report}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/intelligence/improve")
+async def suggest_improvements_endpoint(request: ImprovementRequest):
+    """Suggest architectural refinements for a product."""
+    try:
+        provider = get_provider()
+        refinements = await suggest_improvements(request.product, request.feasibility, provider)
+        return {"success": True, "refinements": refinements}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+class ExecutionRequest(BaseModel):
+    workspace_id: str
+    task: dict[str, Any]
+
+@app.post("/execution/run_task")
+async def run_task_endpoint(request: ExecutionRequest):
+    """Run a specific implementation task autonomously."""
+    try:
+        agent = get_execution_agent(request.workspace_id)
+        result = await agent.execute_task(request.task)
+        return {"success": True, "result": result, "logs": agent.get_logs()}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/execution/logs/{workspace_id}")
+async def get_execution_logs_endpoint(workspace_id: str):
+    """Get the execution logs for a workspace."""
+    try:
+        agent = get_execution_agent(workspace_id)
+        return {"success": True, "logs": agent.get_logs()}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

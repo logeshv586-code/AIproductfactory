@@ -1,4 +1,4 @@
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 
 interface PageReaderFunctionResult {
   code: number;

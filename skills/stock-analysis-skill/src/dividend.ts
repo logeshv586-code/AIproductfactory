@@ -4,7 +4,7 @@
  * 移植原版评分逻辑：安全评分 / CAGR / 连续增长年数 / 派息可持续性
  */
 
-import ZAI from "z-ai-web-dev-sdk";
+import ZAI from "product-factory-sdk";
 import { DividendAnalysis, PayoutStatus, IncomeRating } from "./types";
 
 // ── 核心评分逻辑（与原版完全一致）──────────────────────────

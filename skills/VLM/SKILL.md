@@ -1,12 +1,12 @@
 ---
 name: VLM
-description: Implement vision-based AI chat capabilities using the z-ai-web-dev-sdk. Use this skill when the user needs to analyze images, describe visual content, or create applications that combine image understanding with conversational AI. Supports image URLs and base64 encoded images for multimodal interactions.
+description: Implement vision-based AI chat capabilities using the product-factory-sdk. Use this skill when the user needs to analyze images, describe visual content, or create applications that combine image understanding with conversational AI. Supports image URLs and base64 encoded images for multimodal interactions.
 license: MIT
 ---
 
 # VLM(Vision Chat) Skill
 
-This skill guides the implementation of vision chat functionality using the z-ai-web-dev-sdk package, enabling AI models to understand and respond to images combined with text prompts.
+This skill guides the implementation of vision chat functionality using the product-factory-sdk package, enabling AI models to understand and respond to images combined with text prompts.
 
 ## Skills Path
 
@@ -20,48 +20,48 @@ this skill is located at above path in your project.
 
 Vision Chat allows you to build applications that can analyze images, extract information from visual content, and answer questions about images through natural language conversation.
 
-**IMPORTANT**: z-ai-web-dev-sdk MUST be used in backend code only. Never use it in client-side code.
+**IMPORTANT**: product-factory-sdk MUST be used in backend code only. Never use it in client-side code.
 
 ## Prerequisites
 
-The z-ai-web-dev-sdk package is already installed. Import it as shown in the examples below.
+The product-factory-sdk package is already installed. Import it as shown in the examples below.
 
 ## CLI Usage (For Simple Tasks)
 
-For simple image analysis tasks, you can use the z-ai CLI instead of writing code. This is ideal for quick image descriptions, testing vision capabilities, or simple automation.
+For simple image analysis tasks, you can use the ProductFactory CLI instead of writing code. This is ideal for quick image descriptions, testing vision capabilities, or simple automation.
 
 ### Basic Image Analysis
 
 ```bash
 # Describe an image from URL
-z-ai vision --prompt "What's in this image?" --image "https://example.com/photo.jpg"
+ProductFactory vision --prompt "What's in this image?" --image "https://example.com/photo.jpg"
 
 # Using short options
-z-ai vision -p "Describe this image" -i "https://example.com/image.png"
+ProductFactory vision -p "Describe this image" -i "https://example.com/image.png"
 ```
 
 ### Analyze Local Images
 
 ```bash
 # Analyze a local image file
-z-ai vision -p "What objects are in this photo?" -i "./photo.jpg"
+ProductFactory vision -p "What objects are in this photo?" -i "./photo.jpg"
 
 # Save response to file
-z-ai vision -p "Describe the scene" -i "./landscape.png" -o description.json
+ProductFactory vision -p "Describe the scene" -i "./landscape.png" -o description.json
 ```
 
 ### Multiple Images
 
 ```bash
 # Analyze multiple images at once
-z-ai vision \
+ProductFactory vision \
   -p "Compare these two images" \
   -i "./photo1.jpg" \
   -i "./photo2.jpg" \
   -o comparison.json
 
 # Multiple images with detailed analysis
-z-ai vision \
+ProductFactory vision \
   --prompt "What are the differences between these images?" \
   --image "https://example.com/before.jpg" \
   --image "https://example.com/after.jpg"
@@ -71,7 +71,7 @@ z-ai vision \
 
 ```bash
 # Enable thinking for complex visual reasoning
-z-ai vision \
+ProductFactory vision \
   -p "Count the number of people in this image and describe their activities" \
   -i "./crowd.jpg" \
   --thinking \
@@ -82,7 +82,7 @@ z-ai vision \
 
 ```bash
 # Stream the vision analysis
-z-ai vision -p "Describe this image in detail" -i "./photo.jpg" --stream
+ProductFactory vision -p "Describe this image in detail" -i "./photo.jpg" --stream
 ```
 
 ### CLI Parameters
@@ -166,7 +166,7 @@ Use this type for document files (PDF, DOCX, TXT, etc.)
 ### Single Image Analysis
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 
 async function analyzeImage(imageUrl, question) {
   const zai = await ZAI.create();
@@ -206,7 +206,7 @@ console.log('Analysis:', result);
 ### Multiple Images Analysis
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 
 async function compareImages(imageUrls, question) {
   const zai = await ZAI.create();
@@ -248,7 +248,7 @@ const comparison = await compareImages(
 ### Base64 Image Support
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 import fs from 'fs';
 
 async function analyzeLocalImage(imagePath, question) {
@@ -289,7 +289,7 @@ async function analyzeLocalImage(imagePath, question) {
 ### Conversational Vision Chat
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 
 class VisionChatSession {
   constructor() {
@@ -366,7 +366,7 @@ console.log('Follow-up:', followup);
 ### Image Classification and Tagging
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 
 async function classifyImage(imageUrl) {
   const zai = await ZAI.create();
@@ -411,7 +411,7 @@ Format your response as JSON.`;
 ### OCR and Text Extraction
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 
 async function extractText(imageUrl) {
   const zai = await ZAI.create();
@@ -511,7 +511,7 @@ async function safeVisionChat(imageUrl, question) {
 
 ```javascript
 import express from 'express';
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 
 const app = express();
 app.use(express.json());
@@ -568,7 +568,7 @@ initZAI().then(() => {
 ## Troubleshooting
 
 **Issue**: "SDK must be used in backend"
-- **Solution**: Ensure z-ai-web-dev-sdk is only imported and used in server-side code
+- **Solution**: Ensure product-factory-sdk is only imported and used in server-side code
 
 **Issue**: Image not loading or being analyzed
 - **Solution**: Verify the image URL is accessible and returns a valid image format
@@ -581,7 +581,7 @@ initZAI().then(() => {
 
 ## Remember
 
-- Always use z-ai-web-dev-sdk in backend code only
+- Always use product-factory-sdk in backend code only
 - The SDK is already installed - import as shown in examples
 - Structure prompts clearly for best results
 - Handle errors gracefully in production applications

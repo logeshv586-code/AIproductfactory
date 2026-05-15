@@ -1,4 +1,4 @@
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 import fs from 'fs';
 import path from 'path';
 

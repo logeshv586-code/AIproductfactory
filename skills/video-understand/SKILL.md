@@ -1,12 +1,12 @@
 ---
 name: video-understand
-description: Implement specialized video understanding capabilities using the z-ai-web-dev-sdk. Use this skill when the user needs to analyze video content, understand motion and temporal sequences, extract information from video frames, describe video scenes, or perform video-based AI analysis. Optimized for MP4, AVI, MOV, and other common video formats.
+description: Implement specialized video understanding capabilities using the product-factory-sdk. Use this skill when the user needs to analyze video content, understand motion and temporal sequences, extract information from video frames, describe video scenes, or perform video-based AI analysis. Optimized for MP4, AVI, MOV, and other common video formats.
 license: MIT
 ---
 
 # Video Understanding Skill
 
-This skill provides specialized video understanding functionality using the z-ai-web-dev-sdk package, enabling AI models to analyze, describe, and extract information from video content including motion, temporal sequences, and scene changes.
+This skill provides specialized video understanding functionality using the product-factory-sdk package, enabling AI models to analyze, describe, and extract information from video content including motion, temporal sequences, and scene changes.
 
 ## Skills Path
 
@@ -28,48 +28,48 @@ Video Understanding focuses specifically on video content analysis, providing ca
 - People and object tracking across frames
 - Audio-visual content analysis (when applicable)
 
-**IMPORTANT**: z-ai-web-dev-sdk MUST be used in backend code only. Never use it in client-side code.
+**IMPORTANT**: product-factory-sdk MUST be used in backend code only. Never use it in client-side code.
 
 ## Prerequisites
 
-The z-ai-web-dev-sdk package is already installed. Import it as shown in the examples below.
+The product-factory-sdk package is already installed. Import it as shown in the examples below.
 
 ## CLI Usage (For Simple Tasks)
 
-For quick video analysis tasks, you can use the z-ai CLI instead of writing code. This is ideal for simple video descriptions, testing, or automation.
+For quick video analysis tasks, you can use the ProductFactory CLI instead of writing code. This is ideal for simple video descriptions, testing, or automation.
 
 ### Basic Video Analysis
 
 ```bash
 # Analyze a video from URL
-z-ai vision --prompt "Summarize what happens in this video" --image "https://example.com/video.mp4"
+ProductFactory vision --prompt "Summarize what happens in this video" --image "https://example.com/video.mp4"
 
 # Note: Use --image flag for video URLs as well
-z-ai vision -p "Describe the key events" -i "https://example.com/presentation.mp4"
+ProductFactory vision -p "Describe the key events" -i "https://example.com/presentation.mp4"
 ```
 
 ### Analyze Local Videos
 
 ```bash
 # Analyze a local video file
-z-ai vision -p "What activities are shown in this video?" -i "./recording.mp4"
+ProductFactory vision -p "What activities are shown in this video?" -i "./recording.mp4"
 
 # Save response to file
-z-ai vision -p "Provide a detailed summary" -i "./meeting.mp4" -o summary.json
+ProductFactory vision -p "Provide a detailed summary" -i "./meeting.mp4" -o summary.json
 ```
 
 ### Advanced Video Analysis
 
 ```bash
 # Complex scene understanding with thinking
-z-ai vision \
+ProductFactory vision \
   -p "Analyze this video and identify: 1) Main events, 2) People and their actions, 3) Timeline of key moments" \
   -i "./event.mp4" \
   --thinking \
   -o analysis.json
 
 # Action detection
-z-ai vision \
+ProductFactory vision \
   -p "Identify all actions performed by people in this video" \
   -i "./sports.mp4" \
   --thinking
@@ -79,7 +79,7 @@ z-ai vision \
 
 ```bash
 # Stream the video analysis
-z-ai vision -p "Describe this video content" -i "./video.mp4" --stream
+ProductFactory vision -p "Describe this video content" -i "./video.mp4" --stream
 ```
 
 ### CLI Parameters
@@ -127,7 +127,7 @@ For better performance and reliability with local videos, consider:
 ### Single Video Analysis
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 
 async function analyzeVideo(videoUrl, prompt) {
   const zai = await ZAI.create();
@@ -171,7 +171,7 @@ const actionDetection = await analyzeVideo(
 ### Video Scene Understanding
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 
 async function understandVideoScenes(videoUrl) {
   const zai = await ZAI.create();
@@ -209,7 +209,7 @@ const sceneAnalysis = await understandVideoScenes(
 ### Motion and Action Detection
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 
 async function detectActions(videoUrl, specificAction = null) {
   const zai = await ZAI.create();
@@ -248,7 +248,7 @@ const allActions = await detectActions(
 ### Event Timeline Extraction
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 
 async function extractTimeline(videoUrl) {
   const zai = await ZAI.create();
@@ -281,7 +281,7 @@ Format as a chronological list.`;
 ### Video Content Classification
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 
 async function classifyVideo(videoUrl) {
   const zai = await ZAI.create();
@@ -324,7 +324,7 @@ Format your response as structured JSON.`;
 ### Multi-turn Video Conversation
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 
 class VideoConversation {
   constructor() {
@@ -396,7 +396,7 @@ const followup2 = await conversation.askFollowUp(
 ### Video Quality Assessment
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 
 async function assessVideoQuality(videoUrl) {
   const zai = await ZAI.create();
@@ -434,7 +434,7 @@ Provide detailed feedback for each criterion.`;
 ### Video Content Moderation
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 
 async function moderateVideo(videoUrl) {
   const zai = await ZAI.create();
@@ -469,7 +469,7 @@ Provide specific examples for any concerns identified.`;
 ### Video Transcript Generation (Visual Description)
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 
 async function generateVisualTranscript(videoUrl) {
   const zai = await ZAI.create();
@@ -503,7 +503,7 @@ Format as a time-based narrative (e.g., "At the beginning...", "Then...", "Final
 ### Sports Video Analysis
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 
 async function analyzeSportsVideo(videoUrl, sport = null) {
   const zai = await ZAI.create();
@@ -543,7 +543,7 @@ async function analyzeSportsVideo(videoUrl, sport = null) {
 ### Educational Video Summarization
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 
 async function summarizeEducationalVideo(videoUrl) {
   const zai = await ZAI.create();
@@ -581,7 +581,7 @@ Format as a study guide.`;
 ### Process Multiple Videos
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 
 class VideoBatchProcessor {
   constructor() {
@@ -733,7 +733,7 @@ async function safeVideoAnalysis(videoUrl, prompt) {
 
 ```javascript
 import express from 'express';
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 
 const app = express();
 app.use(express.json());
@@ -827,7 +827,7 @@ initZAI().then(() => {
 
 ```javascript
 // pages/api/video-understand.js
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 
 let zaiInstance = null;
 
@@ -884,7 +884,7 @@ export default async function handler(req, res) {
 ## Troubleshooting
 
 **Issue**: "SDK must be used in backend"
-- **Solution**: Ensure z-ai-web-dev-sdk is only imported and used in server-side code, never in client/browser code
+- **Solution**: Ensure product-factory-sdk is only imported and used in server-side code, never in client/browser code
 
 **Issue**: Video not loading or being analyzed
 - **Solution**: Verify the video URL is accessible, returns correct MIME type, and is in a supported format
@@ -903,7 +903,7 @@ export default async function handler(req, res) {
 
 ## Remember
 
-- Always use z-ai-web-dev-sdk in backend code only
+- Always use product-factory-sdk in backend code only
 - The SDK is already installed - import as shown in examples
 - Use `video_url` content type for video files
 - Video analysis takes longer than image analysis - be patient

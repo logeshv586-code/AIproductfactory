@@ -12,7 +12,7 @@
  *   runChartAnalysis() — K线图分析
  */
 
-import ZAI from "z-ai-web-dev-sdk";
+import ZAI from "product-factory-sdk";
 import { fetchMultipleStocks, fetchMarketOverview, fetchGlobalMacro } from "./dataFetcher";
 import { analyzeMultipleStocks, analyzeChartImage } from "./analyzer";
 import { analyzeDividends, formatDividendMarkdown } from "./dividend";

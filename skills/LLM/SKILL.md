@@ -1,12 +1,12 @@
 ---
 name: LLM
-description: Implement large language model (LLM) chat completions using the z-ai-web-dev-sdk. Use this skill when the user needs to build conversational AI applications, chatbots, AI assistants, or any text generation features. Supports multi-turn conversations, system prompts, and context management.
+description: Implement large language model (LLM) chat completions using the product-factory-sdk. Use this skill when the user needs to build conversational AI applications, chatbots, AI assistants, or any text generation features. Supports multi-turn conversations, system prompts, and context management.
 license: MIT
 ---
 
 # LLM (Large Language Model) Skill
 
-This skill guides the implementation of chat completions functionality using the z-ai-web-dev-sdk package, enabling powerful conversational AI and text generation capabilities.
+This skill guides the implementation of chat completions functionality using the product-factory-sdk package, enabling powerful conversational AI and text generation capabilities.
 
 ## Skills Path
 
@@ -20,34 +20,34 @@ this skill is located at above path in your project.
 
 The LLM skill allows you to build applications that leverage large language models for natural language understanding and generation, including chatbots, AI assistants, content generation, and more.
 
-**IMPORTANT**: z-ai-web-dev-sdk MUST be used in backend code only. Never use it in client-side code.
+**IMPORTANT**: product-factory-sdk MUST be used in backend code only. Never use it in client-side code.
 
 ## Prerequisites
 
-The z-ai-web-dev-sdk package is already installed. Import it as shown in the examples below.
+The product-factory-sdk package is already installed. Import it as shown in the examples below.
 
 ## CLI Usage (For Simple Tasks)
 
-For simple, one-off chat completions, you can use the z-ai CLI instead of writing code. This is ideal for quick tests, simple queries, or automation scripts.
+For simple, one-off chat completions, you can use the ProductFactory CLI instead of writing code. This is ideal for quick tests, simple queries, or automation scripts.
 
 ### Basic Chat
 
 ```bash
 # Simple question
-z-ai chat --prompt "What is the capital of France?"
+ProductFactory chat --prompt "What is the capital of France?"
 
 # Save response to file
-z-ai chat -p "Explain quantum computing" -o response.json
+ProductFactory chat -p "Explain quantum computing" -o response.json
 
 # Stream the response
-z-ai chat -p "Write a short poem" --stream
+ProductFactory chat -p "Write a short poem" --stream
 ```
 
 ### With System Prompt
 
 ```bash
 # Custom system prompt for specific behavior
-z-ai chat \
+ProductFactory chat \
   --prompt "Review this code: function add(a,b) { return a+b; }" \
   --system "You are an expert code reviewer" \
   -o review.json
@@ -57,7 +57,7 @@ z-ai chat \
 
 ```bash
 # Enable thinking for complex reasoning
-z-ai chat \
+ProductFactory chat \
   --prompt "Solve this math problem: If a train travels 120km in 2 hours, what's its speed?" \
   --thinking \
   -o solution.json
@@ -91,7 +91,7 @@ z-ai chat \
 ### Simple Question and Answer
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 
 async function askQuestion(question) {
   const zai = await ZAI.create();
@@ -122,7 +122,7 @@ console.log('Answer:', answer);
 ### Custom System Prompt
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 
 async function customAssistant(systemPrompt, userMessage) {
   const zai = await ZAI.create();
@@ -165,7 +165,7 @@ console.log(story);
 ### Conversation History Management
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 
 class ConversationManager {
   constructor(systemPrompt = 'You are a helpful assistant.') {
@@ -241,7 +241,7 @@ console.log('Total messages:', conversation.getMessageCount());
 ### Context-Aware Conversations
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 
 class ContextualChat {
   constructor() {
@@ -308,7 +308,7 @@ console.log('Support:', reply2);
 ### Content Generation
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 
 class ContentGenerator {
   constructor() {
@@ -394,7 +394,7 @@ console.log('Product Description:', productDesc);
 ### Data Analysis and Summarization
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 
 async function analyzeData(data, analysisType) {
   const zai = await ZAI.create();
@@ -442,7 +442,7 @@ console.log('Recommendations:', recommendations);
 ### Code Generation and Debugging
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 
 class CodeAssistant {
   constructor() {
@@ -560,7 +560,7 @@ const good = await askWithContext('artificial intelligence', 'bullet points', 'b
 ### 2. Error Handling
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 
 async function safeCompletion(messages, retries = 3) {
   let lastError;
@@ -732,7 +732,7 @@ console.log(jsonData);
 
 ```javascript
 import express from 'express';
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 
 const app = express();
 app.use(express.json());
@@ -814,7 +814,7 @@ initZAI().then(() => {
 ## Troubleshooting
 
 **Issue**: "SDK must be used in backend"
-- **Solution**: Ensure z-ai-web-dev-sdk is only imported and used in server-side code
+- **Solution**: Ensure product-factory-sdk is only imported and used in server-side code
 
 **Issue**: Empty or incomplete responses
 - **Solution**: Check that completion.choices[0]?.message?.content exists and is not empty
@@ -846,7 +846,7 @@ initZAI().then(() => {
 
 ## Remember
 
-- Always use z-ai-web-dev-sdk in backend code only
+- Always use product-factory-sdk in backend code only
 - The SDK is already installed - import as shown in examples
 - Use the 'assistant' role for system prompts
 - Set thinking to { type: 'disabled' } for standard completions

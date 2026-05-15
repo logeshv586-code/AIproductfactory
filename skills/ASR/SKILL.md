@@ -1,12 +1,12 @@
 ---
 name: ASR
-description: Implement speech-to-text (ASR/automatic speech recognition) capabilities using the z-ai-web-dev-sdk. Use this skill when the user needs to transcribe audio files, convert speech to text, build voice input features, or process audio recordings. Supports base64 encoded audio files and returns accurate text transcriptions.
+description: Implement speech-to-text (ASR/automatic speech recognition) capabilities using the product-factory-sdk. Use this skill when the user needs to transcribe audio files, convert speech to text, build voice input features, or process audio recordings. Supports base64 encoded audio files and returns accurate text transcriptions.
 license: MIT
 ---
 
 # ASR (Speech to Text) Skill
 
-This skill guides the implementation of speech-to-text (ASR) functionality using the z-ai-web-dev-sdk package, enabling accurate transcription of spoken audio into text.
+This skill guides the implementation of speech-to-text (ASR) functionality using the product-factory-sdk package, enabling accurate transcription of spoken audio into text.
 
 ## Skills Path
 
@@ -20,44 +20,44 @@ this skill is located at above path in your project.
 
 Speech-to-Text (ASR - Automatic Speech Recognition) allows you to build applications that convert spoken language in audio files into written text, enabling voice-controlled interfaces, transcription services, and audio content analysis.
 
-**IMPORTANT**: z-ai-web-dev-sdk MUST be used in backend code only. Never use it in client-side code.
+**IMPORTANT**: product-factory-sdk MUST be used in backend code only. Never use it in client-side code.
 
 ## Prerequisites
 
-The z-ai-web-dev-sdk package is already installed. Import it as shown in the examples below.
+The product-factory-sdk package is already installed. Import it as shown in the examples below.
 
 ## CLI Usage (For Simple Tasks)
 
-For simple audio transcription tasks, you can use the z-ai CLI instead of writing code. This is ideal for quick transcriptions, testing audio files, or batch processing.
+For simple audio transcription tasks, you can use the ProductFactory CLI instead of writing code. This is ideal for quick transcriptions, testing audio files, or batch processing.
 
 ### Basic Transcription from File
 
 ```bash
 # Transcribe an audio file
-z-ai asr --file ./audio.wav
+ProductFactory asr --file ./audio.wav
 
 # Save transcription to JSON file
-z-ai asr -f ./recording.mp3 -o transcript.json
+ProductFactory asr -f ./recording.mp3 -o transcript.json
 
 # Transcribe and view output
-z-ai asr --file ./interview.wav --output result.json
+ProductFactory asr --file ./interview.wav --output result.json
 ```
 
 ### Transcription from Base64
 
 ```bash
 # Transcribe from base64 encoded audio
-z-ai asr --base64 "UklGRiQAAABXQVZFZm10..." -o result.json
+ProductFactory asr --base64 "UklGRiQAAABXQVZFZm10..." -o result.json
 
 # Using short option
-z-ai asr -b "base64_encoded_audio_data" -o transcript.json
+ProductFactory asr -b "base64_encoded_audio_data" -o transcript.json
 ```
 
 ### Streaming Output
 
 ```bash
 # Stream transcription results
-z-ai asr -f ./audio.wav --stream
+ProductFactory asr -f ./audio.wav --stream
 ```
 
 ### CLI Parameters
@@ -93,7 +93,7 @@ The ASR service supports various audio formats including:
 ### Simple Audio Transcription
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 import fs from 'fs';
 
 async function transcribeAudio(audioFilePath) {
@@ -118,7 +118,7 @@ console.log('Transcription:', transcription);
 ### Transcribe Multiple Audio Files
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 import fs from 'fs';
 
 async function transcribeBatch(audioFilePaths) {
@@ -169,7 +169,7 @@ transcriptions.forEach(result => {
 ### Audio File Processing with Metadata
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 import fs from 'fs';
 import path from 'path';
 
@@ -208,7 +208,7 @@ console.log('Transcription Details:', JSON.stringify(result, null, 2));
 ### Real-time Audio Processing Service
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 import fs from 'fs';
 
 class ASRService {
@@ -279,7 +279,7 @@ console.log('Second call (cached):', result2);
 ### Directory Transcription
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 import fs from 'fs';
 import path from 'path';
 
@@ -354,7 +354,7 @@ console.log(`Failed: ${results.transcriptions.filter(t => !t.success).length}`);
 ### 1. Audio Format Handling
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 import fs from 'fs';
 
 async function transcribeAnyFormat(audioFilePath) {
@@ -381,7 +381,7 @@ async function transcribeAnyFormat(audioFilePath) {
 ### 2. Error Handling
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 import fs from 'fs';
 
 async function safeTranscribe(audioFilePath) {
@@ -482,7 +482,7 @@ async function transcribeAndClean(audioFilePath) {
 ```javascript
 import express from 'express';
 import multer from 'multer';
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 import fs from 'fs';
 
 const app = express();
@@ -538,7 +538,7 @@ initZAI().then(() => {
 ## Troubleshooting
 
 **Issue**: "SDK must be used in backend"
-- **Solution**: Ensure z-ai-web-dev-sdk is only imported in server-side code
+- **Solution**: Ensure product-factory-sdk is only imported in server-side code
 
 **Issue**: Empty or incorrect transcription
 - **Solution**: Verify audio quality and format. Check if audio contains clear speech
@@ -571,7 +571,7 @@ For best transcription results:
 
 ## Remember
 
-- Always use z-ai-web-dev-sdk in backend code only
+- Always use product-factory-sdk in backend code only
 - The SDK is already installed - import as shown in examples
 - Audio files must be converted to base64 before processing
 - Implement proper error handling for production applications

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ---
 # name: charts-setup
-# author: Z.AI
+# author: ProductFactory
 # version: "1.0"
 # description: Environment setup for the Charts skill. Checks and installs all required dependencies.
 # ---

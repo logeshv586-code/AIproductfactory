@@ -721,9 +721,11 @@ export async function POST(request: NextRequest) {
 
         currentStep = 'response_validation'
         await advanceRunStep(runId, logger, timeline, currentStep, 'Validating canonical pipeline output', 'running', { source: 'python-core', buildId })
-        const responseBody = validateFactoryResponse(
-          normalizePythonResult(pythonData.data, requestId, runId, body.mode, buildId)
-        )
+        
+        const pythonResultData = normalizePythonResult(pythonData.data, requestId, runId, body.mode, buildId)
+        console.log('[DEBUG] Normalized Python Result:', JSON.stringify(pythonResultData).slice(0, 500) + '...')
+        
+        const responseBody = validateFactoryResponse(pythonResultData)
 
         currentStep = 'completed'
         addTimelineEntry(timeline, currentStep, `Validated ${responseBody.composedProducts.length} products`)

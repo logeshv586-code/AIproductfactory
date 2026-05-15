@@ -22,6 +22,8 @@ from engine.repo_selector import select_best_repos
 from engine.scoring import score_product, rank_products
 from engine.starter_repo import generate_starter_repo
 from graph.graphify import build_graph, get_graph_stats
+from memory.vector_memory import get_vector_memory
+from memory.graph_memory import get_graph_memory
 
 
 class PipelineOrchestrator:
@@ -35,7 +37,7 @@ class PipelineOrchestrator:
         """Log a pipeline step."""
         entry = {"step": step, "ts": int(time.time() * 1000), "detail": detail}
         self.timeline.append(entry)
-        print(f"[Pipeline] ▶ {step}{' — ' + detail if detail else ''}")
+        print(f"[Pipeline] -> {step}{' - ' + detail if detail else ''}")
 
     async def run(
         self,
@@ -158,6 +160,44 @@ class PipelineOrchestrator:
         if on_progress:
             on_progress({"step": "starter_repo", "status": "complete",
                         "blueprints_generated": len(starter_blueprints)})
+
+        # ═══════════════════════════════════════════════════════════════════
+        # STEP 7: Knowledge Persistence (Memory Indexing)
+        # ═══════════════════════════════════════════════════════════════════
+        self._log("KnowledgePersistence", "Indexing results into Graph and Vector memory")
+        try:
+            v_memory = get_vector_memory()
+            g_memory = get_graph_memory()
+
+            # Index Repos
+            repo_docs = []
+            for repo in selected_repos:
+                repo_id = repo.get("full_name", repo.get("name", ""))
+                repo_docs.append({
+                    "text": f"Repository: {repo_id}. Description: {repo.get('description')}. Capability: {repo.get('capability')}",
+                    "metadata": {"id": repo_id, "type": "repo", "name": repo_id}
+                })
+                g_memory.add_node(repo_id, repo_id, "repo", {"description": repo.get("description")})
+
+            # Index Products
+            product_docs = []
+            for product in ranked_products:
+                prod_id = f"prod_{product['name'].replace(' ', '_')}"
+                product_docs.append({
+                    "text": f"Product Idea: {product['name']}. Description: {product['description']}. Strategy: {product.get('strategy')}",
+                    "metadata": {"id": prod_id, "type": "product", "name": product["name"]}
+                })
+                g_memory.add_node(prod_id, product["name"], "product", {"description": product["description"]})
+                
+                # Link product to repos it uses
+                for repo in selected_repos:
+                    repo_id = repo.get("full_name", repo.get("name", ""))
+                    g_memory.add_edge(prod_id, repo_id, "USES", "uses_repo")
+
+            await v_memory.add_documents(repo_docs + product_docs)
+            
+        except Exception as e:
+            print(f"[Pipeline] Knowledge persistence error: {e}")
 
         self._log("COMPLETE", f"Pipeline finished: {len(ranked_products)} products, {graph_stats['total_nodes']} graph nodes")
 

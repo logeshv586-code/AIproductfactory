@@ -1,12 +1,12 @@
 ---
 name: Video Generation
-description: Implement AI-powered video generation capabilities using the z-ai-web-dev-sdk. Use this skill when the user needs to generate videos from text prompts or images, create video content programmatically, or build applications that produce video outputs. Supports asynchronous task management with status polling and result retrieval.
+description: Implement AI-powered video generation capabilities using the product-factory-sdk. Use this skill when the user needs to generate videos from text prompts or images, create video content programmatically, or build applications that produce video outputs. Supports asynchronous task management with status polling and result retrieval.
 license: MIT
 ---
 
 # Video Generation Skill
 
-This skill guides the implementation of video generation functionality using the z-ai-web-dev-sdk package, enabling AI models to create videos from text descriptions or images through asynchronous task processing.
+This skill guides the implementation of video generation functionality using the product-factory-sdk package, enabling AI models to create videos from text descriptions or images through asynchronous task processing.
 
 ## Skills Path
 
@@ -20,41 +20,41 @@ This skill is located at the above path in your project.
 
 Video Generation allows you to build applications that can create video content from text prompts or images, with customizable parameters like resolution, frame rate, duration, and quality settings. The API uses an asynchronous task model where you create a task and poll for results.
 
-**IMPORTANT**: z-ai-web-dev-sdk MUST be used in backend code only. Never use it in client-side code.
+**IMPORTANT**: product-factory-sdk MUST be used in backend code only. Never use it in client-side code.
 
 ## Prerequisites
 
-The z-ai-web-dev-sdk package is already installed. Import it as shown in the examples below.
+The product-factory-sdk package is already installed. Import it as shown in the examples below.
 
 ## CLI Usage (For Simple Tasks)
 
-For simple video generation tasks, you can use the z-ai CLI instead of writing code. The CLI handles task creation and polling automatically, making it ideal for quick tests and simple automation.
+For simple video generation tasks, you can use the ProductFactory CLI instead of writing code. The CLI handles task creation and polling automatically, making it ideal for quick tests and simple automation.
 
 ### Basic Text-to-Video
 
 ```bash
 # Generate video with automatic polling
-z-ai video --prompt "A cat playing with a ball" --poll
+ProductFactory video --prompt "A cat playing with a ball" --poll
 
 # Using short options
-z-ai video -p "Beautiful landscape with mountains" --poll
+ProductFactory video -p "Beautiful landscape with mountains" --poll
 ```
 
 ### Custom Quality and Settings
 
 ```bash
 # Quality mode (speed or quality)
-z-ai video -p "Ocean waves at sunset" --quality quality --poll
+ProductFactory video -p "Ocean waves at sunset" --quality quality --poll
 
 # Custom resolution and FPS
-z-ai video \
+ProductFactory video \
   -p "City timelapse" \
   --size "1920x1080" \
   --fps 60 \
   --poll
 
 # Custom duration (5 or 10 seconds)
-z-ai video -p "Fireworks display" --duration 10 --poll
+ProductFactory video -p "Fireworks display" --duration 10 --poll
 ```
 
 ### Image-to-Video
@@ -69,27 +69,27 @@ z-ai video -p "Fireworks display" --duration 10 --poll
 
 # For PNG images
 IMAGE_BASE64=$(base64 -i image.png)
-z-ai video \
+ProductFactory video \
   --image-url "data:image/png;base64,${IMAGE_BASE64}" \
   --prompt "Make the scene come alive" \
   --poll
 
 # For JPEG images
 IMAGE_BASE64=$(base64 -i photo.jpg)
-z-ai video \
+ProductFactory video \
   --image-url "data:image/jpeg;base64,${IMAGE_BASE64}" \
   --prompt "Make the scene come alive" \
   --poll
 
 # For WebP images
 IMAGE_BASE64=$(base64 -i image.webp)
-z-ai video \
+ProductFactory video \
   --image-url "data:image/webp;base64,${IMAGE_BASE64}" \
   --prompt "Make the scene come alive" \
   --poll
 
 # Using URL (less recommended, may have reliability issues)
-z-ai video \
+ProductFactory video \
   -i "https://example.com/photo.jpg" \
   -p "Add motion to this scene" \
   --poll
@@ -106,7 +106,7 @@ z-ai video \
 # Example with PNG images
 START_BASE64=$(base64 -i start.png)
 END_BASE64=$(base64 -i end.png)
-z-ai video \
+ProductFactory video \
   --image-url "data:image/png;base64,${START_BASE64},data:image/png;base64,${END_BASE64}" \
   --prompt "Smooth transition between frames" \
   --poll
@@ -114,13 +114,13 @@ z-ai video \
 # Example with JPEG images
 START_BASE64=$(base64 -i start.jpg)
 END_BASE64=$(base64 -i end.jpg)
-z-ai video \
+ProductFactory video \
   --image-url "data:image/jpeg;base64,${START_BASE64},data:image/jpeg;base64,${END_BASE64}" \
   --prompt "Smooth transition between frames" \
   --poll
 
 # Using URLs (less recommended)
-z-ai video \
+ProductFactory video \
   --image-url "https://example.com/start.png,https://example.com/end.png" \
   --prompt "Smooth transition between frames" \
   --poll
@@ -130,7 +130,7 @@ z-ai video \
 
 ```bash
 # Generate video with AI-generated audio effects
-z-ai video \
+ProductFactory video \
   -p "Thunder storm approaching" \
   --with-audio \
   --poll
@@ -140,7 +140,7 @@ z-ai video \
 
 ```bash
 # Save task result to JSON file
-z-ai video \
+ProductFactory video \
   -p "Sunrise over mountains" \
   --poll \
   -o video_result.json
@@ -150,14 +150,14 @@ z-ai video \
 
 ```bash
 # Customize polling behavior
-z-ai video \
+ProductFactory video \
   -p "Dancing robot" \
   --poll \
   --poll-interval 10 \
   --max-polls 30
 
 # Create task without polling (get task ID)
-z-ai video -p "Abstract art animation" -o task.json
+ProductFactory video -p "Abstract art animation" -o task.json
 ```
 
 ### CLI Parameters
@@ -192,7 +192,7 @@ If you create a task without `--poll`, you can check its status later:
 
 ```bash
 # Get the task ID from the initial response
-z-ai async-result --id "task-id-here" --poll
+ProductFactory async-result --id "task-id-here" --poll
 ```
 
 ### When to Use CLI vs SDK
@@ -221,7 +221,7 @@ Video generation follows a two-step asynchronous pattern:
 ### Simple Text-to-Video Generation
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 
 async function generateVideo(prompt) {
   try {
@@ -283,7 +283,7 @@ console.log('Generated video:', videoUrl);
 **Critical**: Always match the MIME type in your base64 data URI to the actual image format to prevent decoding errors.
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 import fs from 'fs';
 import path from 'path';
 
@@ -358,7 +358,7 @@ const task3 = await generateVideoFromImage(
 **IMPORTANT**: For keyframe mode, base64-encoded images are **highly recommended** over URLs to ensure consistent and reliable video generation. Always use the correct MIME type for each image.
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 import fs from 'fs';
 import path from 'path';
 
@@ -437,7 +437,7 @@ const task2 = await generateVideoWithKeyframes(
 ### Query Task Status
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 
 async function checkTaskStatus(taskId) {
   try {
@@ -476,7 +476,7 @@ const status = await checkTaskStatus('your-task-id-here');
 ### Polling with Exponential Backoff
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 
 async function pollWithBackoff(taskId) {
   const zai = await ZAI.create();
@@ -517,7 +517,7 @@ async function pollWithBackoff(taskId) {
 ### Video Generation Queue Manager
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 
 class VideoGenerationQueue {
   constructor() {
@@ -606,7 +606,7 @@ console.log('Video ready:', result.video_result?.[0]?.url);
 ### Batch Video Generation
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 
 async function generateMultipleVideos(prompts) {
   const zai = await ZAI.create();
@@ -882,7 +882,7 @@ const qualityVideo = await zai.video.generations.create({
 
 ```javascript
 import express from 'express';
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 
 const app = express();
 app.use(express.json());
@@ -966,7 +966,7 @@ initZAI().then(() => {
 
 ```javascript
 import WebSocket from 'ws';
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 
 const wss = new WebSocket.Server({ port: 8080 });
 let zaiInstance;
@@ -1045,7 +1045,7 @@ initZAI();
 ## Troubleshooting
 
 **Issue**: "SDK must be used in backend"
-- **Solution**: Ensure z-ai-web-dev-sdk is only imported and used in server-side code
+- **Solution**: Ensure product-factory-sdk is only imported and used in server-side code
 
 **Issue**: Task stays in PROCESSING status indefinitely
 - **Solution**: Implement proper timeout mechanisms and consider the video complexity and duration
@@ -1073,7 +1073,7 @@ initZAI();
 
 ## Remember
 
-- Always use z-ai-web-dev-sdk in backend code only
+- Always use product-factory-sdk in backend code only
 - Video generation is asynchronous - always implement proper polling
 - Check multiple response fields for video URL to ensure compatibility
 - Implement timeouts to prevent infinite polling loops

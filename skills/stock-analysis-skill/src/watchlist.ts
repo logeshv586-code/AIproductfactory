@@ -4,7 +4,7 @@
  * 移植原版三种提醒类型：目标价 / 止损价 / 信号变化
  */
 
-import ZAI from "z-ai-web-dev-sdk";
+import ZAI from "product-factory-sdk";
 import { WatchlistItem, WatchlistAlert, Market, Verdict } from "./types";
 
 const STORAGE_KEY = "watchlist-data";

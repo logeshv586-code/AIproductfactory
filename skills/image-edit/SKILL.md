@@ -1,12 +1,12 @@
 ---
 name: image-edit
-description: Implement AI image editing and modification capabilities using the z-ai-web-dev-sdk. Use this skill when the user needs to edit existing images, create variations, modify visual content, redesign assets, or transform images based on text descriptions. Supports multiple image sizes and returns base64 encoded results. Also includes CLI tool for quick image editing.
+description: Implement AI image editing and modification capabilities using the product-factory-sdk. Use this skill when the user needs to edit existing images, create variations, modify visual content, redesign assets, or transform images based on text descriptions. Supports multiple image sizes and returns base64 encoded results. Also includes CLI tool for quick image editing.
 license: MIT
 ---
 
 # Image Edit Skill
 
-This skill guides the implementation of image editing and modification functionality using the z-ai-web-dev-sdk package and CLI tool, enabling intelligent transformation and editing of images based on text descriptions.
+This skill guides the implementation of image editing and modification functionality using the product-factory-sdk package and CLI tool, enabling intelligent transformation and editing of images based on text descriptions.
 
 ## Skills Path
 
@@ -20,7 +20,7 @@ this skill is located at above path in your project.
 
 Image Edit allows you to build applications that modify, transform, and enhance existing images using AI models. Perfect for redesigning assets, creating variations, improving visual content, and transforming images based on textual descriptions.
 
-**IMPORTANT**: z-ai-web-dev-sdk MUST be used in backend code only. Never use it in client-side code.
+**IMPORTANT**: product-factory-sdk MUST be used in backend code only. Never use it in client-side code.
 
 ## SDK API Method
 
@@ -43,14 +43,14 @@ await zai.images.generations.edit({
 
 ## Prerequisites
 
-The z-ai-web-dev-sdk package is already installed. Import it as shown in the examples below.
+The product-factory-sdk package is already installed. Import it as shown in the examples below.
 
 ## Basic Image Editing
 
 ### Simple Image Transformation
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 import fs from 'fs';
 
 async function editImage(imageSource, editPrompt, outputPath, size = '1024x1024') {
@@ -95,7 +95,7 @@ await editImage(
 ### Create Image Variations
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 import fs from 'fs';
 
 async function createVariation(imageSource, baseDescription, variation, outputPath, size = '1024x1024') {
@@ -140,7 +140,7 @@ await createVariation(
 ### Multiple Image Sizes for Editing
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 import fs from 'fs';
 
 // Supported sizes
@@ -196,22 +196,22 @@ await editImageWithSize(
 
 ## CLI Tool Usage
 
-The z-ai CLI tool provides a convenient way to edit images directly from the command line.
+The ProductFactory CLI tool provides a convenient way to edit images directly from the command line.
 
 ### Basic CLI Usage
 
 ```bash
 # Edit image with full options
-z-ai image-edit --prompt "Change the background to sunset colors" --image "./photo.png" --output "./edited.png"
+ProductFactory image-edit --prompt "Change the background to sunset colors" --image "./photo.png" --output "./edited.png"
 
 # Short form
-z-ai image-edit -p "Make it darker and moodier" -i "./original.jpg" -o "./moody.png"
+ProductFactory image-edit -p "Make it darker and moodier" -i "./original.jpg" -o "./moody.png"
 
 # Specify output size
-z-ai image-edit -p "Redesign in modern style" -i "./design.png" -o "./modern.png" -s 1344x768
+ProductFactory image-edit -p "Redesign in modern style" -i "./design.png" -o "./modern.png" -s 1344x768
 
 # Using remote image URL
-z-ai image-edit -p "Convert to landscape orientation" -i "https://example.com/photo.png" -o "./landscape.png" -s 1344x768
+ProductFactory image-edit -p "Convert to landscape orientation" -i "https://example.com/photo.png" -o "./landscape.png" -s 1344x768
 ```
 
 ### CLI Parameters
@@ -230,28 +230,28 @@ z-ai image-edit -p "Convert to landscape orientation" -i "https://example.com/ph
 
 ```bash
 # Redesign existing asset
-z-ai image-edit -p "Redesign the logo with gradients and modern styling" -i "./logo.png" -o "./logo_v2.png" -s 1024x1024
+ProductFactory image-edit -p "Redesign the logo with gradients and modern styling" -i "./logo.png" -o "./logo_v2.png" -s 1024x1024
 
 # Change color scheme
-z-ai image-edit -p "Change color scheme to blue and white, professional style" -i "./original.png" -o "./recolored.png" -s 1440x720
+ProductFactory image-edit -p "Change color scheme to blue and white, professional style" -i "./original.png" -o "./recolored.png" -s 1440x720
 
 # Style transformation
-z-ai image-edit -p "Transform to oil painting style, vibrant colors" -i "./photo.jpg" -o "./oil_painting.png" -s 1152x864
+ProductFactory image-edit -p "Transform to oil painting style, vibrant colors" -i "./photo.jpg" -o "./oil_painting.png" -s 1152x864
 
 # Background replacement
-z-ai image-edit -p "Replace background with modern office setting" -i "./portrait.png" -o "./new_background.png" -s 1344x768
+ProductFactory image-edit -p "Replace background with modern office setting" -i "./portrait.png" -o "./new_background.png" -s 1344x768
 
 # Lighting adjustment
-z-ai image-edit -p "Adjust to golden hour lighting, warm tones" -i "./landscape.jpg" -o "./golden_hour.png" -s 1024x1024
+ProductFactory image-edit -p "Adjust to golden hour lighting, warm tones" -i "./landscape.jpg" -o "./golden_hour.png" -s 1024x1024
 
 # Element modification
-z-ai image-edit -p "Replace the red car with a blue motorcycle" -i "./scene.png" -o "./modified.png" -s 1344x768
+ProductFactory image-edit -p "Replace the red car with a blue motorcycle" -i "./scene.png" -o "./modified.png" -s 1344x768
 
 # Mood transformation
-z-ai image-edit -p "Transform to dark moody atmosphere with dramatic lighting" -i "./bright.jpg" -o "./moody.png" -s 1440x720
+ProductFactory image-edit -p "Transform to dark moody atmosphere with dramatic lighting" -i "./bright.jpg" -o "./moody.png" -s 1440x720
 
 # Using remote image URL
-z-ai image-edit -p "Add a hat to the person" -i "https://example.com/photo.png" -o "./result.png" -s 1024x1024
+ProductFactory image-edit -p "Add a hat to the person" -i "https://example.com/photo.png" -o "./result.png" -s 1024x1024
 ```
 
 ## Advanced Use Cases
@@ -259,7 +259,7 @@ z-ai image-edit -p "Add a hat to the person" -i "https://example.com/photo.png" 
 ### Batch Image Editing
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 import fs from 'fs';
 import path from 'path';
 
@@ -334,7 +334,7 @@ console.log(`Edited ${results.filter(r => r.success).length} images`);
 ### Image Editing Service
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
@@ -453,7 +453,7 @@ console.log('Edit history:', service.getEditHistory());
 ### Style Transfer and Transformation
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 import fs from 'fs';
 
 async function applyStyleTransfer(imageSource, content, style, outputPath, size = '1024x1024') {
@@ -504,7 +504,7 @@ await applyStyleTransfer(
 ### Element Replacement
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 import fs from 'fs';
 
 async function replaceElement(imageSource, baseScene, replaceWhat, replaceWith, outputPath, size = '1024x1024') {
@@ -601,7 +601,7 @@ await editImage('Replace background with beach scene', './beach_bg.png', size);
 ### 3. Error Handling with Retry
 
 ```javascript
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 import fs from 'fs';
 
 async function safeEditImage(imageSource, editPrompt, size, outputPath, retries = 3) {
@@ -668,7 +668,7 @@ async function safeEditImage(imageSource, editPrompt, size, outputPath, retries 
 
 ```javascript
 import express from 'express';
-import ZAI from 'z-ai-web-dev-sdk';
+import ZAI from 'product-factory-sdk';
 import fs from 'fs';
 import path from 'path';
 
@@ -804,9 +804,9 @@ echo "Creating style variations..."
 ORIGINAL_IMAGE="./product.jpg"
 BASE="Professional product photo of laptop"
 
-z-ai image-edit -p "$BASE, modern minimalist style, white background" -i "$ORIGINAL_IMAGE" -o "./variations/minimal.png" -s 1024x1024
-z-ai image-edit -p "$BASE, dramatic lighting, dark background" -i "$ORIGINAL_IMAGE" -o "./variations/dramatic.png" -s 1024x1024
-z-ai image-edit -p "$BASE, on wooden desk, natural lighting" -i "$ORIGINAL_IMAGE" -o "./variations/natural.png" -s 1024x1024
+ProductFactory image-edit -p "$BASE, modern minimalist style, white background" -i "$ORIGINAL_IMAGE" -o "./variations/minimal.png" -s 1024x1024
+ProductFactory image-edit -p "$BASE, dramatic lighting, dark background" -i "$ORIGINAL_IMAGE" -o "./variations/dramatic.png" -s 1024x1024
+ProductFactory image-edit -p "$BASE, on wooden desk, natural lighting" -i "$ORIGINAL_IMAGE" -o "./variations/natural.png" -s 1024x1024
 
 echo "Variations created successfully!"
 ```
@@ -814,7 +814,7 @@ echo "Variations created successfully!"
 ## Troubleshooting
 
 **Issue**: "SDK must be used in backend"
-- **Solution**: Ensure z-ai-web-dev-sdk is only used in server-side code
+- **Solution**: Ensure product-factory-sdk is only used in server-side code
 
 **Issue**: Invalid size parameter
 - **Solution**: Use only supported sizes: 1024x1024, 768x1344, 864x1152, 1344x768, 1152x864, 1440x720, 720x1440
@@ -823,7 +823,7 @@ echo "Variations created successfully!"
 - **Solution**: Be more specific in edit prompts. Include what to change AND what to preserve
 
 **Issue**: CLI command not found
-- **Solution**: Ensure z-ai CLI is properly installed and in PATH
+- **Solution**: Ensure ProductFactory CLI is properly installed and in PATH
 
 **Issue**: Image quality loss after editing
 - **Solution**: Use larger size options and include quality terms in prompts
@@ -884,7 +884,7 @@ echo "Variations created successfully!"
 
 ## Remember
 
-- Always use z-ai-web-dev-sdk in backend code only
+- Always use product-factory-sdk in backend code only
 - The SDK is already installed - import as shown
 - CLI tool is available for quick image editing
 - Be specific about what to change AND what to preserve

@@ -38,7 +38,7 @@ IMPORTANT: User can only see the `/` route defined in `src/app/page.tsx`. Do NOT
 
 IMPORTANT: The Next.js project can only use port 3000 in auto dev server. Never use `bun run build`.
 
-IMPORTANT: `z-ai-web-dev-sdk` MUST be used in the backend only! Do NOT use it on the client side.
+IMPORTANT: `product-factory-sdk` MUST be used in the backend only! Do NOT use it on the client side.
 
 ### Dev Server Log
 

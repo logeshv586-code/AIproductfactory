@@ -11,7 +11,7 @@
     "watch":    "ts-node src/index.ts watch"
   },
   "dependencies": {
-    "z-ai-web-dev-sdk": "latest"
+    "product-factory-sdk": "latest"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

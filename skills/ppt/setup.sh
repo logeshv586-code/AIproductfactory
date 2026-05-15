@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ---
 # name: ppt-setup
-# author: Z.AI
+# author: ProductFactory
 # version: "1.0"
 # description: Environment setup for the PPT skill. Checks and installs all required dependencies.
 # ---

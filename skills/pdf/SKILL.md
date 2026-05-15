@@ -1,7 +1,7 @@
 ---
 name: pdf
 metadata:
-  author: Z.AI
+  author: ProductFactory
   version: "1.0"
 description: "Professional PDF toolkit with four production lines: (1) Report - structured documents via ReportLab (reports, proposals, contracts, white papers) (2) Creative - visual design via JSON Blueprint → design_engine.py → Playwright snapshot (posters, infographics, invitations, dashboards). The LLM acts as Art Director outputting ONLY JSON spatial blueprints; convert.blueprint compiles to pixel-perfect PDF. (3) Academic - scholarly work via LaTeX/Tectonic (papers, theses, math-heavy documents) (4) Process - manipulate existing PDFs (extract, merge, split, fill forms, convert) Auto-routes based on document type. Includes ATS/creative/academic resume sub-paths.
 license: Proprietary. LICENSE.txt has complete terms
@@ -544,7 +544,7 @@ These CSS properties **silently break** in Playwright's PDF renderer:
 After generating any Playwright PDF, **verify every page has content** (pypdf text extraction, check non-empty).
 
 ### PDF Metadata (all briefs)
-ALL PDFs must have: Title, Author (default "Z.ai"), Creator, Subject.
+ALL PDFs must have: Title, Author (default "ProductFactory"), Creator, Subject.
 
 ### Delivery Summary (all briefs)
 Report to user: file path, size, page count. Academic adds word/image count. Creative adds per-page verification.
@@ -573,7 +573,7 @@ env.fix                      # Auto-install missing
 # Quality
 code.sanitize <script>       # Sanitize forbidden Unicode
 content.sanitize <file> [--apply]  # Fix content issues (CJK, encoding)
-meta.brand <pdf>             # Add Z.ai metadata
+meta.brand <pdf>             # Add ProductFactory metadata
 font.check <pdf>             # Scan for missing glyphs
 toc.check <pdf>              # Validate TOC
 

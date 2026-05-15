@@ -2,7 +2,7 @@
 """Improve a skill description based on eval results.
 
 Takes eval results (from run_eval.py) and generates an improved description
-by calling `z-ai chat -p` as a subprocess.
+by calling `ProductFactory chat -p` as a subprocess.
 """
 
 import argparse
@@ -17,8 +17,8 @@ from scripts.utils import parse_skill_md
 
 
 def _call_zai(prompt: str, timeout: int = 300) -> str:
-    """Run `z-ai chat -p` with the prompt and return the text response."""
-    cmd = ["z-ai", "chat", "-p", prompt]
+    """Run `ProductFactory chat -p` with the prompt and return the text response."""
+    cmd = ["ProductFactory", "chat", "-p", prompt]
 
     env = {k: v for k, v in os.environ.items() if k != "GLMCODE"}
 
@@ -31,7 +31,7 @@ def _call_zai(prompt: str, timeout: int = 300) -> str:
     )
     if result.returncode != 0:
         raise RuntimeError(
-            f"z-ai chat exited {result.returncode}\nstderr: {result.stderr}"
+            f"ProductFactory chat exited {result.returncode}\nstderr: {result.stderr}"
         )
     return result.stdout
 
@@ -47,7 +47,7 @@ def improve_description(
     log_dir: Path | None = None,
     iteration: int | None = None,
 ) -> str:
-    """Call z-ai to improve the description based on eval results."""
+    """Call ProductFactory to improve the description based on eval results."""
     failed_triggers = [
         r for r in eval_results["results"]
         if r["should_trigger"] and not r["pass"]
