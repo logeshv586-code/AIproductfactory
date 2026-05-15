@@ -21,6 +21,7 @@ from agents.architecture_designer import design_architecture
 from engine.repo_selector import select_best_repos
 from engine.scoring import score_product, rank_products
 from engine.starter_repo import generate_starter_repo
+from execution.execution_agent import get_execution_agent
 from graph.graphify import build_graph, get_graph_stats
 from memory.vector_memory import get_vector_memory
 from memory.graph_memory import get_graph_memory
@@ -160,6 +161,29 @@ class PipelineOrchestrator:
         if on_progress:
             on_progress({"step": "starter_repo", "status": "complete",
                         "blueprints_generated": len(starter_blueprints)})
+
+        # ═══════════════════════════════════════════════════════════════════
+        # STEP 6.5: Automated Execution (Implementation)
+        # ═══════════════════════════════════════════════════════════════════
+        if ranked_products and ranked_products[0].get("starter_blueprint"):
+            self._log("Execution", "Automatically implementing starter repository on disk")
+            try:
+                top_product = ranked_products[0]
+                blueprint = top_product["starter_blueprint"]
+                workspace_id = f"build_{int(time.time())}"
+                agent = get_execution_agent(workspace_id, self.provider)
+                
+                # Initialize structure
+                agent.simulator.create_structure(blueprint.get("folder_structure", []))
+                
+                # Write core files
+                agent.simulator.write_file("SKILL.md", blueprint.get("readme_content", ""))
+                agent.simulator.write_file("main.py", blueprint.get("docker_compose_yaml", "")) # reusing this field or a new one
+                agent.simulator.write_file(".env.example", blueprint.get("env_example", ""))
+                
+                self._log("Execution", f"Starter code for '{top_product['name']}' saved to output/{workspace_id}")
+            except Exception as e:
+                self._log("Execution", f"Automatic execution failed: {e}")
 
         # ═══════════════════════════════════════════════════════════════════
         # STEP 7: Knowledge Persistence (Memory Indexing)

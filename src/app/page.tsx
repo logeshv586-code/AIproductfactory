@@ -12,7 +12,7 @@ import {
   X, Download, Copy, Maximize2, Minimize2, Code, GitMerge,
   Workflow, Monitor, Server, HardDrive, Cloud, Container,
   PieChart, LineChart, Type, Hash, BookmarkPlus, CircleDot,
-  LayoutGrid, LucideIcon, Terminal, BookOpen
+  LayoutGrid, LucideIcon, Terminal, BookOpen, FolderOpen
 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -350,30 +350,58 @@ export default function Home() {
               exit={{ opacity: 0, scale: 0.95 }}
               className="min-h-screen flex flex-col items-center justify-center p-6 bg-slate-950 text-white overflow-hidden relative"
             >
-              <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10" />
-              <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-violet-600/20 rounded-full blur-[120px] animate-pulse" />
-              <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-indigo-600/20 rounded-full blur-[120px] animate-pulse delay-1000" />
-              
+              {/* Premium Background Elements */}
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,_rgba(30,20,70,1)_0%,_rgba(2,2,10,1)_100%)]" />
+              <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+                <motion.div 
+                  animate={{ 
+                    scale: [1, 1.2, 1],
+                    x: [0, 100, 0],
+                    y: [0, 50, 0],
+                  }}
+                  transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+                  className="absolute -top-[10%] -left-[10%] w-[60%] h-[60%] bg-violet-600/20 rounded-full blur-[120px]" 
+                />
+                <motion.div 
+                  animate={{ 
+                    scale: [1.2, 1, 1.2],
+                    x: [0, -100, 0],
+                    y: [0, -50, 0],
+                  }}
+                  transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
+                  className="absolute -bottom-[10%] -right-[10%] w-[60%] h-[60%] bg-indigo-600/20 rounded-full blur-[120px]" 
+                />
+                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-[0.03] mix-blend-overlay" />
+              </div>
+
               <motion.div 
                 initial={{ opacity: 0, y: 20 }} 
                 animate={{ opacity: 1, y: 0 }} 
                 transition={{ duration: 0.8 }}
                 className="z-10 text-center max-w-5xl w-full"
               >
-                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 border border-white/20 text-xs font-semibold mb-8 backdrop-blur-xl shadow-2xl">
-                  <Sparkles className="w-3.5 h-3.5 text-violet-400" />
-                  <span className="bg-gradient-to-r from-violet-200 to-indigo-200 bg-clip-text text-transparent">Engineering Operating System v2.0</span>
-                </div>
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.2 }}
+                  className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass border border-white/10 text-[10px] font-black uppercase tracking-[0.2em] mb-8 shadow-2xl"
+                >
+                  <div className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-ping" />
+                  <span className="bg-gradient-to-r from-violet-200 via-indigo-200 to-cyan-200 bg-clip-text text-transparent">
+                    Neural Orchestration Engine v2.5
+                  </span>
+                </motion.div>
                 
-                <h1 className="text-6xl md:text-8xl font-black mb-8 tracking-tight leading-[0.9] bg-gradient-to-b from-white via-white to-white/40 bg-clip-text text-transparent">
-                  The Future of <br/> <span className="text-violet-500">Autonomous</span> Build.
+                <h1 className="text-7xl md:text-[10rem] font-black mb-6 tracking-tighter leading-[0.8] bg-gradient-to-b from-white via-white to-white/20 bg-clip-text text-transparent">
+                  BUILD <br/> <span className="text-violet-500 drop-shadow-[0_0_30px_rgba(139,92,246,0.3)]">BEYOND</span>.
                 </h1>
                 
-                <p className="text-xl text-slate-400 mb-14 max-w-2xl mx-auto leading-relaxed">
-                  Transform high-level vision into production-ready software using multi-agent intelligence and automated reasoning.
+                <p className="text-lg text-slate-400 mb-14 max-w-xl mx-auto leading-relaxed font-medium">
+                  The world's first autonomous product engineering suite. <br/>
+                  <span className="text-slate-500">From raw intent to production-ready architecture in seconds.</span>
                 </p>
 
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-16">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-16 px-4">
                   {[
                     { id: 'agent', name: 'AI Agent', icon: Brain, color: 'from-violet-500 to-indigo-600' },
                     { id: 'rag', name: 'RAG System', icon: Search, color: 'from-blue-500 to-cyan-600' },
@@ -390,42 +418,68 @@ export default function Home() {
                       whileHover={{ scale: 1.05, translateY: -8 }}
                       whileTap={{ scale: 0.95 }}
                       onClick={() => { setProductType(type.name); }}
-                      className={`p-5 rounded-2xl border transition-all flex flex-col items-center justify-center gap-3 relative overflow-hidden group ${productType === type.name ? 'border-white bg-white/20 ring-2 ring-white/10' : 'border-white/10 bg-white/5 hover:bg-white/10'}`}
+                      className={`p-6 rounded-[2rem] border transition-all flex flex-col items-center justify-center gap-4 relative overflow-hidden group backdrop-blur-3xl ${productType === type.name ? 'border-violet-500/50 bg-white/10 ring-4 ring-violet-500/10' : 'border-white/5 bg-white/5 hover:bg-white/10'}`}
                     >
-                      <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${type.color} flex items-center justify-center shadow-lg group-hover:shadow-white/10 transition-shadow`}>
-                        <type.icon className="w-6 h-6 text-white" />
+                      <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${type.color} flex items-center justify-center shadow-2xl group-hover:shadow-white/5 transition-all duration-500 group-hover:rotate-6`}>
+                        <type.icon className="w-7 h-7 text-white" />
                       </div>
-                      <span className="text-xs font-bold tracking-wide uppercase opacity-80">{type.name}</span>
+                      <span className="text-[10px] font-black tracking-[0.1em] uppercase opacity-60 group-hover:opacity-100 transition-opacity">{type.name}</span>
                       {productType === type.name && (
-                        <motion.div layoutId="selection-glow" className="absolute inset-0 bg-white/5 pointer-events-none" />
+                        <motion.div layoutId="selection-glow" className="absolute inset-0 bg-gradient-to-tr from-violet-500/10 to-transparent pointer-events-none" />
                       )}
                     </motion.button>
                   ))}
                 </div>
 
-                <div className="flex flex-col items-center gap-6">
+                <div className="flex flex-col items-center gap-8 px-4">
                   <div className="relative w-full max-w-2xl group">
-                    <div className="absolute -inset-1 bg-gradient-to-r from-violet-600 to-indigo-600 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-1000 group-hover:duration-200" />
-                    <Input 
-                      placeholder="Enter your product vision... (e.g. 'Build a scalable RAG agent for legal documents')" 
-                      value={factoryIdea}
-                      onChange={(e) => setFactoryIdea(e.target.value)}
-                      className="relative h-20 px-8 bg-black border-white/10 text-white placeholder:text-slate-600 rounded-2xl text-xl pr-44 focus:ring-violet-500 shadow-2xl"
-                    />
-                    <Button 
-                      size="lg"
-                      disabled={!factoryIdea.trim() || !productType}
-                      onClick={() => runFactory()}
-                      className="absolute right-2 top-2 bottom-2 bg-white text-black hover:bg-slate-200 rounded-xl px-8 font-black text-sm tracking-tight transition-all active:scale-95"
-                    >
-                      DEPLOY AGENTS
-                    </Button>
+                    <div className="absolute -inset-1 bg-gradient-to-r from-violet-600 via-indigo-600 to-cyan-600 rounded-[2.5rem] blur-2xl opacity-20 group-hover:opacity-40 transition duration-1000 group-hover:duration-200" />
+                    <div className="relative flex items-center">
+                      <Input 
+                        placeholder="What are we building today?" 
+                        value={factoryIdea}
+                        onChange={(e) => setFactoryIdea(e.target.value)}
+                        className="h-24 pl-10 pr-48 bg-black/60 backdrop-blur-3xl border-white/10 text-white placeholder:text-slate-600 rounded-[2.2rem] text-2xl font-medium focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/50 shadow-2xl transition-all"
+                      />
+                      <Button 
+                        size="lg"
+                        disabled={!factoryIdea.trim() || !productType}
+                        onClick={() => runFactory()}
+                        className="absolute right-3 bg-white text-black hover:bg-slate-200 rounded-3xl h-18 px-10 font-black text-sm tracking-widest uppercase transition-all active:scale-95 disabled:opacity-50 group-hover:shadow-[0_0_30px_rgba(255,255,255,0.2)]"
+                      >
+                        {factoryBuilding ? (
+                          <div className="flex items-center gap-3">
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span>Booting...</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-3">
+                            <Zap className="w-4 h-4 fill-current" />
+                            <span>Generate</span>
+                          </div>
+                        )}
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-6 text-[10px] font-bold tracking-widest text-slate-500 uppercase">
-                    <span className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-violet-500" /> RESEARCH</span>
-                    <span className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-indigo-500" /> PLAN</span>
-                    <span className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> DESIGN</span>
-                    <span className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-blue-500" /> EXECUTE</span>
+                  
+                  <div className="flex flex-wrap justify-center items-center gap-x-12 gap-y-4">
+                    {[
+                      { label: 'Autonomous Research', icon: Search, color: 'text-violet-500' },
+                      { label: 'Semantic Mapping', icon: Zap, color: 'text-indigo-500' },
+                      { label: 'Neural Graphify', icon: Network, color: 'text-emerald-500' },
+                      { label: 'Agentic Execution', icon: Terminal, color: 'text-blue-500' },
+                    ].map((item, i) => (
+                      <motion.div 
+                        key={item.label}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 0.4 }}
+                        transition={{ delay: 1 + i * 0.1 }}
+                        className="flex items-center gap-2.5 text-[9px] font-black tracking-[0.2em] uppercase"
+                      >
+                        <item.icon className={`w-3 h-3 ${item.color}`} />
+                        <span>{item.label}</span>
+                      </motion.div>
+                    ))}
                   </div>
                 </div>
               </motion.div>
@@ -435,74 +489,131 @@ export default function Home() {
               key="workspace"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="min-h-screen"
+              className="min-h-screen bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-black text-white"
             >
-              <header className="sticky top-0 z-50 backdrop-blur-md bg-white/70 border-b border-slate-200/50 shadow-sm">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-lg">
-                      <Github className="w-5 h-5 text-white" />
+              <header className="sticky top-0 z-50 backdrop-blur-2xl bg-black/40 border-b border-white/5 shadow-2xl">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 py-5 flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-500 via-indigo-600 to-cyan-600 flex items-center justify-center shadow-[0_0_20px_rgba(139,92,246,0.3)] animate-pulse-slow">
+                      <Github className="w-6 h-6 text-white" />
                     </div>
                     <div>
-                      <h1 className="text-lg font-bold bg-gradient-to-r from-violet-600 to-indigo-600 bg-clip-text text-transparent">Engineering Workspace</h1>
-                      <p className="text-xs text-muted-foreground">{productType} · {factoryIdea.slice(0, 40)}...</p>
+                      <h1 className="text-xl font-black tracking-tight text-gradient uppercase">Neural Workspace</h1>
+                      <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                        <span>{productType}</span>
+                        <div className="w-1 h-1 rounded-full bg-slate-700" />
+                        <span className="text-slate-400">{factoryIdea.slice(0, 50)}...</span>
+                      </div>
                     </div>
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => setFactoryLayer('selection')} className="gap-2">
-                    <ArrowRight className="w-4 h-4 rotate-180" /> Back to Factory
-                  </Button>
+                  <div className="flex items-center gap-4">
+                    <div className="hidden md:flex items-center gap-6 px-6 py-2 rounded-2xl bg-white/5 border border-white/5">
+                       <div className="flex flex-col items-end">
+                         <span className="text-[8px] font-black text-slate-500 uppercase tracking-tighter">System Load</span>
+                         <span className="text-xs font-mono text-emerald-500">OPTIMAL</span>
+                       </div>
+                       <Separator orientation="vertical" className="h-6 bg-white/10" />
+                       <div className="flex flex-col items-end">
+                         <span className="text-[8px] font-black text-slate-500 uppercase tracking-tighter">Active Agents</span>
+                         <span className="text-xs font-mono text-violet-400">04</span>
+                       </div>
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={() => setFactoryLayer('selection')} className="gap-2 hover:bg-white/5 rounded-xl text-slate-400 hover:text-white transition-all">
+                      <ArrowRight className="w-4 h-4 rotate-180" /> <span className="text-[10px] font-black uppercase tracking-widest">Reset Factory</span>
+                    </Button>
+                  </div>
                 </div>
               </header>
 
-              <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-                <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-                  <TabsList className="bg-slate-100/50 backdrop-blur-sm p-1 rounded-xl border border-slate-200/50">
-                    <TabsTrigger value="overview">Overview</TabsTrigger>
-                    <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
-                    <TabsTrigger value="research" className="gap-2">
-                      <Search className="w-4 h-4" /> Research {researching && <Loader2 className="w-3 h-3 animate-spin" />}
-                    </TabsTrigger>
-                    <TabsTrigger value="plan" className="gap-2">
-                      <Workflow className="w-4 h-4" /> Plan {planning && <Loader2 className="w-3 h-3 animate-spin" />}
-                    </TabsTrigger>
-                    <TabsTrigger value="execution" className="gap-2">
-                      <Terminal className="w-4 h-4" /> Execution {executing && <Loader2 className="w-3 h-3 animate-spin" />}
-                    </TabsTrigger>
-                    <TabsTrigger value="graph">Capability Graph</TabsTrigger>
-                  </TabsList>
+              <main className="max-w-7xl mx-auto px-4 sm:px-6 py-10">
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
+                  <div className="flex items-center justify-between">
+                    <TabsList className="bg-white/5 backdrop-blur-3xl p-1 rounded-2xl border border-white/5 h-14">
+                      <TabsTrigger value="overview" className="px-6 data-[state=active]:bg-white/10 data-[state=active]:text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">Overview</TabsTrigger>
+                      <TabsTrigger value="pipeline" className="px-6 data-[state=active]:bg-white/10 data-[state=active]:text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">Pipeline</TabsTrigger>
+                      <TabsTrigger value="research" className="px-6 data-[state=active]:bg-white/10 data-[state=active]:text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all gap-2">
+                        <Search className="w-3 h-3" /> Research {researching && <Loader2 className="w-3 h-3 animate-spin text-violet-500" />}
+                      </TabsTrigger>
+                      <TabsTrigger value="plan" className="px-6 data-[state=active]:bg-white/10 data-[state=active]:text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all gap-2">
+                        <Workflow className="w-3 h-3" /> Plan {planning && <Loader2 className="w-3 h-3 animate-spin text-indigo-500" />}
+                      </TabsTrigger>
+                      <TabsTrigger value="execution" className="px-6 data-[state=active]:bg-white/10 data-[state=active]:text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all gap-2">
+                        <Terminal className="w-3 h-3" /> Execution {executing && <Loader2 className="w-3 h-3 animate-spin text-emerald-500" />}
+                      </TabsTrigger>
+                      <TabsTrigger value="graph" className="px-6 data-[state=active]:bg-white/10 data-[state=active]:text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">Capability Graph</TabsTrigger>
+                    </TabsList>
 
-                  <TabsContent value="overview" className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="flex items-center gap-3">
+                      <Badge variant="outline" className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 px-3 py-1 text-[9px] font-black uppercase tracking-tighter">Live Monitor</Badge>
+                      <Badge variant="outline" className="bg-violet-500/10 text-violet-500 border-violet-500/20 px-3 py-1 text-[9px] font-black uppercase tracking-tighter">v2.5 Alpha</Badge>
+                    </div>
+                  </div>
+
+                  <TabsContent value="overview" className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                       {[
-                        { label: 'Agent Health', value: 'Optimal', icon: Activity, color: 'text-emerald-500' },
-                        { label: 'Plan Progress', value: '12%', icon: TrendingUp, color: 'text-blue-500' },
-                        { label: 'Security Score', value: '98/100', icon: Shield, color: 'text-violet-500' },
-                        { label: 'Complexity', value: 'Medium', icon: Zap, color: 'text-amber-500' },
+                        { label: 'Neural Health', value: 'OPTIMAL', icon: Activity, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+                        { label: 'Build Velocity', value: '142ms', icon: Zap, color: 'text-blue-500', bg: 'bg-blue-500/10' },
+                        { label: 'Knowledge Nodes', value: '1,284', icon: Network, color: 'text-violet-500', bg: 'bg-violet-500/10' },
+                        { label: 'Complexity Index', value: 'MID-LEVEL', icon: Boxes, color: 'text-amber-500', bg: 'bg-amber-500/10' },
                       ].map((m) => (
-                        <Card key={m.label} className="border-0 shadow-sm bg-white/60 backdrop-blur-md">
-                          <CardContent className="p-4 flex items-center gap-4">
-                            <div className={`p-2 rounded-lg bg-slate-100 ${m.color}`}><m.icon className="w-5 h-5" /></div>
+                        <Card key={m.label} className="border-white/5 bg-white/5 backdrop-blur-3xl rounded-[2rem] overflow-hidden group hover:border-white/10 transition-all duration-500">
+                          <CardContent className="p-8 flex flex-col gap-6">
+                            <div className={`p-4 rounded-2xl ${m.bg} ${m.color} w-fit group-hover:scale-110 transition-transform duration-500`}><m.icon className="w-6 h-6" /></div>
                             <div>
-                              <p className="text-2xl font-bold">{m.value}</p>
-                              <p className="text-xs text-muted-foreground">{m.label}</p>
+                              <p className="text-3xl font-black tracking-tighter">{m.value}</p>
+                              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">{m.label}</p>
                             </div>
                           </CardContent>
                         </Card>
                       ))}
                     </div>
-                    <Card className="border-0 shadow-sm bg-gradient-to-br from-violet-50 to-indigo-50 overflow-hidden relative">
-                      <div className="absolute top-0 right-0 p-8 opacity-10"><Rocket className="w-32 h-32" /></div>
-                      <CardHeader>
-                        <CardTitle className="text-2xl font-black text-slate-900">Autonomous Pipeline Initialized</CardTitle>
-                        <CardDescription className="text-slate-600 max-w-xl">
-                          Our multi-agent system is currently researching your product vision, mapping repository capabilities, and designing the optimal system architecture.
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="flex gap-4">
-                        <Button onClick={() => setActiveTab('research')} className="bg-violet-600 hover:bg-violet-700">View Research</Button>
-                        <Button variant="outline" onClick={() => setActiveTab('pipeline')}>Monitor Pipeline</Button>
-                      </CardContent>
-                    </Card>
+                    
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                      <Card className="lg:col-span-2 border-white/5 bg-gradient-to-br from-violet-600/10 via-indigo-600/5 to-transparent backdrop-blur-3xl rounded-[2.5rem] overflow-hidden relative border-l-4 border-l-violet-500">
+                        <div className="absolute top-0 right-0 p-12 opacity-[0.03] rotate-12"><Rocket className="w-64 h-64" /></div>
+                        <CardHeader className="p-10 pb-4">
+                          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-violet-500/10 border border-violet-500/20 text-[9px] font-black text-violet-400 uppercase tracking-widest mb-4">Autonomous Intelligence</div>
+                          <CardTitle className="text-4xl font-black tracking-tighter leading-none mb-4">Pipeline Synchronized.</CardTitle>
+                          <CardDescription className="text-slate-400 text-lg leading-relaxed max-w-2xl font-medium">
+                            Our neural agents have mapped the capability landscape and constructed a high-fidelity system architecture. Ready for deep research and autonomous execution.
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent className="p-10 pt-6 flex flex-wrap gap-4">
+                          <Button onClick={() => setActiveTab('research')} className="bg-white text-black hover:bg-slate-200 rounded-2xl h-14 px-8 font-black text-xs uppercase tracking-widest shadow-2xl transition-all active:scale-95">Enter Research Hub</Button>
+                          <Button variant="outline" onClick={() => setActiveTab('pipeline')} className="border-white/10 bg-white/5 hover:bg-white/10 text-white rounded-2xl h-14 px-8 font-black text-xs uppercase tracking-widest transition-all active:scale-95">Monitor Logic</Button>
+                        </CardContent>
+                      </Card>
+
+                      <Card className="border-white/5 bg-white/5 backdrop-blur-3xl rounded-[2.5rem] overflow-hidden relative">
+                         <CardHeader className="p-10 pb-4">
+                            <CardTitle className="text-xl font-black tracking-tighter uppercase">Build Output</CardTitle>
+                         </CardHeader>
+                         <CardContent className="p-10 pt-2 space-y-6">
+                            <div className="flex items-start gap-4 p-4 rounded-2xl bg-white/5 border border-white/10">
+                              <FolderOpen className="w-8 h-8 text-violet-500 shrink-0" />
+                              <div className="space-y-1">
+                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Local Repository</p>
+                                <p className="text-xs font-mono text-slate-300 break-all">{factoryResult?.outputPath || './output/latest_build'}</p>
+                              </div>
+                            </div>
+                            <div className="space-y-4">
+                                <div className="flex justify-between items-center">
+                                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Implementation Progress</span>
+                                  <span className="text-xs font-bold text-emerald-500">READY</span>
+                                </div>
+                                <div className="flex gap-2 flex-wrap">
+                                  {(factoryResult?.composedProducts?.[0]?.starterBlueprint?.folder_structure?.slice(1, 6) || ['SKILL.md', 'main.py', 'requirements.txt', '.env.example']).map((file: string) => (
+                                    <Badge key={file} variant="outline" className="bg-white/5 border-white/10 text-[8px] font-black uppercase">{file.split('/').pop() || file}</Badge>
+                                  ))}
+                                </div>
+                            </div>
+                            <Button className="w-full bg-violet-600 hover:bg-violet-700 rounded-xl h-12 font-black text-[10px] uppercase tracking-[0.2em] shadow-lg shadow-violet-600/20">
+                              Explore Files
+                            </Button>
+                         </CardContent>
+                      </Card>
+                    </div>
                   </TabsContent>
 
                   <TabsContent value="research" className="space-y-4">
@@ -515,11 +626,11 @@ export default function Home() {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <Card className="border-0 shadow-sm">
                           <CardHeader><CardTitle className="text-sm flex items-center gap-2"><Sparkles className="w-4 h-4 text-violet-500" /> Key Findings</CardTitle></CardHeader>
-                          <CardContent><ul className="space-y-2">{researchData.key_findings.map((f: string, i: number) => <li key={i} className="text-sm text-slate-600 flex gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" /> {f}</li>)}</ul></CardContent>
+                          <CardContent><ul className="space-y-2">{(researchData.key_findings || []).map((f: string, i: number) => <li key={i} className="text-sm text-slate-600 flex gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" /> {f}</li>)}</ul></CardContent>
                         </Card>
                         <Card className="border-0 shadow-sm">
                           <CardHeader><CardTitle className="text-sm flex items-center gap-2"><Zap className="w-4 h-4 text-amber-500" /> Patterns</CardTitle></CardHeader>
-                          <CardContent><div className="space-y-3">{researchData.recommended_patterns.map((p: any, i: number) => <div key={i} className="p-3 bg-slate-50 rounded-lg"><p className="text-sm font-bold">{p.name}</p><p className="text-xs text-slate-500">{p.description}</p></div>)}</div></CardContent>
+                          <CardContent><div className="space-y-3">{(researchData.recommended_patterns || []).map((p: any, i: number) => <div key={i} className="p-3 bg-slate-50 rounded-lg"><p className="text-sm font-bold">{p.name}</p><p className="text-xs text-slate-500">{p.description}</p></div>)}</div></CardContent>
                         </Card>
                       </div>
                     ) : (
@@ -591,24 +702,54 @@ export default function Home() {
                   </TabsContent>
 
                   <TabsContent value="pipeline">
-                    <Card className="border-0 shadow-sm bg-white/60 backdrop-blur-md">
-                      <CardHeader>
-                        <CardTitle className="text-lg">Engineering Pipeline Monitor</CardTitle>
+                    <Card className="border-white/5 bg-white/5 backdrop-blur-3xl rounded-[2.5rem] overflow-hidden">
+                      <CardHeader className="p-10 pb-4">
+                        <CardTitle className="text-xl font-black tracking-tighter uppercase">Engineering Pipeline Monitor</CardTitle>
+                        <CardDescription className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Real-time neural state synchronization</CardDescription>
                       </CardHeader>
-                      <CardContent>
-                        <div className="space-y-8">
+                      <CardContent className="p-10 pt-6">
+                        <div className="space-y-12 relative">
+                          <div className="absolute left-[19px] top-4 bottom-4 w-0.5 bg-gradient-to-b from-violet-500 via-indigo-500 to-transparent opacity-20" />
                           {PIPELINE_STEPS.map((step, i) => (
-                            <div key={step.id} className={`flex items-start gap-4 transition-all duration-500 ${pipelineStep >= i ? 'opacity-100' : 'opacity-30'}`}>
-                              <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${step.color} flex items-center justify-center shrink-0 shadow-lg`}>
-                                <step.icon className={`w-5 h-5 text-white ${pipelineStep === i ? 'animate-bounce' : ''}`} />
+                            <div key={step.id} className={`flex items-start gap-8 transition-all duration-700 relative z-10 ${pipelineStep >= i ? 'opacity-100' : 'opacity-20 grayscale'}`}>
+                              <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${step.color} flex items-center justify-center shrink-0 shadow-2xl relative`}>
+                                {pipelineStep === i && (
+                                  <motion.div 
+                                    layoutId="pipeline-active-glow" 
+                                    className="absolute -inset-2 bg-white/20 rounded-2xl blur-lg" 
+                                    animate={{ opacity: [0.5, 1, 0.5], scale: [1, 1.1, 1] }}
+                                    transition={{ duration: 2, repeat: Infinity }}
+                                  />
+                                )}
+                                <step.icon className={`w-5 h-5 text-white ${pipelineStep === i ? 'animate-pulse' : ''}`} />
                               </div>
-                              <div className="flex-1 space-y-1">
+                              <div className="flex-1 space-y-2">
                                 <div className="flex items-center justify-between">
-                                  <h4 className="text-sm font-bold">{step.label}</h4>
-                                  {pipelineStep > i && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
-                                  {pipelineStep === i && <Loader2 className="w-4 h-4 animate-spin text-blue-500" />}
+                                  <h4 className="text-sm font-black tracking-tight uppercase">{step.label}</h4>
+                                  {pipelineStep > i && (
+                                    <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="flex items-center gap-2">
+                                      <span className="text-[8px] font-black text-emerald-500 tracking-tighter uppercase">Verified</span>
+                                      <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                                    </motion.div>
+                                  )}
+                                  {pipelineStep === i && (
+                                    <div className="flex items-center gap-3">
+                                      <span className="text-[8px] font-black text-blue-400 tracking-tighter uppercase animate-pulse">Processing...</span>
+                                      <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
+                                    </div>
+                                  )}
                                 </div>
-                                <p className="text-xs text-slate-500">{step.desc}</p>
+                                <p className="text-xs text-slate-500 font-medium leading-relaxed max-w-md">{step.desc}</p>
+                                {pipelineStep === i && (
+                                  <motion.div 
+                                    initial={{ width: 0 }} 
+                                    animate={{ width: '100%' }} 
+                                    transition={{ duration: 3, repeat: Infinity }}
+                                    className="h-1 bg-white/10 rounded-full overflow-hidden mt-4"
+                                  >
+                                    <div className={`h-full bg-gradient-to-r ${step.color}`} />
+                                  </motion.div>
+                                )}
                               </div>
                             </div>
                           ))}
@@ -617,13 +758,21 @@ export default function Home() {
                     </Card>
                   </TabsContent>
 
-                  <TabsContent value="graph" className="h-[600px] border rounded-xl bg-white/40 backdrop-blur-md relative overflow-hidden">
-                    <div ref={graphCanvasRef} className="w-full h-full">
+                  <TabsContent value="graph" className="h-[700px] border border-white/5 rounded-[3rem] bg-white/5 backdrop-blur-3xl relative overflow-hidden">
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,_rgba(139,92,246,0.1)_0%,_transparent_70%)]" />
+                    <div ref={graphCanvasRef} className="w-full h-full relative z-10">
                       <svg className="w-full h-full">
                         <defs>
-                          <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-                            <polygon points="0 0, 10 3.5, 0 7" fill="#cbd5e1" />
+                          <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="28" refY="3.5" orient="auto">
+                            <polygon points="0 0, 10 3.5, 0 7" fill="rgba(255,255,255,0.1)" />
                           </marker>
+                          <filter id="glow">
+                            <feGaussianBlur stdDeviation="2.5" result="coloredBlur"/>
+                            <feMerge>
+                                <feMergeNode in="coloredBlur"/>
+                                <feMergeNode in="SourceGraphic"/>
+                            </feMerge>
+                          </filter>
                         </defs>
                         {graphEdges.map(edge => {
                           const source = graphNodes.find(n => n.id === edge.source)
@@ -631,21 +780,93 @@ export default function Home() {
                           if (!source || !target) return null
                           const x1 = getNodeX(source, graphNodes); const y1 = getNodeY(source, graphNodes)
                           const x2 = getNodeX(target, graphNodes); const y2 = getNodeY(target, graphNodes)
-                          return <motion.line key={edge.id} x1={x1} y1={y1} x2={x2} y2={y2} stroke={edge.color} strokeWidth="1.5" markerEnd="url(#arrowhead)" initial={{ pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: 0.3 }} />
+                          return (
+                            <motion.line 
+                              key={edge.id} 
+                              x1={x1} y1={y1} x2={x2} y2={y2} 
+                              stroke={edge.color} 
+                              strokeWidth="1.5" 
+                              strokeDasharray="4 4"
+                              markerEnd="url(#arrowhead)" 
+                              initial={{ pathLength: 0, opacity: 0 }} 
+                              animate={{ pathLength: 1, opacity: 0.15 }} 
+                            />
+                          )
                         })}
                         {graphNodes.map(node => (
-                          <motion.g key={node.id} initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} whileHover={{ scale: 1.1 }} onClick={() => setSelectedNode(node)} className="cursor-pointer">
-                            <circle cx={getNodeX(node, graphNodes)} cy={getNodeY(node, graphNodes)} r="22" fill="white" stroke={node.color} strokeWidth="2" className="shadow-xl" />
-                            <foreignObject x={getNodeX(node, graphNodes) - 10} y={getNodeY(node, graphNodes) - 10} width="20" height="20">
-                              <div className={`text-[${node.color}] flex items-center justify-center`}>
-                                {node.type === 'repo' ? <Github size={16} /> : node.type === 'capability' ? <Zap size={16} /> : <Rocket size={16} />}
+                          <motion.g 
+                            key={node.id} 
+                            initial={{ scale: 0, opacity: 0 }} 
+                            animate={{ scale: 1, opacity: 1 }} 
+                            whileHover={{ scale: 1.15 }} 
+                            onClick={() => setSelectedNode(node)} 
+                            className="cursor-pointer"
+                          >
+                            <circle 
+                              cx={getNodeX(node, graphNodes)} 
+                              cy={getNodeY(node, graphNodes)} 
+                              r="28" 
+                              fill="rgba(15, 23, 42, 0.8)" 
+                              stroke={node.color} 
+                              strokeWidth="2" 
+                              filter="url(#glow)"
+                            />
+                            <foreignObject x={getNodeX(node, graphNodes) - 12} y={getNodeY(node, graphNodes) - 12} width="24" height="24">
+                              <div style={{ color: node.color }} className="flex items-center justify-center">
+                                {node.type === 'repo' ? <Github size={20} /> : node.type === 'capability' ? <Zap size={20} /> : <Rocket size={20} />}
                               </div>
                             </foreignObject>
-                            <text x={getNodeX(node, graphNodes)} y={getNodeY(node, graphNodes) + 35} textAnchor="middle" className="text-[10px] font-bold fill-slate-700">{node.label}</text>
+                            <text 
+                              x={getNodeX(node, graphNodes)} 
+                              y={getNodeY(node, graphNodes) + 45} 
+                              textAnchor="middle" 
+                              className="text-[9px] font-black fill-slate-400 uppercase tracking-widest"
+                            >
+                              {node.label}
+                            </text>
+                            {selectedNode?.id === node.id && (
+                              <circle 
+                                cx={getNodeX(node, graphNodes)} 
+                                cy={getNodeY(node, graphNodes)} 
+                                r="34" 
+                                fill="none" 
+                                stroke={node.color} 
+                                strokeWidth="1" 
+                                strokeDasharray="4 4"
+                                className="animate-slow-spin"
+                              />
+                            )}
                           </motion.g>
                         ))}
                       </svg>
                     </div>
+
+                    <AnimatePresence>
+                      {selectedNode && (
+                        <motion.div 
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: 20 }}
+                          className="absolute bottom-10 left-10 right-10 glass-dark p-8 rounded-[2rem] border border-white/10 shadow-2xl flex items-center justify-between gap-10"
+                        >
+                          <div className="flex items-center gap-6">
+                            <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center" style={{ color: selectedNode.color }}>
+                              {selectedNode.type === 'repo' ? <Github size={32} /> : selectedNode.type === 'capability' ? <Zap size={32} /> : <Rocket size={32} />}
+                            </div>
+                            <div>
+                              <h3 className="text-2xl font-black tracking-tighter uppercase">{selectedNode.label}</h3>
+                              <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-1">{selectedNode.type} Node · {selectedNode.capability || 'Core Capability'}</p>
+                            </div>
+                          </div>
+                          <div className="flex-1 max-w-xl">
+                            <p className="text-slate-400 text-sm font-medium leading-relaxed">
+                              {selectedNode.description || "Synthesizing relational data for this node. Capability mapping shows high affinity with existing architecture components."}
+                            </p>
+                          </div>
+                          <Button variant="outline" size="sm" onClick={() => setSelectedNode(null)} className="rounded-xl border-white/10 hover:bg-white/10">Dismiss</Button>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </TabsContent>
                 </Tabs>
               </main>

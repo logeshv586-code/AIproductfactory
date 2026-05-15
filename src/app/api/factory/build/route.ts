@@ -725,7 +725,24 @@ export async function POST(request: NextRequest) {
         const pythonResultData = normalizePythonResult(pythonData.data, requestId, runId, body.mode, buildId)
         console.log('[DEBUG] Normalized Python Result:', JSON.stringify(pythonResultData).slice(0, 500) + '...')
         
-        const responseBody = validateFactoryResponse(pythonResultData)
+        let responseBody;
+        try {
+          responseBody = validateFactoryResponse(pythonResultData)
+        } catch (validationError: any) {
+          logger.error('factory.validation_error', { error: validationError.message })
+          return failureResponse({
+            requestId,
+            runId,
+            mode: body.mode,
+            statusCode: 500,
+            error: `Factory validation failed: ${validationError.message}`,
+            source: 'python-core',
+            buildId,
+            currentStep: 'failed',
+            progress: currentProgress('failed'),
+            timeline,
+          })
+        }
 
         currentStep = 'completed'
         addTimelineEntry(timeline, currentStep, `Validated ${responseBody.composedProducts.length} products`)

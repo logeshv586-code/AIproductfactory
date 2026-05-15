@@ -56,7 +56,7 @@ Return ONLY valid JSON:
 
 _agents = {}
 
-def get_execution_agent(workspace_id: str) -> ExecutionAgent:
+def get_execution_agent(workspace_id: str, provider: Optional[LLMProvider] = None) -> ExecutionAgent:
     if workspace_id not in _agents:
-        _agents[workspace_id] = ExecutionAgent(workspace_id)
+        _agents[workspace_id] = ExecutionAgent(workspace_id, provider)
     return _agents[workspace_id]

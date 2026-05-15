@@ -128,14 +128,75 @@ class ClaudeProvider(LLMProvider):
         return await openai_provider.get_embedding(text)
 
 
+class GeminiProvider(LLMProvider):
+    """Google Gemini provider."""
+
+    def __init__(self, api_key: Optional[str] = None, model: str = "gemini-2.0-flash"):
+        self.api_key = api_key or os.environ.get("GEMINI_API_KEY", "")
+        self.model = model
+        self._client = None
+
+    @property
+    def client(self):
+        if self._client is None:
+            import google.generativeai as genai
+            genai.configure(api_key=self.api_key)
+            self._client = genai.GenerativeModel(self.model)
+        return self._client
+
+    async def chat(self, messages: list[dict[str, str]], temperature: float = 0.5,
+                   max_tokens: int = 1000) -> str:
+        try:
+            # Format messages for Gemini
+            contents = []
+            system_instruction = ""
+            
+            for msg in messages:
+                if msg["role"] == "system":
+                    system_instruction = msg["content"]
+                else:
+                    role = "model" if msg["role"] == "assistant" else "user"
+                    contents.append({"role": role, "parts": [msg["content"]]})
+
+            import google.generativeai as genai
+            model = genai.GenerativeModel(
+                model_name=self.model,
+                system_instruction=system_instruction if system_instruction else None
+            )
+            
+            response = await model.generate_content_async(
+                contents,
+                generation_config=genai.types.GenerationConfig(
+                    temperature=temperature,
+                    max_output_tokens=max_tokens,
+                )
+            )
+            return response.text
+        except Exception as e:
+            print(f"[Gemini] chat error: {e}")
+            return ""
+
+    async def get_embedding(self, text: str) -> list[float]:
+        try:
+            import google.generativeai as genai
+            result = genai.embed_content(
+                model="models/text-embedding-004",
+                content=text,
+                task_type="retrieval_document",
+            )
+            return result['embedding']
+        except Exception as e:
+            print(f"[Gemini] embedding error: {e}")
+            return [0.0] * 768  # Gemini embeddings are often 768 dims
+
+
 class NvidiaProvider(LLMProvider):
     """NVIDIA Hosted GLM-5.1 provider."""
 
     def __init__(self, api_key: Optional[str] = None, model: str = "z-ai/glm-5.1"):
-        # Use the specific key provided in apisample.py
-        self.api_key = api_key or "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"
-        self.model = model
-        self.base_url = "https://integrate.api.nvidia.com/v1"
+        self.api_key = api_key or os.environ.get("NVIDIA_API_KEY", "")
+        self.model = os.environ.get("NVIDIA_MODEL", model)
+        self.base_url = os.environ.get("NVIDIA_BASE_URL", "https://integrate.api.nvidia.com/v1")
         self._client = None
 
     @property
@@ -310,5 +371,7 @@ def get_provider(provider_name: Optional[str] = None) -> LLMProvider:
         return OpenAIProvider()
     elif name == "claude":
         return ClaudeProvider()
+    elif name == "gemini":
+        return GeminiProvider()
     else:
         return LocalProvider()

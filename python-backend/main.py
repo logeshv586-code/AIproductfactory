@@ -100,10 +100,14 @@ async def lifespan(app: FastAPI):
     """Startup/shutdown lifecycle."""
     print("[AI Product Builder] Starting Python backend...")
     print(f"[AI Product Builder] LLM Provider: {os.environ.get('LLM_PROVIDER', 'local')}")
+    print(f"[AI Product Builder] NVIDIA Key: {'set' if os.environ.get('NVIDIA_API_KEY') else 'not set'}")
     print(f"[AI Product Builder] OpenAI Key: {'set' if os.environ.get('OPENAI_API_KEY') else 'not set'}")
     print(f"[AI Product Builder] Anthropic Key: {'set' if os.environ.get('ANTHROPIC_API_KEY') else 'not set'}")
+    print(f"[AI Product Builder] Gemini Key: {'set' if os.environ.get('GEMINI_API_KEY') else 'not set'}")
+    print(f"[AI Product Builder] GitHub Token: {'set' if os.environ.get('GITHUB_TOKEN') else 'not set'}")
     yield
     print("[AI Product Builder] Shutting down...")
+
 
 
 app = FastAPI(
