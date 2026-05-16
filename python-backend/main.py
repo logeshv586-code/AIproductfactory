@@ -32,6 +32,7 @@ from engine.scoring import score_product, rank_products
 from engine.starter_repo import generate_starter_repo
 from engine.repo_selector import select_best_repos, extract_intent, rank_repos
 from graph.graphify import build_graph, get_graph_stats
+from graph.capability_graph import build_capability_graph_engine, match_required_skills, dynamic_workspace_tabs
 from agents.repo_analyzer import analyze_repos
 from agents.capability_mapper import map_capabilities, map_capabilities_with_embedding
 from agents.product_generator import generate_products, generate_all_strategies
@@ -44,6 +45,7 @@ from intelligence.feasibility_engine import evaluate_feasibility
 from intelligence.self_improvement import suggest_improvements
 from execution.execution_agent import get_execution_agent
 from llm.provider import get_provider, LLMProvider
+from llm.router import get_provider_router
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -89,6 +91,23 @@ class HealthResponse(BaseModel):
     pipeline_steps: list[str]
     strategies: list[str]
     capabilities: list[str]
+
+
+class CapabilityGraphRequest(BaseModel):
+    idea: str
+    repos: list[dict[str, Any]] = Field(default_factory=list)
+    capabilities: list[dict[str, Any]] = Field(default_factory=list)
+    products: list[dict[str, Any]] = Field(default_factory=list)
+    research: dict[str, Any] = Field(default_factory=dict)
+    memory: dict[str, Any] = Field(default_factory=dict)
+
+
+class ProviderRouteRequest(BaseModel):
+    messages: list[dict[str, str]]
+    task_type: Optional[str] = None
+    temperature: float = 0.5
+    max_tokens: int = 1000
+    use_cache: bool = True
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -294,6 +313,65 @@ async def build_graph_endpoint(
         graph = build_graph(repos, capabilities, products)
         stats = get_graph_stats(graph)
         return {"success": True, "graph": graph, "stats": stats}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/graph/capability-engine")
+async def capability_graph_engine_endpoint(request: CapabilityGraphRequest):
+    """Build the expanded capability graph with skills, research, memory, and domain packs."""
+    try:
+        graph = build_capability_graph_engine(
+            user_request=request.idea,
+            repos=request.repos,
+            capabilities=request.capabilities,
+            products=request.products,
+            research=request.research,
+            memory=request.memory,
+        )
+        return {"success": True, "graph": graph}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/skills/match")
+async def match_skills_endpoint(request: CapabilityGraphRequest):
+    """Return Skill MDI cards and dynamic workspace tabs for a request."""
+    try:
+        skill_cards = match_required_skills(request.idea, request.capabilities)
+        domain = build_capability_graph_engine(request.idea, request.repos, request.capabilities).get("domain", "generic")
+        return {
+            "success": True,
+            "skills": skill_cards,
+            "workspace_tabs": dynamic_workspace_tabs(skill_cards, domain),
+            "domain": domain,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/llm/route")
+async def route_llm_endpoint(request: ProviderRouteRequest):
+    """Route an LLM request through provider intelligence with fallback and metrics."""
+    try:
+        router = get_provider_router()
+        result = await router.chat(
+            request.messages,
+            task_type=request.task_type,
+            temperature=request.temperature,
+            max_tokens=request.max_tokens,
+            use_cache=request.use_cache,
+        )
+        return {"success": True, "result": result, "metrics": router.get_metrics()[-10:]}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/llm/metrics")
+async def provider_metrics_endpoint():
+    """Return provider routing metrics."""
+    try:
+        return {"success": True, "metrics": get_provider_router().get_metrics()}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

@@ -74,6 +74,11 @@ const FactoryBaseResponseSchema = z.object({
   intent: z.unknown().nullable(),
   timeline: z.array(TimelineEntrySchema),
   errors: z.array(z.string()),
+  combinedIntelligenceReport: z.unknown().nullable().optional(),
+  capabilityGraphEngine: z.unknown().nullable().optional(),
+  researchReport: z.unknown().nullable().optional(),
+  feasibilityReport: z.unknown().nullable().optional(),
+  executionPlan: z.unknown().nullable().optional(),
 })
 
 type FactoryBuildRequest = z.infer<typeof BuildRequestSchema>
@@ -103,6 +108,11 @@ interface FactoryErrorResponse {
   timeline: TimelineEntry[]
   errors: string[]
   error: string
+  combinedIntelligenceReport?: null
+  capabilityGraphEngine?: null
+  researchReport?: null
+  feasibilityReport?: null
+  executionPlan?: null
 }
 
 const STEP_PROGRESS: Record<string, number> = {
@@ -186,6 +196,11 @@ function failureResponse(input: {
     timeline: input.timeline,
     errors: [input.error],
     error: input.error,
+    combinedIntelligenceReport: null,
+    capabilityGraphEngine: null,
+    researchReport: null,
+    feasibilityReport: null,
+    executionPlan: null,
   }
 
   return NextResponse.json(body, {
@@ -392,8 +407,10 @@ function normalizePythonResult(result: any, requestId: string, runId: string | n
     architecture: normalizeArchitecture(result.composed_products?.[0]?.architecture),
     integrationPlan: null,
     generatedComponents: [],
-    graphData: result.graphify_nodes_and_edges || { nodes: [], edges: [] },
-    graphStats: result.graph_stats || { total_nodes: 0, total_edges: 0, node_types: {}, edge_types: {} },
+    graphData: result.capability_graph_engine
+      ? { nodes: result.capability_graph_engine.nodes || [], edges: result.capability_graph_engine.edges || [] }
+      : result.graphify_nodes_and_edges || { nodes: [], edges: [] },
+    graphStats: result.capability_graph_engine?.stats || result.graph_stats || { total_nodes: 0, total_edges: 0, node_types: {}, edge_types: {} },
     composedProducts: (result.composed_products || []).map((p: any) => {
       const productRepos = deriveReposForProduct(p, normalizedRepoProfiles)
       const compositionPlan = buildProductCompositionPlan({
@@ -433,6 +450,11 @@ function normalizePythonResult(result: any, requestId: string, runId: string | n
     capabilities: result.capabilities || [],
     timeline: result.timeline || [],
     errors: [],
+    combinedIntelligenceReport: result.combined_intelligence_report || null,
+    capabilityGraphEngine: result.capability_graph_engine || null,
+    researchReport: result.research_report || null,
+    feasibilityReport: result.feasibility_report || null,
+    executionPlan: result.execution_plan || null,
   }
 }
 
@@ -499,6 +521,11 @@ function normalizeTypeScriptResult(state: any, requestId: string, runId: string 
     timeline: state.timeline,
     errors: state.errors,
     outputPath: state.outputPath,
+    combinedIntelligenceReport: null,
+    capabilityGraphEngine: null,
+    researchReport: null,
+    feasibilityReport: null,
+    executionPlan: null,
   }
 }
 

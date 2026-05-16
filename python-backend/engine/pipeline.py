@@ -23,8 +23,13 @@ from engine.scoring import score_product, rank_products
 from engine.starter_repo import generate_starter_repo
 from execution.execution_agent import get_execution_agent
 from graph.graphify import build_graph, get_graph_stats
+from graph.capability_graph import build_capability_graph_engine
 from memory.vector_memory import get_vector_memory
 from memory.graph_memory import get_graph_memory
+from agents.research_agent import conduct_research
+from agents.planner import generate_plan
+from intelligence.feasibility_engine import evaluate_feasibility
+from intelligence.combined_report import build_combined_intelligence_report
 
 
 class PipelineOrchestrator:
@@ -140,6 +145,56 @@ class PipelineOrchestrator:
                         "top_score": ranked_products[0]["scores"]["final_score"] if ranked_products else 0})
 
         # ═══════════════════════════════════════════════════════════════════
+        # STEP 5.5: Research, Feasibility, Execution Plan, Capability Graph
+        # ═══════════════════════════════════════════════════════════════════
+        self._log("ResearchIntelligence", "Extracting research-to-implementation signals")
+        research_report: dict[str, Any] = {}
+        feasibility_report: dict[str, Any] = {}
+        execution_plan: dict[str, Any] = {}
+
+        try:
+            domain_hint = "generic"
+            if any(term in user_input.lower() for term in ["trading", "market", "stock", "crypto"]):
+                domain_hint = "trading"
+            elif any(term in user_input.lower() for term in ["vision", "image", "video", "object detection"]):
+                domain_hint = "vision_ai"
+            research_report = await conduct_research(user_input, domain_hint, self.provider)
+        except Exception as e:
+            self._log("ResearchIntelligence", f"Research fallback used: {e}")
+
+        if ranked_products and ranked_products[0].get("architecture"):
+            try:
+                self._log("FeasibilityAnalysis", "Evaluating real-world architecture viability")
+                feasibility_report = await evaluate_feasibility(ranked_products[0]["architecture"], self.provider)
+            except Exception as e:
+                self._log("FeasibilityAnalysis", f"Feasibility fallback used: {e}")
+
+            try:
+                self._log("ExecutionPlanning", "Generating production execution plan")
+                execution_plan = await generate_plan(
+                    user_input,
+                    ranked_products[0]["architecture"],
+                    selected_repos,
+                    self.provider,
+                )
+            except Exception as e:
+                self._log("ExecutionPlanning", f"Plan fallback used: {e}")
+
+        self._log("CapabilityGraphEngine", "Expanding graph with skills, research, memory, and architecture")
+        memory_summary = {
+            "stores": ["prompts", "failures", "successful_architectures", "repo_scores", "execution_outcomes"],
+            "feedback_loop": "Execution outcomes update skill confidence and architecture recommendations.",
+        }
+        capability_engine = build_capability_graph_engine(
+            user_request=user_input,
+            repos=analyzed_repos,
+            capabilities=capabilities,
+            products=ranked_products,
+            research=research_report,
+            memory=memory_summary,
+        )
+
+        # ═══════════════════════════════════════════════════════════════════
         # STEP 6: Starter Repo Generation
         # ═══════════════════════════════════════════════════════════════════
         self._log("StarterRepoGeneration", "Generating starter repo blueprint")
@@ -223,7 +278,20 @@ class PipelineOrchestrator:
         except Exception as e:
             print(f"[Pipeline] Knowledge persistence error: {e}")
 
-        self._log("COMPLETE", f"Pipeline finished: {len(ranked_products)} products, {graph_stats['total_nodes']} graph nodes")
+        combined_report = build_combined_intelligence_report(
+            user_request=user_input,
+            intent=intent,
+            selected_repos=selected_repos,
+            capabilities=capabilities,
+            products=ranked_products,
+            capability_graph=capability_engine,
+            research=research_report,
+            feasibility=feasibility_report,
+            execution_plan=execution_plan,
+            timeline=self.timeline,
+        )
+
+        self._log("COMPLETE", f"Pipeline finished: {len(ranked_products)} products, {capability_engine['stats']['total_nodes']} graph nodes")
 
         # ── Build final result ───────────────────────────────────────────
         result = {
@@ -243,6 +311,11 @@ class PipelineOrchestrator:
             ],
             "graphify_nodes_and_edges": final_graph,
             "graph_stats": graph_stats,
+            "capability_graph_engine": capability_engine,
+            "combined_intelligence_report": combined_report,
+            "research_report": research_report,
+            "feasibility_report": feasibility_report,
+            "execution_plan": execution_plan,
             "composed_products": ranked_products,
             "timeline": self.timeline,
             "capabilities": capabilities,

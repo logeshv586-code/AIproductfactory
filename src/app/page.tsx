@@ -88,6 +88,12 @@ interface FactoryResult {
   capabilities: any[]
   timeline: { step: string; ts: number; detail: string }[]
   errors: string[]
+  outputPath?: string
+  combinedIntelligenceReport?: any | null
+  capabilityGraphEngine?: any | null
+  researchReport?: any | null
+  feasibilityReport?: any | null
+  executionPlan?: any | null
 }
 
 // ============================================================
@@ -272,6 +278,8 @@ export default function Home() {
       })
       const data: FactoryResult = await res.json()
       setFactoryResult(data)
+      if (data.researchReport) setResearchData(data.researchReport)
+      if (data.executionPlan) setPlanData(data.executionPlan)
 
       if (data.composedProducts?.length > 0) {
         setSelectedProduct(data.composedProducts[0])
@@ -314,6 +322,9 @@ export default function Home() {
   // ── Derived data ────────────────────────────────────────────────────
   const topProduct = factoryResult?.composedProducts?.[0]
   const graphStats = factoryResult?.graphStats
+  const intelligenceReport = factoryResult?.combinedIntelligenceReport
+  const intelligenceScores = intelligenceReport?.intelligence_scores || {}
+  const skillCards = intelligenceReport?.capability_graph?.skill_cards || factoryResult?.capabilityGraphEngine?.skill_cards || []
   const selectedRepoRecipe = selectedProduct
     ? (selectedProduct.compositionPlan?.selectedRepos?.length
       ? selectedProduct.compositionPlan.selectedRepos.map(repo => ({
@@ -528,7 +539,7 @@ export default function Home() {
               <main className="max-w-7xl mx-auto px-4 sm:px-6 py-10">
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
                   <div className="flex items-center justify-between">
-                    <TabsList className="bg-white/5 backdrop-blur-3xl p-1 rounded-2xl border border-white/5 h-14">
+                    <TabsList className="bg-white/5 backdrop-blur-3xl p-1 rounded-2xl border border-white/5 h-auto min-h-14 flex flex-wrap">
                       <TabsTrigger value="overview" className="px-6 data-[state=active]:bg-white/10 data-[state=active]:text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">Overview</TabsTrigger>
                       <TabsTrigger value="pipeline" className="px-6 data-[state=active]:bg-white/10 data-[state=active]:text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">Pipeline</TabsTrigger>
                       <TabsTrigger value="research" className="px-6 data-[state=active]:bg-white/10 data-[state=active]:text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all gap-2">
@@ -541,6 +552,9 @@ export default function Home() {
                         <Terminal className="w-3 h-3" /> Execution {executing && <Loader2 className="w-3 h-3 animate-spin text-emerald-500" />}
                       </TabsTrigger>
                       <TabsTrigger value="graph" className="px-6 data-[state=active]:bg-white/10 data-[state=active]:text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">Capability Graph</TabsTrigger>
+                      <TabsTrigger value="knowledge" className="px-6 data-[state=active]:bg-white/10 data-[state=active]:text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">Knowledge</TabsTrigger>
+                      <TabsTrigger value="skills" className="px-6 data-[state=active]:bg-white/10 data-[state=active]:text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">Skills</TabsTrigger>
+                      <TabsTrigger value="risks" className="px-6 data-[state=active]:bg-white/10 data-[state=active]:text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">Risks</TabsTrigger>
                     </TabsList>
 
                     <div className="flex items-center gap-3">
@@ -612,6 +626,98 @@ export default function Home() {
                               Explore Files
                             </Button>
                          </CardContent>
+                      </Card>
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="knowledge" className="space-y-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                      <Card className="lg:col-span-2 border-white/5 bg-white/5 backdrop-blur-3xl rounded-[2rem]">
+                        <CardHeader>
+                          <CardTitle className="text-xl font-black tracking-tighter uppercase">Combined Intelligence Report</CardTitle>
+                          <CardDescription>{intelligenceReport?.product_summary?.core_value || 'Run the pipeline to assemble knowledge, memory, research, and execution intelligence.'}</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            {Object.entries(intelligenceScores).map(([metric, score]) => (
+                              <div key={metric} className="p-4 rounded-xl bg-white/5 border border-white/10">
+                                <p className="text-2xl font-black">{String(score)}</p>
+                                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{metric.replace(/_/g, ' ')}</p>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {(intelligenceReport?.dynamic_workspace?.tabs || []).map((tab: string) => (
+                              <Badge key={tab} variant="outline" className="bg-white/5 border-white/10 text-[9px] font-black uppercase">{tab}</Badge>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                      <Card className="border-white/5 bg-white/5 backdrop-blur-3xl rounded-[2rem]">
+                        <CardHeader><CardTitle className="text-sm font-black uppercase">Memory Loop</CardTitle></CardHeader>
+                        <CardContent className="space-y-3">
+                          {(intelligenceReport?.knowledge_layer?.memory_policy || ['Prompts', 'Failures', 'Successful architectures']).map((item: string) => (
+                            <div key={item} className="flex items-start gap-2 text-sm text-slate-400">
+                              <Database className="w-4 h-4 text-violet-500 shrink-0 mt-0.5" /> {item}
+                            </div>
+                          ))}
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="skills" className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                      {skillCards.length > 0 ? skillCards.map((skill: any) => (
+                        <Card key={skill.id || skill.skill} className="border-white/5 bg-white/5 backdrop-blur-3xl rounded-2xl">
+                          <CardHeader>
+                            <CardTitle className="text-sm font-black uppercase flex items-center justify-between">
+                              {skill.skill}
+                              <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20">{skill.confidence}%</Badge>
+                            </CardTitle>
+                            <CardDescription>{skill.complexity} · GPU {skill.gpu_requirement}</CardDescription>
+                          </CardHeader>
+                          <CardContent className="space-y-4">
+                            <div>
+                              <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Production</p>
+                              <Progress value={skill.production_readiness || 0} className="h-2" />
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {(skill.recommended_stack || []).map((item: string) => (
+                                <Badge key={item} variant="outline" className="bg-white/5 border-white/10 text-[9px]">{item}</Badge>
+                              ))}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )) : (
+                        <Card className="border-white/5 bg-white/5 backdrop-blur-3xl rounded-2xl md:col-span-2 xl:col-span-3">
+                          <CardContent className="p-10 text-center text-slate-400">Run a full build to see Skill MDI cards.</CardContent>
+                        </Card>
+                      )}
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="risks" className="space-y-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      <Card className="border-white/5 bg-white/5 backdrop-blur-3xl rounded-[2rem]">
+                        <CardHeader><CardTitle className="text-sm font-black uppercase">Domain Risks</CardTitle></CardHeader>
+                        <CardContent className="space-y-3">
+                          {(intelligenceReport?.risk_analysis?.domain_risks || ['Run the pipeline to calculate domain risk.']).map((risk: string) => (
+                            <div key={risk} className="flex items-start gap-3 text-sm text-slate-400">
+                              <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" /> {risk}
+                            </div>
+                          ))}
+                        </CardContent>
+                      </Card>
+                      <Card className="border-white/5 bg-white/5 backdrop-blur-3xl rounded-[2rem]">
+                        <CardHeader><CardTitle className="text-sm font-black uppercase">Compliance</CardTitle></CardHeader>
+                        <CardContent className="space-y-3">
+                          {(intelligenceReport?.risk_analysis?.compliance || []).map((item: string) => (
+                            <div key={item} className="flex items-start gap-3 text-sm text-slate-400">
+                              <Shield className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" /> {item}
+                            </div>
+                          ))}
+                        </CardContent>
                       </Card>
                     </div>
                   </TabsContent>
