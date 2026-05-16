@@ -219,7 +219,7 @@ export default function Home() {
       })
       const data = await res.json()
       if (data.success) {
-        setPlanData(data.plan)
+        setPlanData(normalizePlanForUi(data.plan))
         toast.success('Implementation plan generated')
       }
     } catch { toast.error('Planning failed') }
@@ -279,7 +279,7 @@ export default function Home() {
       const data: FactoryResult = await res.json()
       setFactoryResult(data)
       if (data.researchReport) setResearchData(data.researchReport)
-      if (data.executionPlan) setPlanData(data.executionPlan)
+      if (data.executionPlan) setPlanData(normalizePlanForUi(data.executionPlan))
 
       if (data.composedProducts?.length > 0) {
         setSelectedProduct(data.composedProducts[0])
@@ -989,10 +989,22 @@ function getNodeX(node: GraphNode, allNodes: GraphNode[]): number {
   const typeNodes = allNodes.filter(n => n.type === node.type)
   const index = typeNodes.indexOf(node)
   const total = typeNodes.length
-  const typeOffset: Record<string, number> = { repo: 150, capability: 450, product: 750 }
+  const typeOffset: Record<string, number> = {
+    request: 80,
+    domain: 190,
+    repo: 300,
+    capability: 420,
+    skill: 540,
+    framework: 650,
+    architecture_pattern: 760,
+    product: 870,
+    paper: 650,
+    research_finding: 760,
+    memory: 870,
+  }
   const base = typeOffset[node.type] || 450
   if (total <= 1) return base
-  const spacing = Math.min(120, 400 / (total - 1))
+  const spacing = Math.min(90, 320 / (total - 1))
   return base - ((total - 1) * spacing / 2) + index * spacing
 }
 
@@ -1004,4 +1016,56 @@ function getNodeY(node: GraphNode, allNodes: GraphNode[]): number {
   if (total <= 1) return base
   const spacing = Math.min(80, 300 / (total - 1))
   return base - ((total - 1) * spacing / 2) + index * spacing
+}
+
+function normalizePlanForUi(plan: any) {
+  if (!plan) return null
+  if (Array.isArray(plan.phases)) {
+    return {
+      ...plan,
+      phases: plan.phases.map((phase: any, index: number) => ({
+        name: phase?.name || `Phase ${index + 1}`,
+        tasks: normalizeTasksForUi(phase?.tasks),
+      })),
+    }
+  }
+
+  if (Array.isArray(plan.tasks)) {
+    return {
+      ...plan,
+      phases: [
+        {
+          name: 'Execution Plan',
+          tasks: normalizeTasksForUi(plan.tasks),
+        },
+      ],
+    }
+  }
+
+  if (Array.isArray(plan.phases?.[0]?.tasks)) return plan
+
+  return {
+    ...plan,
+    phases: [
+      {
+        name: 'Foundation',
+        tasks: normalizeTasksForUi([
+          {
+            title: 'Create vertical slice',
+            description: 'Implement the first API, memory, graph, and UI path from the generated architecture.',
+            complexity: 'medium',
+          },
+        ]),
+      },
+    ],
+  }
+}
+
+function normalizeTasksForUi(tasks: any[] = []) {
+  return tasks.map((task, index) => ({
+    ...task,
+    title: task?.title || task?.name || `Task ${index + 1}`,
+    description: task?.description || task?.summary || task?.detail || 'Implement this backend-generated plan step.',
+    complexity: task?.complexity || task?.estimated_complexity || 'medium',
+  }))
 }

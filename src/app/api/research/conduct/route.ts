@@ -11,6 +11,7 @@ export async function POST(request: NextRequest) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ idea, domain }),
+      signal: AbortSignal.timeout(45000),
     })
     
     if (!res.ok) {

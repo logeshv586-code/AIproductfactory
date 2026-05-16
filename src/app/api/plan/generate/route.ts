@@ -6,11 +6,19 @@ const PYTHON_BACKEND = getPythonBackendUrl()
 export async function POST(request: NextRequest) {
   try {
     const { idea, architecture, repos } = await request.json()
+    const backendRepos = Array.isArray(repos)
+      ? repos.map((repo: any) => ({
+          ...repo,
+          full_name: repo.full_name || repo.fullName || repo.name,
+          suggested_role: repo.suggested_role || repo.role || repo.summary || '',
+        }))
+      : []
     
     const res = await fetch(`${PYTHON_BACKEND}/plan/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ idea, architecture, repos }),
+      body: JSON.stringify({ idea, architecture, repos: backendRepos }),
+      signal: AbortSignal.timeout(45000),
     })
     
     if (!res.ok) {

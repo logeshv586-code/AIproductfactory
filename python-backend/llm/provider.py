@@ -6,6 +6,7 @@ Supports OpenAI, Claude, and local fallback.
 import os
 import json
 import re
+import asyncio
 from abc import ABC, abstractmethod
 from typing import Any, Optional
 
@@ -360,18 +361,65 @@ class LocalProvider(LLMProvider):
         return vec[:1536]
 
 
+class ResilientProvider(LLMProvider):
+    """Wrap a remote provider with timeout and local fallback."""
+
+    def __init__(self, primary: LLMProvider, fallback: Optional[LLMProvider] = None, timeout_seconds: float = 12.0):
+        self.primary = primary
+        self.fallback = fallback or LocalProvider()
+        self.timeout_seconds = timeout_seconds
+
+    async def chat(
+        self,
+        messages: list[dict[str, str]],
+        temperature: float = 0.5,
+        max_tokens: int = 1000,
+    ) -> str:
+        try:
+            text = await asyncio.wait_for(
+                self.primary.chat(messages, temperature=temperature, max_tokens=max_tokens),
+                timeout=self.timeout_seconds,
+            )
+            if text:
+                return text
+        except Exception as e:
+            print(f"[ResilientProvider] primary chat fallback: {e}")
+
+        return await self.fallback.chat(messages, temperature=temperature, max_tokens=max_tokens)
+
+    async def get_embedding(self, text: str) -> list[float]:
+        try:
+            vector = await asyncio.wait_for(
+                self.primary.get_embedding(text),
+                timeout=self.timeout_seconds,
+            )
+            if vector and any(value != 0 for value in vector):
+                return vector
+        except Exception as e:
+            print(f"[ResilientProvider] primary embedding fallback: {e}")
+
+        return await self.fallback.get_embedding(text)
+
+
 def get_provider(provider_name: Optional[str] = None) -> LLMProvider:
     """Factory function to get the configured LLM provider."""
-    # Default to nvidia as requested
-    name = provider_name or os.environ.get("LLM_PROVIDER", "nvidia")
+    name = provider_name or os.environ.get("LLM_PROVIDER", "local")
 
     if name == "nvidia":
-        return NvidiaProvider()
+        if not os.environ.get("NVIDIA_API_KEY"):
+            return LocalProvider()
+        return ResilientProvider(NvidiaProvider())
     elif name == "openai":
-        return OpenAIProvider()
+        if not os.environ.get("OPENAI_API_KEY"):
+            return LocalProvider()
+        return ResilientProvider(OpenAIProvider())
     elif name == "claude":
-        return ClaudeProvider()
+        if not os.environ.get("ANTHROPIC_API_KEY"):
+            return LocalProvider()
+        return ResilientProvider(ClaudeProvider())
     elif name == "gemini":
-        return GeminiProvider()
+        if not os.environ.get("GEMINI_API_KEY"):
+            return LocalProvider()
+        return ResilientProvider(GeminiProvider())
     else:
         return LocalProvider()

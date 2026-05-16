@@ -21,14 +21,16 @@ class ExecutionAgent:
         """
         Execute a single task from the plan.
         """
-        self._log(f"Starting task: {task['title']}")
+        title = task.get("title") or task.get("name") or "Implementation Task"
+        description = task.get("description") or task.get("summary") or task.get("detail") or "Implement the selected pipeline task."
+        self._log(f"Starting task: {title}")
         
         messages = [
             {
                 "role": "system",
                 "content": f"""You are an Autonomous AI Senior Engineer. 
-Your task is to implement: {task['title']}
-Description: {task['description']}
+Your task is to implement: {title}
+Description: {description}
 
 Generate the necessary code or configuration files.
 Return ONLY valid JSON:
