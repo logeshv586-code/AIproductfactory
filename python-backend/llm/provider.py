@@ -16,8 +16,12 @@ class LLMProvider(ABC):
 
     @abstractmethod
     async def chat(self, messages: list[dict[str, str]], temperature: float = 0.5,
-                   max_tokens: int = 1000) -> str:
-        """Send a chat completion request and return the text response."""
+                   max_tokens: int = 1000, enable_thinking: bool | None = None) -> str:
+        """Send a chat completion request and return the text response.
+
+        ``enable_thinking`` lets callers disable chain-of-thought for fast
+        structured-JSON generation. None means "use the provider default".
+        """
         pass
 
     @abstractmethod
@@ -55,7 +59,7 @@ class OpenAIProvider(LLMProvider):
         return self._client
 
     async def chat(self, messages: list[dict[str, str]], temperature: float = 0.5,
-                   max_tokens: int = 1000) -> str:
+                   max_tokens: int = 1000, enable_thinking: bool | None = None) -> str:
         try:
             response = await self.client.chat.completions.create(
                 model=self.model,
@@ -97,7 +101,7 @@ class ClaudeProvider(LLMProvider):
         return self._client
 
     async def chat(self, messages: list[dict[str, str]], temperature: float = 0.5,
-                   max_tokens: int = 1000) -> str:
+                   max_tokens: int = 1000, enable_thinking: bool | None = None) -> str:
         try:
             # Extract system message if present
             system_msg = ""
@@ -146,7 +150,7 @@ class GeminiProvider(LLMProvider):
         return self._client
 
     async def chat(self, messages: list[dict[str, str]], temperature: float = 0.5,
-                   max_tokens: int = 1000) -> str:
+                   max_tokens: int = 1000, enable_thinking: bool | None = None) -> str:
         try:
             # Format messages for Gemini
             contents = []
@@ -192,9 +196,9 @@ class GeminiProvider(LLMProvider):
 
 
 class NvidiaProvider(LLMProvider):
-    """NVIDIA Hosted GLM-5.1 provider."""
+    """NVIDIA Hosted GLM provider."""
 
-    def __init__(self, api_key: Optional[str] = None, model: str = "z-ai/glm-5.1"):
+    def __init__(self, api_key: Optional[str] = None, model: str = "openai/gpt-oss-20b"):
         self.api_key = api_key or os.environ.get("NVIDIA_API_KEY", "")
         self.model = os.environ.get("NVIDIA_MODEL", model)
         self.base_url = os.environ.get("NVIDIA_BASE_URL", "https://integrate.api.nvidia.com/v1")
@@ -211,9 +215,14 @@ class NvidiaProvider(LLMProvider):
         return self._client
 
     async def chat(self, messages: list[dict[str, str]], temperature: float = 1.0,
-                   max_tokens: int = 16384) -> str:
+                   max_tokens: int = 16384, enable_thinking: bool | None = None) -> str:
         try:
-            # GLM-5.1 specific settings from apisample.py
+            # Thinking is expensive (a reasoning chain before every answer).
+            # Callers doing structured JSON disable it for speed; None follows
+            # the env default (NVIDIA_THINKING=1 unless set otherwise).
+            thinking = os.environ.get("NVIDIA_THINKING", "1") == "1"
+            if enable_thinking is not None:
+                thinking = enable_thinking
             response = await self.client.chat.completions.create(
                 model=self.model,
                 messages=messages,
@@ -222,7 +231,7 @@ class NvidiaProvider(LLMProvider):
                 top_p=1,
                 extra_body={
                     "chat_template_kwargs": {
-                        "enable_thinking": True,
+                        "enable_thinking": thinking,
                         "clear_thinking": False
                     }
                 }
@@ -241,7 +250,7 @@ class LocalProvider(LLMProvider):
     """Local / mock provider for development and testing."""
 
     async def chat(self, messages: list[dict[str, str]], temperature: float = 0.5,
-                   max_tokens: int = 1000) -> str:
+                   max_tokens: int = 1000, enable_thinking: bool | None = None) -> str:
         # Return structured mock responses based on system prompt content
         system = next((m["content"] for m in messages if m["role"] == "system"), "")
         user = next((m["content"] for m in messages if m["role"] == "user"), "")
@@ -364,7 +373,7 @@ class LocalProvider(LLMProvider):
 class ResilientProvider(LLMProvider):
     """Wrap a remote provider with timeout and local fallback."""
 
-    def __init__(self, primary: LLMProvider, fallback: Optional[LLMProvider] = None, timeout_seconds: float = 12.0):
+    def __init__(self, primary: LLMProvider, fallback: Optional[LLMProvider] = None, timeout_seconds: float = 90.0):
         self.primary = primary
         self.fallback = fallback or LocalProvider()
         self.timeout_seconds = timeout_seconds
@@ -374,10 +383,11 @@ class ResilientProvider(LLMProvider):
         messages: list[dict[str, str]],
         temperature: float = 0.5,
         max_tokens: int = 1000,
+        enable_thinking: bool | None = None,
     ) -> str:
         try:
             text = await asyncio.wait_for(
-                self.primary.chat(messages, temperature=temperature, max_tokens=max_tokens),
+                self.primary.chat(messages, temperature=temperature, max_tokens=max_tokens, enable_thinking=enable_thinking),
                 timeout=self.timeout_seconds,
             )
             if text:
@@ -385,7 +395,7 @@ class ResilientProvider(LLMProvider):
         except Exception as e:
             print(f"[ResilientProvider] primary chat fallback: {e}")
 
-        return await self.fallback.chat(messages, temperature=temperature, max_tokens=max_tokens)
+        return await self.fallback.chat(messages, temperature=temperature, max_tokens=max_tokens, enable_thinking=enable_thinking)
 
     async def get_embedding(self, text: str) -> list[float]:
         try:

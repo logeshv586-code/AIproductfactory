@@ -358,7 +358,7 @@ function normalizeArchitecture(architecture: any) {
   }
 }
 
-function normalizePythonResult(result: any, requestId: string, runId: string | null, mode: PipelineMode, buildId: string) {
+export function normalizePythonResult(result: any, requestId: string, runId: string | null, mode: PipelineMode, buildId: string) {
   const normalizedRepoProfiles = (result.selected_repos || []).map((r: any) => ({
     fullName: r.name,
     stars: r.stars || 0,

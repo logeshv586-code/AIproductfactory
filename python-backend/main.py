@@ -43,6 +43,9 @@ from core.skill_engine import get_skill_engine
 from core.graph_rag import get_graph_rag
 from intelligence.feasibility_engine import evaluate_feasibility
 from intelligence.self_improvement import suggest_improvements
+from intelligence.pipeline import ProductIntelligencePipeline
+from intelligence.pi_orchestrator import PiOrchestrator
+from intelligence.knowledge_graph import run_path as pi_run_path
 from execution.execution_agent import get_execution_agent
 from llm.provider import get_provider, LLMProvider
 from llm.router import get_provider_router
@@ -108,6 +111,43 @@ class ProviderRouteRequest(BaseModel):
     temperature: float = 0.5
     max_tokens: int = 1000
     use_cache: bool = True
+
+
+class StrategizeRequest(BaseModel):
+    """Request to run the reasoning-first intelligence stages 1-9."""
+    idea: str = Field(..., description="User's product idea description")
+    github_token: Optional[str] = Field(default=None, description="Optional GitHub token for richer discovery")
+    tavily_key: Optional[str] = Field(default=None, description="Optional Tavily key for web research")
+
+
+class ApproveRequest(BaseModel):
+    """Request to continue from an approved strategy (stages 10-17)."""
+    run_id: str = Field(..., description="Run id returned by /pipeline/strategize")
+    strategy_id: str = Field(..., description="Strategy id to approve (STRAT-A/B/C)")
+
+
+# v4 — Product Intelligence Operating System
+class PiStrategizeRequest(BaseModel):
+    """Request to run the v4 multi-agent reasoning stages 1-13."""
+    idea: str = Field(..., description="User's product idea description")
+    github_token: Optional[str] = Field(default=None, description="Optional GitHub token")
+    tavily_key: Optional[str] = Field(default=None, description="Optional Tavily key")
+
+
+class PiApproveRequest(BaseModel):
+    """Request to continue from an approved v4 strategy."""
+    run_id: str = Field(..., description="Run id returned by /pi/strategize")
+    strategy_id: str = Field(..., description="Strategy id to approve (STRAT-A/B/C)")
+
+
+class PiExplainRequest(BaseModel):
+    """Request for an explanation of why the recommendation was made."""
+    run_id: str = Field(..., description="Run id returned by /pi/strategize")
+
+
+class PiMemorySearchRequest(BaseModel):
+    """Request to search Product Memory for similar past products."""
+    idea: str = Field(..., description="User's product idea to match against past products")
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -492,6 +532,243 @@ async def get_execution_logs_endpoint(workspace_id: str):
         return {"success": True, "logs": agent.get_logs()}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# v3 Endpoints — Product Intelligence Engine (reasoning-first)
+# ═══════════════════════════════════════════════════════════════════════════
+
+@app.post("/pipeline/strategize")
+async def strategize_endpoint(request: StrategizeRequest):
+    """
+    Run reasoning stages 1-9 and stop at the approval gate.
+
+    Returns up to 3 product strategies (with the full Product Knowledge Graph)
+    for the user to choose from. Nothing is built until /pipeline/approve is
+    called with an approved strategy id.
+    """
+    if not request.idea or not request.idea.strip():
+        raise HTTPException(status_code=400, detail="A product idea is required")
+
+    try:
+        pipeline = ProductIntelligencePipeline()
+        result = await pipeline.strategize(
+            idea=request.idea.strip(),
+            github_token=request.github_token or os.environ.get("GITHUB_TOKEN"),
+            tavily_key=request.tavily_key or os.environ.get("TAVILY_API_KEY"),
+        )
+        return {"success": True, **result}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Strategize failed: {e}")
+
+
+@app.post("/pipeline/approve")
+async def approve_endpoint(request: ApproveRequest):
+    """
+    Continue from an approved strategy through stages 10-17.
+
+    Re-loads the persisted Product Knowledge Graph for ``run_id`` and builds
+    deep research, composition plan, architecture, blueprint, engineering setup
+    and execution plan from the approved strategy.
+    """
+    try:
+        pipeline = ProductIntelligencePipeline()
+        result = await pipeline.approve(run_id=request.run_id, strategy_id=request.strategy_id)
+        if not result.get("success", True):
+            raise HTTPException(status_code=404, detail=result.get("error", "Approval failed"))
+        return {"success": True, **result}
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Approve failed: {e}")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# v4 Endpoints — Product Intelligence Operating System
+# ═══════════════════════════════════════════════════════════════════════════
+
+@app.post("/pi/strategize")
+async def pi_strategize_endpoint(request: PiStrategizeRequest):
+    """
+    Run the v4 multi-agent reasoning stages 1-13 and stop at the Review-gated
+    approval screen.
+
+    The 12 agents (Product Thinking → Intent → Requirement → Market →
+    Competitor → Innovation → Evolution → Gap → Capability → GitHub →
+    Repository → Strategy → Review) communicate exclusively through the Product
+    Knowledge Graph. The Review Agent validates the whole graph before the user
+    decides; nothing is built until /pi/approve is called.
+    """
+    if not request.idea or not request.idea.strip():
+        raise HTTPException(status_code=400, detail="A product idea is required")
+
+    try:
+        orchestrator = PiOrchestrator()
+        result = await orchestrator.strategize(
+            idea=request.idea.strip(),
+            github_token=request.github_token or os.environ.get("GITHUB_TOKEN"),
+            tavily_key=request.tavily_key or os.environ.get("TAVILY_API_KEY"),
+        )
+        return {"success": True, **result}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"PI strategize failed: {e}")
+
+
+@app.post("/pi/approve")
+async def pi_approve_endpoint(request: PiApproveRequest):
+    """
+    Continue from an approved v4 strategy through the engineering agents.
+
+    Re-loads the persisted Product Knowledge Graph for ``run_id`` and runs
+    deep research, repository composition, multi-view architecture, blueprint,
+    engineering setup, execution plan and the Learning System, returning the
+    complete blueprint.
+    """
+    try:
+        orchestrator = PiOrchestrator()
+        result = await orchestrator.approve(run_id=request.run_id, strategy_id=request.strategy_id)
+        if not result.get("success", True):
+            raise HTTPException(status_code=404, detail=result.get("error", "PI approval failed"))
+        return {"success": True, **result}
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"PI approve failed: {e}")
+
+
+@app.post("/pi/explain")
+async def pi_explain_endpoint(request: PiExplainRequest):
+    """
+    Explain *why* a recommendation was made, from the stored evidence.
+
+    v5 Evidence Graph: the graph keeps every decision, the debate it came from,
+    the confidence of each node and the self-critique. This endpoint renders
+    that traceability as plain English — no new LLM call.
+    """
+    from intelligence.knowledge_graph import ProductKnowledgeGraph
+
+    graph = ProductKnowledgeGraph.load(pi_run_path(request.run_id))
+    if graph is None:
+        raise HTTPException(status_code=404, detail=f"run_id {request.run_id} not found")
+
+    explanation = graph.explain()
+    decisions = graph.get("decisions", [])
+    debates = graph.get("debates", [])
+    evidence = graph.get("evidence", [])
+    confidences = graph.get("confidences", {})
+    critique = graph.get("self_critique", {})
+    dna = graph.get("product_dna", {})
+
+    return {
+        "success": True,
+        "run_id": request.run_id,
+        "explanation": explanation,
+        "decisions": decisions,
+        "debates": debates,
+        "evidence": evidence,
+        "confidences": confidences,
+        "self_critique": critique,
+        "product_dna": dna,
+    }
+
+
+@app.get("/pi/learning")
+async def pi_learning_endpoint():
+    """
+    v6 · Experience-Based Learning — return everything the system has learned
+    across past approved products.
+
+    Surfaces repository success statistics, capability → repository rankings,
+    architecture pattern success rates and confidence calibration. This is the
+    evidence the orchestrator now uses to bias discovery, debate and strategy
+    generation. No LLM call.
+    """
+    try:
+        from intelligence.experience_engine import ExperienceEngine
+        evidence = ExperienceEngine().evidence_report()
+        return {"success": True, "learning": evidence}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"PI learning failed: {e}")
+
+
+@app.get("/pi/memory")
+async def pi_memory_endpoint():
+    """
+    v6 Phase 6 · Product Memory — return the store of complete past products.
+
+    Each memory is a full record (Product DNA, intent, capabilities,
+    repositories, architecture, strategy, debates, confidences, simulation,
+    self-critique, learning evidence used). No LLM call.
+    """
+    try:
+        from intelligence.learning_store import get_learning_store
+        store = get_learning_store()
+        mems = store.product_memories(limit=50)
+        return {
+            "success": True,
+            "count": len(mems),
+            "total": store.product_memory_count(),
+            "memories": mems,
+        }
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"PI memory failed: {e}")
+
+
+@app.post("/pi/memory/search")
+async def pi_memory_search_endpoint(request: PiMemorySearchRequest):
+    """
+    v6 Phase 6 · Product Memory retrieval — find similar past products.
+
+    Drafts a Product DNA from the idea (deterministic, no LLM) and returns the
+    most similar stored products as structured guidance: similarity score,
+    matching capabilities, shared repositories, shared architecture patterns,
+    differences, historical outcome and confidence achieved.
+    """
+    if not request.idea or not request.idea.strip():
+        raise HTTPException(status_code=400, detail="A product idea is required")
+    try:
+        from intelligence.product_memory import ProductMemory
+        retrieval = ProductMemory().search(idea=request.idea.strip())
+        return {"success": True, **retrieval}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"PI memory search failed: {e}")
+
+
+@app.get("/pi/tournament")
+async def pi_tournament_endpoint(run_id: str):
+    """
+    v6 Phase 4 · Strategy Tournament — return the full tournament for a run.
+
+    Mirrors /pi/explain: reloads the persisted Product Knowledge Graph for
+    ``run_id`` and returns the tournament block — winner, ranking, per-strategy
+    dimension scores, pairwise comparisons and the decision report. No LLM call.
+    """
+    try:
+        from intelligence.knowledge_graph import ProductKnowledgeGraph
+        graph = ProductKnowledgeGraph.load(pi_run_path(run_id))
+        if graph is None:
+            raise HTTPException(status_code=404, detail=f"run_id {run_id} not found")
+        return {"success": True, "run_id": run_id, "tournament": graph.get("tournament", {})}
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"PI tournament failed: {e}")
 
 
 # ═══════════════════════════════════════════════════════════════════════════
