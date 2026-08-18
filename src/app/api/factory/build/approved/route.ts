@@ -145,9 +145,11 @@ export async function POST(request: NextRequest) {
       }, { status: 409 })
     }
 
+    const pipelineVerified = failedGates.length === 0
     return NextResponse.json({
-      success: failedGates.length === 0,
-      status: failedGates.length === 0 ? 'pipeline_verified' : 'completed_with_unverified_gates',
+      success: true,
+      pipelineVerified,
+      status: pipelineVerified ? 'pipeline_verified' : 'completed_with_unverified_gates',
       buildId,
       runId: runId || null,
       strategyId: strategyId || null,
@@ -159,7 +161,7 @@ export async function POST(request: NextRequest) {
       verification,
       errors: failedGates.length ? [`Unverified pipeline gates: ${failedGates.join(', ')}`] : [],
       note: 'pipeline_verified means the approved repository lock and Python composition pipeline completed. It does not replace clean-install, runtime, security or end-to-end release verification.',
-    }, { status: failedGates.length === 0 ? 200 : 422 })
+    })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Approved-composition build failed'
     return NextResponse.json({ success: false, status: 'failed', errors: [message] }, { status: 500 })
