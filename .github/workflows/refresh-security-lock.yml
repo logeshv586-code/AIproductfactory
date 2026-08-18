@@ -20,7 +20,9 @@ jobs:
           node-version: 22
           cache: npm
       - name: Refresh vulnerable packages within declared semver ranges
-        run: npm audit fix --package-lock-only
+        run: npm audit fix --package-lock-only || true
+      - name: Require zero critical npm advisories after refresh
+        run: npm audit --package-lock-only --audit-level=critical
       - name: Commit regenerated lockfile
         run: |
           if git diff --quiet -- package-lock.json; then
