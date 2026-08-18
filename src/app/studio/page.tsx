@@ -1,5 +1,5 @@
-import FactoryStudioV8 from '@/components/factory/FactoryStudioV8'
+import FactoryStudioV9 from '@/components/factory/FactoryStudioV9'
 
 export default function StudioPage() {
-  return <FactoryStudioV8 />
+  return <FactoryStudioV9 />
 }
