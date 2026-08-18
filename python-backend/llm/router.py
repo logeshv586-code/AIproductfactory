@@ -1,9 +1,7 @@
-"""
-Provider Intelligence Router.
+"""Provider Intelligence Router.
 
 Routes LLM work by task shape, records lightweight latency/error metrics, and
-falls back through cheaper or local providers when a primary model is not
-available.
+falls back across NVIDIA, OpenAI, Anthropic, Gemini and local execution.
 """
 
 from __future__ import annotations
@@ -16,14 +14,14 @@ from llm.provider import LLMProvider, get_provider
 
 
 PROVIDER_STRATEGY: dict[str, list[str]] = {
-    "planning": ["claude", "nvidia", "openai", "local"],
-    "codegen": ["nvidia", "openai", "claude", "local"],
-    "research": ["gemini", "claude", "nvidia", "local"],
-    "vision": ["gemini", "nvidia", "local"],
-    "fast": ["nvidia", "openai", "local"],
-    "long_context": ["gemini", "claude", "nvidia", "local"],
+    "planning": ["anthropic", "nvidia", "openai", "gemini", "local"],
+    "codegen": ["nvidia", "openai", "anthropic", "gemini", "local"],
+    "research": ["gemini", "anthropic", "openai", "nvidia", "local"],
+    "vision": ["gemini", "openai", "anthropic", "nvidia", "local"],
+    "fast": ["nvidia", "openai", "gemini", "anthropic", "local"],
+    "long_context": ["gemini", "anthropic", "openai", "nvidia", "local"],
     "local_fallback": ["local"],
-    "general": ["nvidia", "openai", "claude", "gemini", "local"],
+    "general": ["nvidia", "openai", "anthropic", "gemini", "local"],
 }
 
 
@@ -81,10 +79,11 @@ class ProviderRouter:
         temperature: float = 0.5,
         max_tokens: int = 1000,
         use_cache: bool = True,
+        enable_thinking: bool | None = None,
     ) -> dict[str, Any]:
         prompt = "\n".join(m.get("content", "") for m in messages)
         analysis = self.analyze_complexity(prompt, task_type)
-        cache_key = f"{analysis['task_type']}:{temperature}:{max_tokens}:{prompt}"
+        cache_key = f"{analysis['task_type']}:{temperature}:{max_tokens}:{enable_thinking}:{prompt}"
 
         if use_cache and cache_key in self.cache:
             return {
@@ -99,7 +98,12 @@ class ProviderRouter:
             provider = get_provider(provider_name)
             started = time.perf_counter()
             try:
-                text = await provider.chat(messages, temperature=temperature, max_tokens=max_tokens)
+                text = await provider.chat(
+                    messages,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    enable_thinking=enable_thinking,
+                )
                 latency_ms = int((time.perf_counter() - started) * 1000)
                 success = bool(text)
                 self.metrics.append(ProviderMetric(provider_name, analysis["task_type"], latency_ms, success))
@@ -128,7 +132,7 @@ class ProviderRouter:
             "errors": errors,
         }
 
-    async def get_embedding(self, text: str, preferred_provider: str = "openai") -> list[float]:
+    async def get_embedding(self, text: str, preferred_provider: str = "auto") -> list[float]:
         provider = get_provider(preferred_provider)
         try:
             return await provider.get_embedding(text)
@@ -158,12 +162,14 @@ class RoutedProvider(LLMProvider):
         messages: list[dict[str, str]],
         temperature: float = 0.5,
         max_tokens: int = 1000,
+        enable_thinking: bool | None = None,
     ) -> str:
         result = await self.router.chat(
             messages,
             task_type=self.task_type,
             temperature=temperature,
             max_tokens=max_tokens,
+            enable_thinking=enable_thinking,
         )
         return result.get("text", "")
 
