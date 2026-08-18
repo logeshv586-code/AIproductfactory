@@ -46,3 +46,71 @@ jobs:
       - run: pytest -q
         env:
           LLM_PROVIDER: local
+
+  e2e:
+    name: Full Product Factory HTTP flow
+    needs: [web, python]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: python-backend/requirements.txt
+      - run: npm ci
+      - name: Install Python backend
+        run: pip install -r python-backend/requirements.txt
+      - name: Build Next.js standalone app
+        run: npm run build
+        env:
+          DATABASE_URL: file:./db/custom.db
+          PYTHON_BACKEND_URL: http://127.0.0.1:8001
+      - name: Start Python and Next servers
+        env:
+          LLM_PROVIDER: local
+          PYTHON_BACKEND_PORT: '8001'
+          PYTHON_BACKEND_URL: http://127.0.0.1:8001
+          DATABASE_URL: file:./db/custom.db
+          GITHUB_TOKEN: ${{ github.token }}
+          HOSTNAME: 127.0.0.1
+          PORT: '3000'
+        run: |
+          (cd python-backend && python main.py > ../python-e2e.log 2>&1) &
+          echo $! > python-e2e.pid
+          node .next/standalone/server.js > next-e2e.log 2>&1 &
+          echo $! > next-e2e.pid
+          for i in $(seq 1 90); do
+            if curl -fsS http://127.0.0.1:3000/api/health/python >/dev/null 2>&1; then
+              echo "Both services are ready"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Services did not become ready"
+          cat python-e2e.log || true
+          cat next-e2e.log || true
+          exit 1
+      - name: Execute complete Studio API flow
+        env:
+          FACTORY_BASE_URL: http://127.0.0.1:3000
+        run: |
+          node scripts/ci-e2e.mjs || {
+            echo "--- Python backend log ---"
+            tail -n 300 python-e2e.log || true
+            echo "--- Next server log ---"
+            tail -n 300 next-e2e.log || true
+            exit 1
+          }
+      - name: Stop services
+        if: always()
+        run: |
+          kill $(cat python-e2e.pid) 2>/dev/null || true
+          kill $(cat next-e2e.pid) 2>/dev/null || true
