@@ -1,50 +1,78 @@
-"""
-LLM Provider — Abstract interface for LLM calls.
-Supports OpenAI, Claude, and local fallback.
+"""Unified LLM providers for AI Product Factory.
+
+Supported runtime providers:
+- NVIDIA NIM / NVIDIA hosted OpenAI-compatible APIs
+- OpenAI
+- Anthropic Claude
+- Google Gemini (Google GenAI SDK)
+- deterministic local fallback for CI/offline development
+
+`LLM_PROVIDER=auto` enables provider failover using `LLM_PROVIDER_ORDER`.
+Explicit provider values are also supported: nvidia, openai, anthropic/claude,
+gemini, local.
 """
 
-import os
-import json
-import re
+from __future__ import annotations
+
 import asyncio
-from abc import ABC, abstractmethod
+import os
 from typing import Any, Optional
 
+from llm.base import LLMProvider, deterministic_embedding
+from llm.local_provider import LocalProvider
 
-class LLMProvider(ABC):
-    """Abstract base class for LLM providers."""
 
-    @abstractmethod
-    async def chat(self, messages: list[dict[str, str]], temperature: float = 0.5,
-                   max_tokens: int = 1000, enable_thinking: bool | None = None) -> str:
-        """Send a chat completion request and return the text response.
+PROVIDER_ALIASES = {
+    "claude": "anthropic",
+    "anthropic": "anthropic",
+    "google": "gemini",
+    "gemini": "gemini",
+    "gpt": "openai",
+    "openai": "openai",
+    "nim": "nvidia",
+    "nvidia": "nvidia",
+    "local": "local",
+    "auto": "auto",
+}
 
-        ``enable_thinking`` lets callers disable chain-of-thought for fast
-        structured-JSON generation. None means "use the provider default".
-        """
-        pass
+PROVIDER_ENV = {
+    "nvidia": "NVIDIA_API_KEY",
+    "openai": "OPENAI_API_KEY",
+    "anthropic": "ANTHROPIC_API_KEY",
+    "gemini": "GEMINI_API_KEY",
+}
 
-    @abstractmethod
-    async def get_embedding(self, text: str) -> list[float]:
-        """Get embedding vector for a text string."""
-        pass
+DEFAULT_PROVIDER_ORDER = ["nvidia", "openai", "anthropic", "gemini"]
 
-    def parse_json(self, raw: str) -> Any:
-        """Clean and parse JSON from LLM response."""
-        cleaned = re.sub(r'```json\n?', '', raw)
-        cleaned = re.sub(r'```\n?', '', cleaned).strip()
-        try:
-            return json.loads(cleaned)
-        except json.JSONDecodeError:
-            return {}
+
+def _canonical_provider_name(name: str | None) -> str:
+    value = (name or "").strip().lower()
+    return PROVIDER_ALIASES.get(value, value or "local")
+
+
+def _configured(provider_name: str) -> bool:
+    env_name = PROVIDER_ENV.get(provider_name)
+    return provider_name == "local" or bool(env_name and os.environ.get(env_name))
+
+
+def _provider_order() -> list[str]:
+    configured_order = os.environ.get("LLM_PROVIDER_ORDER", "")
+    candidates = configured_order.split(",") if configured_order else DEFAULT_PROVIDER_ORDER
+    output: list[str] = []
+    for candidate in candidates:
+        name = _canonical_provider_name(candidate)
+        if name in PROVIDER_ENV and name not in output:
+            output.append(name)
+    return output or list(DEFAULT_PROVIDER_ORDER)
 
 
 class OpenAIProvider(LLMProvider):
-    """OpenAI GPT-4 / GPT-3.5 provider."""
+    """OpenAI chat + native embeddings."""
 
-    def __init__(self, api_key: Optional[str] = None, model: str = "gpt-4o-mini"):
+    def __init__(self, api_key: Optional[str] = None, model: Optional[str] = None):
         self.api_key = api_key or os.environ.get("OPENAI_API_KEY", "")
-        self.model = model
+        self.model = model or os.environ.get("OPENAI_MODEL", "gpt-5-mini")
+        self.embedding_model = os.environ.get("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")
         self.base_url = os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1")
         self._client = None
 
@@ -52,14 +80,20 @@ class OpenAIProvider(LLMProvider):
     def client(self):
         if self._client is None:
             from openai import AsyncOpenAI
+
             self._client = AsyncOpenAI(
                 api_key=self.api_key,
-                base_url=self.base_url if self.base_url else None,
+                base_url=self.base_url or None,
             )
         return self._client
 
-    async def chat(self, messages: list[dict[str, str]], temperature: float = 0.5,
-                   max_tokens: int = 1000, enable_thinking: bool | None = None) -> str:
+    async def chat(
+        self,
+        messages: list[dict[str, str]],
+        temperature: float = 0.5,
+        max_tokens: int = 1000,
+        enable_thinking: bool | None = None,
+    ) -> str:
         try:
             response = await self.client.chat.completions.create(
                 model=self.model,
@@ -68,139 +102,174 @@ class OpenAIProvider(LLMProvider):
                 max_tokens=max_tokens,
             )
             return response.choices[0].message.content or ""
-        except Exception as e:
-            print(f"[OpenAI] chat error: {e}")
+        except Exception as exc:
+            print(f"[OpenAI] chat error: {exc}")
             return ""
 
     async def get_embedding(self, text: str) -> list[float]:
         try:
             response = await self.client.embeddings.create(
-                model="text-embedding-3-small",
+                model=self.embedding_model,
                 input=text,
             )
-            return response.data[0].embedding
-        except Exception as e:
-            print(f"[OpenAI] embedding error: {e}")
-            # Return zero vector as fallback
-            return [0.0] * 1536
+            vector = list(response.data[0].embedding)
+            return vector if vector else deterministic_embedding(text)
+        except Exception as exc:
+            print(f"[OpenAI] embedding fallback: {exc}")
+            return deterministic_embedding(text)
 
 
-class ClaudeProvider(LLMProvider):
-    """Anthropic Claude provider."""
+class AnthropicProvider(LLMProvider):
+    """Anthropic Claude provider with provider-independent local embeddings."""
 
-    def __init__(self, api_key: Optional[str] = None, model: str = "claude-sonnet-4-20250514"):
+    def __init__(self, api_key: Optional[str] = None, model: Optional[str] = None):
         self.api_key = api_key or os.environ.get("ANTHROPIC_API_KEY", "")
-        self.model = model
+        self.model = model or os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-20250514")
+        self.base_url = os.environ.get("ANTHROPIC_BASE_URL", "")
         self._client = None
 
     @property
     def client(self):
         if self._client is None:
             from anthropic import AsyncAnthropic
-            self._client = AsyncAnthropic(api_key=self.api_key)
+
+            kwargs: dict[str, Any] = {"api_key": self.api_key}
+            if self.base_url:
+                kwargs["base_url"] = self.base_url
+            self._client = AsyncAnthropic(**kwargs)
         return self._client
 
-    async def chat(self, messages: list[dict[str, str]], temperature: float = 0.5,
-                   max_tokens: int = 1000, enable_thinking: bool | None = None) -> str:
+    async def chat(
+        self,
+        messages: list[dict[str, str]],
+        temperature: float = 0.5,
+        max_tokens: int = 1000,
+        enable_thinking: bool | None = None,
+    ) -> str:
         try:
-            # Extract system message if present
-            system_msg = ""
-            user_messages = []
-            for msg in messages:
-                if msg["role"] == "system":
-                    system_msg = msg["content"]
-                else:
-                    user_messages.append(msg)
+            system_parts: list[str] = []
+            user_messages: list[dict[str, str]] = []
+            for message in messages:
+                role = message.get("role", "user")
+                content = message.get("content", "")
+                if role == "system":
+                    if content:
+                        system_parts.append(content)
+                    continue
+                user_messages.append({
+                    "role": "assistant" if role == "assistant" else "user",
+                    "content": content,
+                })
 
-            kwargs = {
+            kwargs: dict[str, Any] = {
                 "model": self.model,
-                "messages": user_messages,
+                "messages": user_messages or [{"role": "user", "content": "Continue."}],
                 "temperature": temperature,
                 "max_tokens": max_tokens,
             }
-            if system_msg:
-                kwargs["system"] = system_msg
+            if system_parts:
+                kwargs["system"] = "\n\n".join(system_parts)
 
             response = await self.client.messages.create(**kwargs)
-            return response.content[0].text if response.content else ""
-        except Exception as e:
-            print(f"[Claude] chat error: {e}")
+            chunks = [getattr(block, "text", "") for block in (response.content or [])]
+            return "".join(chunk for chunk in chunks if chunk)
+        except Exception as exc:
+            print(f"[Anthropic] chat error: {exc}")
             return ""
 
     async def get_embedding(self, text: str) -> list[float]:
-        # Claude doesn't have embedding API, use OpenAI as fallback
-        openai_provider = OpenAIProvider()
-        return await openai_provider.get_embedding(text)
+        # Anthropic does not expose a native embeddings API. Do not silently
+        # require an OpenAI key: keep Anthropic-only deployments self-contained.
+        return deterministic_embedding(text)
+
+
+# Backward-compatible class name used by older code/configuration.
+ClaudeProvider = AnthropicProvider
 
 
 class GeminiProvider(LLMProvider):
-    """Google Gemini provider."""
+    """Google Gemini provider using the current Google GenAI SDK."""
 
-    def __init__(self, api_key: Optional[str] = None, model: str = "gemini-2.0-flash"):
+    def __init__(self, api_key: Optional[str] = None, model: Optional[str] = None):
         self.api_key = api_key or os.environ.get("GEMINI_API_KEY", "")
-        self.model = model
+        self.model = model or os.environ.get("GEMINI_MODEL", "gemini-3.6-flash")
+        self.embedding_model = os.environ.get("GEMINI_EMBEDDING_MODEL", "gemini-embedding-001")
         self._client = None
 
     @property
     def client(self):
         if self._client is None:
-            import google.generativeai as genai
-            genai.configure(api_key=self.api_key)
-            self._client = genai.GenerativeModel(self.model)
+            from google import genai
+
+            self._client = genai.Client(api_key=self.api_key)
         return self._client
 
-    async def chat(self, messages: list[dict[str, str]], temperature: float = 0.5,
-                   max_tokens: int = 1000, enable_thinking: bool | None = None) -> str:
+    async def chat(
+        self,
+        messages: list[dict[str, str]],
+        temperature: float = 0.5,
+        max_tokens: int = 1000,
+        enable_thinking: bool | None = None,
+    ) -> str:
         try:
-            # Format messages for Gemini
-            contents = []
-            system_instruction = ""
-            
-            for msg in messages:
-                if msg["role"] == "system":
-                    system_instruction = msg["content"]
-                else:
-                    role = "model" if msg["role"] == "assistant" else "user"
-                    contents.append({"role": role, "parts": [msg["content"]]})
+            from google.genai import types
 
-            import google.generativeai as genai
-            model = genai.GenerativeModel(
-                model_name=self.model,
-                system_instruction=system_instruction if system_instruction else None
-            )
-            
-            response = await model.generate_content_async(
-                contents,
-                generation_config=genai.types.GenerationConfig(
-                    temperature=temperature,
-                    max_output_tokens=max_tokens,
+            system_parts = [
+                message.get("content", "")
+                for message in messages
+                if message.get("role") == "system" and message.get("content")
+            ]
+            contents = [
+                types.Content(
+                    role="model" if message.get("role") == "assistant" else "user",
+                    parts=[types.Part(text=message.get("content", ""))],
                 )
+                for message in messages
+                if message.get("role") != "system"
+            ]
+            config = types.GenerateContentConfig(
+                system_instruction="\n\n".join(system_parts) if system_parts else None,
+                temperature=temperature,
+                max_output_tokens=max_tokens,
             )
-            return response.text
-        except Exception as e:
-            print(f"[Gemini] chat error: {e}")
+            response = await self.client.aio.models.generate_content(
+                model=self.model,
+                contents=contents or "Continue.",
+                config=config,
+            )
+            return response.text or ""
+        except Exception as exc:
+            print(f"[Gemini] chat error: {exc}")
             return ""
 
     async def get_embedding(self, text: str) -> list[float]:
         try:
-            import google.generativeai as genai
-            result = genai.embed_content(
-                model="models/text-embedding-004",
-                content=text,
-                task_type="retrieval_document",
+            from google.genai import types
+
+            result = await self.client.aio.models.embed_content(
+                model=self.embedding_model,
+                contents=text,
+                config=types.EmbedContentConfig(
+                    task_type="RETRIEVAL_DOCUMENT",
+                    output_dimensionality=1536,
+                ),
             )
-            return result['embedding']
-        except Exception as e:
-            print(f"[Gemini] embedding error: {e}")
-            return [0.0] * 768  # Gemini embeddings are often 768 dims
+            embeddings = getattr(result, "embeddings", None) or []
+            if embeddings:
+                vector = list(getattr(embeddings[0], "values", None) or [])
+                if vector:
+                    return vector
+        except Exception as exc:
+            print(f"[Gemini] embedding fallback: {exc}")
+        return deterministic_embedding(text)
 
 
 class NvidiaProvider(LLMProvider):
-    """NVIDIA Hosted GLM provider."""
+    """NVIDIA NIM/hosted provider through its OpenAI-compatible chat API."""
 
-    def __init__(self, api_key: Optional[str] = None, model: str = "openai/gpt-oss-20b"):
+    def __init__(self, api_key: Optional[str] = None, model: Optional[str] = None):
         self.api_key = api_key or os.environ.get("NVIDIA_API_KEY", "")
-        self.model = os.environ.get("NVIDIA_MODEL", model)
+        self.model = model or os.environ.get("NVIDIA_MODEL", "openai/gpt-oss-20b")
         self.base_url = os.environ.get("NVIDIA_BASE_URL", "https://integrate.api.nvidia.com/v1")
         self._client = None
 
@@ -208,172 +277,64 @@ class NvidiaProvider(LLMProvider):
     def client(self):
         if self._client is None:
             from openai import AsyncOpenAI
-            self._client = AsyncOpenAI(
-                api_key=self.api_key,
-                base_url=self.base_url,
-            )
+
+            self._client = AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
         return self._client
 
-    async def chat(self, messages: list[dict[str, str]], temperature: float = 1.0,
-                   max_tokens: int = 16384, enable_thinking: bool | None = None) -> str:
+    async def chat(
+        self,
+        messages: list[dict[str, str]],
+        temperature: float = 0.5,
+        max_tokens: int = 1000,
+        enable_thinking: bool | None = None,
+    ) -> str:
         try:
-            # Thinking is expensive (a reasoning chain before every answer).
-            # Callers doing structured JSON disable it for speed; None follows
-            # the env default (NVIDIA_THINKING=1 unless set otherwise).
-            thinking = os.environ.get("NVIDIA_THINKING", "1") == "1"
-            if enable_thinking is not None:
-                thinking = enable_thinking
-            response = await self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                temperature=temperature,
-                max_tokens=max_tokens,
-                top_p=1,
-                extra_body={
+            kwargs: dict[str, Any] = {
+                "model": self.model,
+                "messages": messages,
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+                "top_p": 1,
+            }
+            thinking_env = os.environ.get("NVIDIA_THINKING", "").strip().lower()
+            thinking: bool | None = enable_thinking
+            if thinking is None and thinking_env in {"1", "true", "yes", "on"}:
+                thinking = True
+            elif thinking is None and thinking_env in {"0", "false", "no", "off"}:
+                thinking = False
+            # Do not send NVIDIA/model-specific chat-template flags unless the
+            # operator explicitly requests them. This keeps generic NIM models
+            # compatible with the same provider implementation.
+            if thinking is not None:
+                kwargs["extra_body"] = {
                     "chat_template_kwargs": {
                         "enable_thinking": thinking,
-                        "clear_thinking": False
+                        "clear_thinking": False,
                     }
                 }
-            )
+
+            response = await self.client.chat.completions.create(**kwargs)
             return response.choices[0].message.content or ""
-        except Exception as e:
-            print(f"[Nvidia] chat error: {e}")
+        except Exception as exc:
+            print(f"[NVIDIA] chat error: {exc}")
             return ""
 
     async def get_embedding(self, text: str) -> list[float]:
-        # NVIDIA hosted models might not all support embeddings, fallback to zero vector or OpenAI
-        return [0.0] * 1536
-
-
-class LocalProvider(LLMProvider):
-    """Local / mock provider for development and testing."""
-
-    async def chat(self, messages: list[dict[str, str]], temperature: float = 0.5,
-                   max_tokens: int = 1000, enable_thinking: bool | None = None) -> str:
-        # Return structured mock responses based on system prompt content
-        system = next((m["content"] for m in messages if m["role"] == "system"), "")
-        user = next((m["content"] for m in messages if m["role"] == "user"), "")
-
-        if "probability scoring" in system.lower() or "feasibility" in system.lower():
-            return json.dumps({
-                "feasibility": 0.72,
-                "novelty": 0.65,
-                "demand": 0.78,
-                "directives": ["Focus on API-first architecture", "Prefer repos with MIT license"],
-                "rationale": "The idea has strong market demand with existing open-source components available for integration. Technical feasibility is good but requires careful architecture design."
-            })
-        elif "expand" in system.lower() and "product strategist" not in system.lower():
-            return json.dumps({
-                "market": "Growing market for AI-powered developer tools and automation platforms",
-                "target_users": ["Software developers", "DevOps engineers", "Tech startups", "Enterprise IT teams"],
-                "features": ["AI-powered code generation", "Real-time collaboration", "GitHub integration", "Automated testing", "Custom workflow builder"],
-                "usp": "First platform to combine AI code generation with automated repo composition",
-                "risks": ["Market competition from established players", "Technical complexity of multi-repo integration", "User adoption challenges"],
-                "suggested_stack": ["Python", "FastAPI", "React", "PostgreSQL", "Redis"]
-            })
-        elif "planner" in system.lower() or "DAG" in system.lower():
-            return json.dumps({
-                "tasks": [
-                    {"id": "arch", "name": "Design System Architecture", "depends_on": [], "agent": "system_designer", "inputs": {}, "priority": 10},
-                    {"id": "compose", "name": "Compose Repos", "depends_on": ["arch"], "agent": "repo_composer", "inputs": {}, "priority": 8},
-                    {"id": "gen1", "name": "Generate Core Module", "depends_on": ["compose"], "agent": "code_generator", "inputs": {}, "priority": 7},
-                    {"id": "gen2", "name": "Generate API Layer", "depends_on": ["compose"], "agent": "code_generator", "inputs": {}, "priority": 6},
-                    {"id": "test", "name": "Run Tests", "depends_on": ["gen1", "gen2"], "agent": "test_agent", "inputs": {}, "priority": 5}
-                ]
-            })
-        elif "architect" in system.lower() or "architecture" in system.lower():
-            return json.dumps({
-                "components": [
-                    {"name": "Core Engine", "role": "Main processing pipeline", "tech": "Python", "interface": "api"},
-                    {"name": "API Gateway", "role": "Request routing and auth", "tech": "FastAPI", "interface": "rest"},
-                    {"name": "Data Layer", "role": "Persistence and caching", "tech": "PostgreSQL", "interface": "lib"},
-                    {"name": "AI Service", "role": "LLM integration and orchestration", "tech": "Python", "interface": "api"},
-                    {"name": "Frontend Dashboard", "role": "User interface", "tech": "React", "interface": "ui"}
-                ],
-                "data_flows": [
-                    {"from": "API Gateway", "to": "Core Engine", "data": "User requests and pipeline triggers"},
-                    {"from": "Core Engine", "to": "AI Service", "data": "LLM prompts and context"},
-                    {"from": "Core Engine", "to": "Data Layer", "data": "State persistence and retrieval"},
-                    {"from": "Frontend Dashboard", "to": "API Gateway", "data": "User interactions"}
-                ],
-                "tech_stack": ["Python", "FastAPI", "React", "PostgreSQL", "Redis", "Docker"],
-                "deployment": "docker-compose",
-                "diagram_description": "Five-tier architecture: Frontend → API Gateway → Core Engine → AI Service + Data Layer, with Redis caching layer between Core and Data"
-            })
-        elif "repo selection" in system.lower() or "rank" in system.lower():
-            return json.dumps({
-                "rankings": [
-                    {"full_name": "langchain-ai/langchain", "score": 0.92, "reason": "Core AI orchestration framework"},
-                    {"full_name": "chroma-core/chroma", "score": 0.85, "reason": "Vector database for semantic search"},
-                    {"full_name": "openai/openai-python", "score": 0.80, "reason": "LLM API integration"},
-                    {"full_name": "fastapi/fastapi", "score": 0.78, "reason": "High-performance API framework"},
-                    {"full_name": "prisma/prisma", "score": 0.70, "reason": "Database ORM and migrations"}
-                ]
-            })
-        elif "integration" in system.lower() or "compose" in system.lower():
-            return json.dumps({
-                "steps": [
-                    {"order": 1, "action": "Initialize project structure", "file": "pyproject.toml", "detail": "Create Python project with dependencies"},
-                    {"order": 2, "action": "Set up FastAPI application", "file": "app/main.py", "detail": "Create API routes and middleware"},
-                    {"order": 3, "action": "Configure database", "file": "app/database.py", "detail": "Set up PostgreSQL connection and models"},
-                    {"order": 4, "action": "Implement AI service", "file": "app/ai_service.py", "detail": "LLM integration layer"},
-                    {"order": 5, "action": "Create Docker configuration", "file": "docker-compose.yml", "detail": "Multi-container setup"}
-                ],
-                "repo_roles": {},
-                "glue_code_needed": ["API adapter for repo integration", "Custom middleware for auth"],
-                "config_files": ["pyproject.toml", "docker-compose.yml", ".env.example", "alembic.ini"]
-            })
-        elif "code generator" in system.lower() or "generate" in system.lower():
-            return json.dumps({
-                "filename": "core_engine.py",
-                "language": "python",
-                "code": '"""Core Engine — Main processing pipeline"""\n\nimport asyncio\nfrom typing import Any, Optional\n\n\nclass CoreEngine:\n    """Main processing engine for the AI product factory."""\n\n    def __init__(self, config: Optional[dict] = None):\n        self.config = config or {}\n        self.pipeline_steps = []\n        self.is_running = False\n\n    async def run_pipeline(self, input_data: dict[str, Any]) -> dict[str, Any]:\n        """Execute the full processing pipeline."""\n        self.is_running = True\n        results = {"status": "success", "steps_completed": 0}\n        for step in self.pipeline_steps:\n            try:\n                result = await step.execute(input_data)\n                results["steps_completed"] += 1\n            except Exception as e:\n                results["error"] = str(e)\n                break\n        self.is_running = False\n        return results\n\n    def add_step(self, step: Any) -> None:\n        """Add a processing step to the pipeline."""\n        self.pipeline_steps.append(step)\n',
-                "description": "Core engine module with async pipeline execution"
-            })
-        elif "product" in system.lower() or "idea" in system.lower() or "combine" in system.lower() or "create" in user.lower() or "design a product" in system.lower():
-            # Default product generation response for any strategy
-            import re
-            # Try to extract capability types from the user message
-            caps_found = []
-            for cap in ["memory", "agent", "rag", "ui", "backend", "automation"]:
-                if cap in user.lower() or cap in system.lower():
-                    caps_found.append(cap)
-            if not caps_found:
-                caps_found = ["backend", "agent"]
-
-            return json.dumps({
-                "name": f"AI-{''.join(c.title() for c in caps_found[:2])} Platform",
-                "description": f"An innovative platform combining {caps_found[0]} and {caps_found[-1]} capabilities to create a powerful AI-powered solution for developers and teams",
-                "system_flow": f"User Input → {caps_found[0].title()} Service → AI Processing → {caps_found[-1].title()} Engine → Output → Feedback Loop",
-                "capabilities": caps_found,
-                "target_users": ["Software developers", "DevOps engineers", "AI researchers"],
-                "key_features": [f"Advanced {caps_found[0]} processing", f"Smart {caps_found[-1]} automation", "Real-time collaboration", "API-first design", "Custom workflow builder"],
-                "repos_used": [],
-                "gap_filled": caps_found[0] if "gap" in system.lower() else "",
-                "trend_alignment": f"Aligned with {caps_found[0]} + {caps_found[-1]} trend",
-                "composition_pattern": "pipeline_composition",
-                "gaps_filled": caps_found,
-            })
-        else:
-            return json.dumps({"result": "mock response", "name": "Default Product", "description": "A default product idea"})
-
-    async def get_embedding(self, text: str) -> list[float]:
-        # Return pseudo-random embedding based on text hash
-        import hashlib
-        h = hashlib.md5(text.encode()).hexdigest()
-        vec = [(int(h[i:i+2], 16) / 255.0 - 0.5) * 2 for i in range(0, min(len(h), 1536 * 2), 2)]
-        # Pad to 1536 dimensions
-        while len(vec) < 1536:
-            h = hashlib.md5((text + str(len(vec))).encode()).hexdigest()
-            vec.extend([(int(h[i:i+2], 16) / 255.0 - 0.5) * 2 for i in range(0, min(len(h), (1536 - len(vec)) * 2), 2)])
-        return vec[:1536]
+        # NIM chat deployments do not universally expose an embedding endpoint.
+        # Keep the Product Factory executable with a provider-independent local
+        # fallback rather than returning an all-zero vector.
+        return deterministic_embedding(text)
 
 
 class ResilientProvider(LLMProvider):
-    """Wrap a remote provider with timeout and local fallback."""
+    """Wrap one remote provider with timeout and deterministic local fallback."""
 
-    def __init__(self, primary: LLMProvider, fallback: Optional[LLMProvider] = None, timeout_seconds: float = 90.0):
+    def __init__(
+        self,
+        primary: LLMProvider,
+        fallback: Optional[LLMProvider] = None,
+        timeout_seconds: float = 90.0,
+    ):
         self.primary = primary
         self.fallback = fallback or LocalProvider()
         self.timeout_seconds = timeout_seconds
@@ -387,15 +348,24 @@ class ResilientProvider(LLMProvider):
     ) -> str:
         try:
             text = await asyncio.wait_for(
-                self.primary.chat(messages, temperature=temperature, max_tokens=max_tokens, enable_thinking=enable_thinking),
+                self.primary.chat(
+                    messages,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    enable_thinking=enable_thinking,
+                ),
                 timeout=self.timeout_seconds,
             )
             if text:
                 return text
-        except Exception as e:
-            print(f"[ResilientProvider] primary chat fallback: {e}")
-
-        return await self.fallback.chat(messages, temperature=temperature, max_tokens=max_tokens, enable_thinking=enable_thinking)
+        except Exception as exc:
+            print(f"[ResilientProvider] primary chat fallback: {exc}")
+        return await self.fallback.chat(
+            messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            enable_thinking=enable_thinking,
+        )
 
     async def get_embedding(self, text: str) -> list[float]:
         try:
@@ -405,31 +375,132 @@ class ResilientProvider(LLMProvider):
             )
             if vector and any(value != 0 for value in vector):
                 return vector
-        except Exception as e:
-            print(f"[ResilientProvider] primary embedding fallback: {e}")
-
+        except Exception as exc:
+            print(f"[ResilientProvider] primary embedding fallback: {exc}")
         return await self.fallback.get_embedding(text)
 
 
-def get_provider(provider_name: Optional[str] = None) -> LLMProvider:
-    """Factory function to get the configured LLM provider."""
-    name = provider_name or os.environ.get("LLM_PROVIDER", "local")
+class ProviderPool(LLMProvider):
+    """Automatic failover across every configured remote provider."""
 
+    def __init__(
+        self,
+        providers: list[tuple[str, LLMProvider]],
+        fallback: Optional[LLMProvider] = None,
+        timeout_seconds: float = 90.0,
+    ):
+        self.providers = providers
+        self.fallback = fallback or LocalProvider()
+        self.timeout_seconds = timeout_seconds
+        self.last_provider = "local"
+
+    async def chat(
+        self,
+        messages: list[dict[str, str]],
+        temperature: float = 0.5,
+        max_tokens: int = 1000,
+        enable_thinking: bool | None = None,
+    ) -> str:
+        for name, provider in self.providers:
+            try:
+                text = await asyncio.wait_for(
+                    provider.chat(
+                        messages,
+                        temperature=temperature,
+                        max_tokens=max_tokens,
+                        enable_thinking=enable_thinking,
+                    ),
+                    timeout=self.timeout_seconds,
+                )
+                if text:
+                    self.last_provider = name
+                    return text
+            except Exception as exc:
+                print(f"[ProviderPool] {name} chat failed: {exc}")
+        self.last_provider = "local"
+        return await self.fallback.chat(
+            messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            enable_thinking=enable_thinking,
+        )
+
+    async def get_embedding(self, text: str) -> list[float]:
+        # Prefer native embedding providers first regardless of chat order.
+        native_first = sorted(
+            self.providers,
+            key=lambda item: 0 if item[0] in {"openai", "gemini"} else 1,
+        )
+        for name, provider in native_first:
+            try:
+                vector = await asyncio.wait_for(
+                    provider.get_embedding(text),
+                    timeout=self.timeout_seconds,
+                )
+                if vector and any(value != 0 for value in vector):
+                    self.last_provider = name
+                    return vector
+            except Exception as exc:
+                print(f"[ProviderPool] {name} embedding failed: {exc}")
+        self.last_provider = "local"
+        return await self.fallback.get_embedding(text)
+
+
+def _build_remote(provider_name: str) -> LLMProvider:
+    name = _canonical_provider_name(provider_name)
     if name == "nvidia":
-        if not os.environ.get("NVIDIA_API_KEY"):
-            return LocalProvider()
-        return ResilientProvider(NvidiaProvider())
-    elif name == "openai":
-        if not os.environ.get("OPENAI_API_KEY"):
-            return LocalProvider()
-        return ResilientProvider(OpenAIProvider())
-    elif name == "claude":
-        if not os.environ.get("ANTHROPIC_API_KEY"):
-            return LocalProvider()
-        return ResilientProvider(ClaudeProvider())
-    elif name == "gemini":
-        if not os.environ.get("GEMINI_API_KEY"):
-            return LocalProvider()
-        return ResilientProvider(GeminiProvider())
-    else:
+        return NvidiaProvider()
+    if name == "openai":
+        return OpenAIProvider()
+    if name == "anthropic":
+        return AnthropicProvider()
+    if name == "gemini":
+        return GeminiProvider()
+    raise ValueError(f"Unsupported remote provider: {provider_name}")
+
+
+def get_provider_status() -> dict[str, Any]:
+    """Return configuration/model metadata without exposing any API keys."""
+    models = {
+        "nvidia": os.environ.get("NVIDIA_MODEL", "openai/gpt-oss-20b"),
+        "openai": os.environ.get("OPENAI_MODEL", "gpt-5-mini"),
+        "anthropic": os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-20250514"),
+        "gemini": os.environ.get("GEMINI_MODEL", "gemini-3.6-flash"),
+    }
+    return {
+        "mode": _canonical_provider_name(os.environ.get("LLM_PROVIDER", "auto")),
+        "order": _provider_order(),
+        "providers": {
+            name: {
+                "configured": _configured(name),
+                "model": models[name],
+                "chat": True,
+                "native_embeddings": name in {"openai", "gemini"},
+                "local_embedding_fallback": True,
+            }
+            for name in ["nvidia", "openai", "anthropic", "gemini"]
+        },
+    }
+
+
+def get_provider(provider_name: Optional[str] = None) -> LLMProvider:
+    """Return the configured provider or an automatic multi-provider pool."""
+    name = _canonical_provider_name(provider_name or os.environ.get("LLM_PROVIDER", "auto"))
+
+    if name == "auto":
+        providers = [
+            (candidate, _build_remote(candidate))
+            for candidate in _provider_order()
+            if _configured(candidate)
+        ]
+        return ProviderPool(providers) if providers else LocalProvider()
+
+    if name == "local":
         return LocalProvider()
+
+    if name in PROVIDER_ENV:
+        if not _configured(name):
+            return LocalProvider()
+        return ResilientProvider(_build_remote(name))
+
+    return LocalProvider()
