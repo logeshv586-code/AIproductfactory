@@ -1,0 +1,63 @@
+<svg width="1400" height="430" viewBox="0 0 1400 430" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1400" y2="430" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#07121F"/>
+      <stop offset="1" stop-color="#0B1020"/>
+    </linearGradient>
+    <linearGradient id="line" x1="110" y1="206" x2="1290" y2="206" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#22D3EE"/>
+      <stop offset="0.5" stop-color="#60A5FA"/>
+      <stop offset="1" stop-color="#A78BFA"/>
+    </linearGradient>
+  </defs>
+  <rect width="1400" height="430" rx="30" fill="url(#bg)"/>
+  <text x="72" y="72" fill="#E2F8FF" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="800">Factory execution path</text>
+  <text x="72" y="103" fill="#7890AA" font-family="Arial, Helvetica, sans-serif" font-size="16">Evidence first. Approval before build. Verification before trust.</text>
+  <path d="M120 226H1285" stroke="url(#line)" stroke-width="4" stroke-linecap="round" opacity="0.7"/>
+
+  <g font-family="Arial, Helvetica, sans-serif">
+    <g transform="translate(70 148)">
+      <rect width="160" height="150" rx="22" fill="#0C1D30" stroke="#22D3EE" stroke-opacity="0.55"/>
+      <circle cx="80" cy="46" r="24" fill="#12344C"/><text x="80" y="53" text-anchor="middle" fill="#67E8F9" font-size="20" font-weight="800">01</text>
+      <text x="80" y="96" text-anchor="middle" fill="white" font-size="17" font-weight="700">Define</text>
+      <text x="80" y="121" text-anchor="middle" fill="#8EA6BE" font-size="13">Idea / enhancement</text>
+    </g>
+    <g transform="translate(250 148)">
+      <rect width="160" height="150" rx="22" fill="#0C1D30" stroke="#38BDF8" stroke-opacity="0.55"/>
+      <circle cx="80" cy="46" r="24" fill="#12344C"/><text x="80" y="53" text-anchor="middle" fill="#7DD3FC" font-size="20" font-weight="800">02</text>
+      <text x="80" y="96" text-anchor="middle" fill="white" font-size="17" font-weight="700">Research</text>
+      <text x="80" y="121" text-anchor="middle" fill="#8EA6BE" font-size="13">Market + OSS signals</text>
+    </g>
+    <g transform="translate(430 148)">
+      <rect width="160" height="150" rx="22" fill="#0C1D30" stroke="#60A5FA" stroke-opacity="0.58"/>
+      <circle cx="80" cy="46" r="24" fill="#162C50"/><text x="80" y="53" text-anchor="middle" fill="#93C5FD" font-size="20" font-weight="800">03</text>
+      <text x="80" y="96" text-anchor="middle" fill="white" font-size="17" font-weight="700">Compare</text>
+      <text x="80" y="121" text-anchor="middle" fill="#8EA6BE" font-size="13">3 composition paths</text>
+    </g>
+    <g transform="translate(610 148)">
+      <rect width="160" height="150" rx="22" fill="#0C1D30" stroke="#818CF8" stroke-opacity="0.58"/>
+      <circle cx="80" cy="46" r="24" fill="#24254C"/><text x="80" y="53" text-anchor="middle" fill="#C7D2FE" font-size="20" font-weight="800">04</text>
+      <text x="80" y="96" text-anchor="middle" fill="white" font-size="17" font-weight="700">Approve</text>
+      <text x="80" y="121" text-anchor="middle" fill="#8EA6BE" font-size="13">Strategy + repo lock</text>
+    </g>
+    <g transform="translate(790 148)">
+      <rect width="160" height="150" rx="22" fill="#0C1D30" stroke="#A78BFA" stroke-opacity="0.58"/>
+      <circle cx="80" cy="46" r="24" fill="#302550"/><text x="80" y="53" text-anchor="middle" fill="#DDD6FE" font-size="20" font-weight="800">05</text>
+      <text x="80" y="96" text-anchor="middle" fill="white" font-size="17" font-weight="700">Architect</text>
+      <text x="80" y="121" text-anchor="middle" fill="#8EA6BE" font-size="13">Adapters + boundaries</text>
+    </g>
+    <g transform="translate(970 148)">
+      <rect width="160" height="150" rx="22" fill="#0C1D30" stroke="#C084FC" stroke-opacity="0.58"/>
+      <circle cx="80" cy="46" r="24" fill="#3A2450"/><text x="80" y="53" text-anchor="middle" fill="#E9D5FF" font-size="20" font-weight="800">06</text>
+      <text x="80" y="96" text-anchor="middle" fill="white" font-size="17" font-weight="700">Build</text>
+      <text x="80" y="121" text-anchor="middle" fill="#8EA6BE" font-size="13">Approved composition</text>
+    </g>
+    <g transform="translate(1150 148)">
+      <rect width="180" height="150" rx="22" fill="#0D2030" stroke="#34D399" stroke-opacity="0.68"/>
+      <circle cx="90" cy="46" r="24" fill="#123A37"/><text x="90" y="53" text-anchor="middle" fill="#6EE7B7" font-size="20" font-weight="800">07</text>
+      <text x="90" y="96" text-anchor="middle" fill="white" font-size="17" font-weight="700">Verify + Learn</text>
+      <text x="90" y="121" text-anchor="middle" fill="#8EA6BE" font-size="13">Tests, security, memory</text>
+    </g>
+  </g>
+  <text x="700" y="370" text-anchor="middle" fill="#70869F" font-family="Arial, Helvetica, sans-serif" font-size="14">Repository selection is explainable • source trees are not blindly merged • product-owned adapters remain replaceable</text>
+</svg>
