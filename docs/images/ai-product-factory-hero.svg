@@ -1,0 +1,64 @@
+<svg width="1400" height="520" viewBox="0 0 1400 520" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="80" y1="20" x2="1320" y2="500" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#07111F"/>
+      <stop offset="0.52" stop-color="#0B1730"/>
+      <stop offset="1" stop-color="#071018"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="310" y1="112" x2="1050" y2="430" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#67E8F9"/>
+      <stop offset="0.5" stop-color="#60A5FA"/>
+      <stop offset="1" stop-color="#A78BFA"/>
+    </linearGradient>
+    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="10" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="soft" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="36"/>
+    </filter>
+  </defs>
+  <rect width="1400" height="520" rx="36" fill="url(#bg)"/>
+  <circle cx="1210" cy="72" r="170" fill="#2563EB" fill-opacity="0.13" filter="url(#soft)"/>
+  <circle cx="188" cy="470" r="180" fill="#06B6D4" fill-opacity="0.11" filter="url(#soft)"/>
+  <g opacity="0.18" stroke="#7DD3FC">
+    <path d="M0 90H1400M0 170H1400M0 250H1400M0 330H1400M0 410H1400"/>
+    <path d="M120 0V520M280 0V520M440 0V520M600 0V520M760 0V520M920 0V520M1080 0V520M1240 0V520"/>
+  </g>
+
+  <g transform="translate(94 86)">
+    <rect x="0" y="0" width="88" height="88" rx="24" fill="#0E2238" stroke="#67E8F9" stroke-opacity="0.65"/>
+    <path d="M23 44L44 23L65 44L44 65L23 44Z" stroke="url(#accent)" stroke-width="5"/>
+    <circle cx="44" cy="44" r="8" fill="#67E8F9" filter="url(#glow)"/>
+  </g>
+
+  <text x="210" y="132" fill="#CFFAFE" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700" letter-spacing="4">OPEN-SOURCE PRODUCT INTELLIGENCE</text>
+  <text x="94" y="238" fill="white" font-family="Arial, Helvetica, sans-serif" font-size="66" font-weight="800">AI Product Factory</text>
+  <text x="94" y="292" fill="#B6C5D8" font-family="Arial, Helvetica, sans-serif" font-size="24">Research → reason → compose → architect → build → verify.</text>
+  <text x="94" y="334" fill="#8FA5BE" font-family="Arial, Helvetica, sans-serif" font-size="18">Turn a product idea into evidence-backed architecture and an approved open-source build plan.</text>
+
+  <g font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="700">
+    <rect x="94" y="382" width="158" height="46" rx="23" fill="#10263D" stroke="#76B900" stroke-opacity="0.75"/>
+    <text x="126" y="411" fill="#E7F9C7">NVIDIA</text>
+    <rect x="270" y="382" width="158" height="46" rx="23" fill="#10263D" stroke="#22D3EE" stroke-opacity="0.7"/>
+    <text x="305" y="411" fill="#D6F9FF">OpenAI</text>
+    <rect x="446" y="382" width="174" height="46" rx="23" fill="#10263D" stroke="#FDBA74" stroke-opacity="0.7"/>
+    <text x="476" y="411" fill="#FFE7CF">Anthropic</text>
+    <rect x="638" y="382" width="158" height="46" rx="23" fill="#10263D" stroke="#A78BFA" stroke-opacity="0.75"/>
+    <text x="676" y="411" fill="#EDE9FE">Gemini</text>
+    <rect x="814" y="382" width="192" height="46" rx="23" fill="#10263D" stroke="#94A3B8" stroke-opacity="0.65"/>
+    <text x="843" y="411" fill="#DDE6F0">Local fallback</text>
+  </g>
+
+  <g transform="translate(1050 165)">
+    <path d="M0 88H82M82 88L132 38M82 88L132 138M132 38H212M132 138H212" stroke="url(#accent)" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="0" cy="88" r="18" fill="#0F2740" stroke="#67E8F9" stroke-width="3"/>
+    <circle cx="82" cy="88" r="24" fill="#102B48" stroke="#60A5FA" stroke-width="3" filter="url(#glow)"/>
+    <circle cx="132" cy="38" r="17" fill="#13243F" stroke="#A78BFA" stroke-width="3"/>
+    <circle cx="132" cy="138" r="17" fill="#13243F" stroke="#22D3EE" stroke-width="3"/>
+    <circle cx="212" cy="38" r="14" fill="#12203A" stroke="#A78BFA" stroke-width="3"/>
+    <circle cx="212" cy="138" r="14" fill="#12203A" stroke="#22D3EE" stroke-width="3"/>
+    <text x="48" y="208" fill="#87A7C6" font-family="Arial, Helvetica, sans-serif" font-size="15" text-anchor="middle">PRODUCT</text>
+    <text x="170" y="208" fill="#87A7C6" font-family="Arial, Helvetica, sans-serif" font-size="15" text-anchor="middle">SYSTEM</text>
+  </g>
+</svg>
