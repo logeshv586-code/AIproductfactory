@@ -7,7 +7,7 @@ on:
 
 jobs:
   web:
-    name: Next.js lint and build
+    name: Next.js lint, typecheck and build
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -17,7 +17,11 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Critical dependency audit
+        run: npm audit --audit-level=critical
       - run: npm run lint
+      - name: TypeScript typecheck
+        run: npx tsc --noEmit
       - run: npm run build
         env:
           DATABASE_URL: file:./db/custom.db
