@@ -1,14 +1,15 @@
 name: Refresh security lockfile
 
 on:
-  push:
-    branches: [fix/refresh-security-lock]
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: write
 
 jobs:
   refresh:
+    if: github.head_ref == 'fix/refresh-security-lock'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
