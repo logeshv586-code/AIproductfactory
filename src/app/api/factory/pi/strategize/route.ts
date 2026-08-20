@@ -18,6 +18,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const idea: string = typeof body.idea === 'string' ? body.idea.trim() : ''
+    const llmSession = request.headers.get('x-llm-session') || ''
 
     if (!idea) {
       return NextResponse.json(
@@ -28,7 +29,10 @@ export async function POST(request: NextRequest) {
 
     const res = await fetch(`${PYTHON_BACKEND}/pi/strategize`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(llmSession ? { 'X-LLM-Session': llmSession } : {}),
+      },
       body: JSON.stringify({
         idea,
         github_token: body.githubToken ?? null,
