@@ -18,6 +18,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const runId: string = typeof body.runId === 'string' ? body.runId.trim() : ''
     const strategyId: string = typeof body.strategyId === 'string' ? body.strategyId.trim() : ''
+    const llmSession = request.headers.get('x-llm-session') || ''
 
     if (!runId || !strategyId) {
       return NextResponse.json(
@@ -28,7 +29,10 @@ export async function POST(request: NextRequest) {
 
     const res = await fetch(`${PYTHON_BACKEND}/pi/approve`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(llmSession ? { 'X-LLM-Session': llmSession } : {}),
+      },
       body: JSON.stringify({ run_id: runId, strategy_id: strategyId }),
       signal: AbortSignal.timeout(570000),
     })
