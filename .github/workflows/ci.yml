@@ -83,7 +83,7 @@ jobs:
           HOSTNAME: 127.0.0.1
           PORT: '3000'
         run: |
-          (cd python-backend && python main.py > ../python-e2e.log 2>&1) &
+          (cd python-backend && python runtime_entry.py > ../python-e2e.log 2>&1) &
           echo $! > python-e2e.pid
           node .next/standalone/server.js > next-e2e.log 2>&1 &
           echo $! > next-e2e.pid
