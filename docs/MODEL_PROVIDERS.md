@@ -2,7 +2,39 @@
 
 AI Product Factory supports the same Product Intelligence and autonomous build flow with NVIDIA, OpenAI, Anthropic Claude, Google Gemini, or deterministic local execution.
 
-## Recommended mode: automatic failover
+## Studio runtime setup — recommended for customers
+
+The `/studio` experience now starts with a simple model connection screen. A customer can:
+
+1. choose OpenAI, Anthropic, Google Gemini, NVIDIA NIM, or Local mode;
+2. paste their provider API key;
+3. enter the exact model ID available to their provider account;
+4. click **Test model & start**;
+5. continue into the Product Factory only after the connection succeeds.
+
+A successful test creates an opaque runtime model session. The raw provider key is kept only in Python process memory for that session, is not returned to the browser after setup, and is not written to disk by the runtime-session layer. The browser retains only the opaque session id in `sessionStorage` so a page refresh can restore the active session while the backend is still running.
+
+Requests in the Product Factory carry that session id through the Next.js proxy. The same runtime provider/model is then resolved for:
+
+- Product Thinking and Intent Intelligence;
+- Requirement, Market, Competitor, Innovation and Gap Intelligence;
+- Capability and Repository Intelligence;
+- Strategy Tournament and Review;
+- approved Deep Research, Composition, Architecture and Simulation;
+- Blueprint, Engineering and Execution planning;
+- the approved repository-locked Product Factory build pipeline.
+
+The live-source research collector and deterministic Final Manager do not need an LLM call; they continue to use their existing source/data logic while the reasoning agents use the selected runtime model.
+
+Runtime model sessions expire after 8 hours by default. Override this local-server behavior with:
+
+```env
+LLM_RUNTIME_SESSION_TTL_SECONDS=28800
+```
+
+## Recommended server mode: automatic failover
+
+For unattended/server deployments, environment configuration remains supported:
 
 ```env
 LLM_PROVIDER=auto
@@ -55,7 +87,7 @@ NVIDIA_BASE_URL=https://integrate.api.nvidia.com/v1
 NVIDIA_THINKING=
 ```
 
-The values above are defaults/examples. If your account exposes a different model, set the corresponding environment variable rather than editing Python code.
+The values above are defaults/examples. If your account exposes a different model, enter that model ID in Studio or set the corresponding environment variable rather than editing Python code.
 
 ## Embeddings
 
@@ -78,7 +110,9 @@ The backend uses Google's current `google-genai` SDK rather than the legacy `goo
 
 ## Reliability behavior
 
-Remote providers are wrapped with timeout + local fallback in explicit-provider mode. `auto` mode tries configured providers in order before using local fallback. The provider router can also select different providers for planning, code generation, research, vision-oriented reasoning, fast extraction, and long-context work.
+Remote providers are wrapped with timeout + local fallback in explicit environment-provider mode. `auto` mode tries configured providers in order before using local fallback. The provider router can also select different providers for planning, code generation, research, vision-oriented reasoning, fast extraction, and long-context work.
+
+A customer-created Studio runtime session is different: it intentionally pins the selected provider and model so the run does not silently switch to a different paid provider.
 
 ## Test coverage
 

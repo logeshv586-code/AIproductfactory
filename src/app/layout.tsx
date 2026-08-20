@@ -3,10 +3,22 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
-  title: "GitHub MCP - Top Repos & Product Idea Generator",
-  description: "Fetch top GitHub repositories, analyze trends, and generate innovative product ideas using MCP and AI.",
+  title: {
+    default: "AI Product Factory — Build Products with Multi-Agent AI",
+    template: "%s | AI Product Factory",
+  },
+  description: "Turn a product idea into researched open-source options, approved architecture, commercial assumptions, and a verified build plan using a customer-selected AI model.",
+  applicationName: "AI Product Factory",
+  keywords: [
+    "AI Product Factory",
+    "multi-agent AI",
+    "product research",
+    "open-source architecture",
+    "AI product builder",
+  ],
   icons: {
-    icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
+    icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
+    shortcut: "/favicon.svg",
   },
 };
 
@@ -17,9 +29,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body
-        className="antialiased bg-background text-foreground"
-      >
+      <body className="antialiased bg-background text-foreground">
         {children}
         <Toaster />
       </body>

@@ -83,7 +83,7 @@ jobs:
           HOSTNAME: 127.0.0.1
           PORT: '3000'
         run: |
-          (cd python-backend && python main.py > ../python-e2e.log 2>&1) &
+          (cd python-backend && python runtime_entry.py > ../python-e2e.log 2>&1) &
           echo $! > python-e2e.pid
           node .next/standalone/server.js > next-e2e.log 2>&1 &
           echo $! > next-e2e.pid
@@ -98,9 +98,11 @@ jobs:
           cat python-e2e.log || true
           cat next-e2e.log || true
           exit 1
-      - name: Execute complete Studio API flow
+      - name: Execute hydrated Studio and complete Factory flow
         env:
           FACTORY_BASE_URL: http://127.0.0.1:3000
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_SMOKE_MODEL: ${{ vars.OPENAI_SMOKE_MODEL }}
         run: |
           node scripts/ci-e2e.mjs || {
             echo "--- Python backend log ---"

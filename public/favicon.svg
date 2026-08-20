@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="AI Product Factory">
+  <defs>
+    <linearGradient id="g" x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2563eb"/>
+      <stop offset="0.55" stop-color="#4f46e5"/>
+      <stop offset="1" stop-color="#7c3aed"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="#f8fafc"/>
+  <path d="M17 18.5c0-3.04 2.46-5.5 5.5-5.5h19c3.04 0 5.5 2.46 5.5 5.5v27c0 3.04-2.46 5.5-5.5 5.5h-19a5.5 5.5 0 0 1-5.5-5.5v-27Z" fill="url(#g)"/>
+  <path d="M24 24h16v5H24zm0 10h10v5H24z" fill="white" opacity=".96"/>
+  <circle cx="41" cy="37" r="5" fill="#a7f3d0"/>
+  <path d="m39.1 37 1.35 1.35 2.7-2.7" fill="none" stroke="#065f46" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
