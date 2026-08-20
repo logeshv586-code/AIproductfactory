@@ -61,6 +61,7 @@ function outputPath(timeline: unknown) {
 
 export async function POST(request: NextRequest) {
   const requestId = request.headers.get('x-request-id') || randomUUID()
+  const llmSession = request.headers.get('x-llm-session') || ''
   try {
     const parsed = RequestSchema.safeParse(await request.json())
     if (!parsed.success) {
@@ -83,7 +84,11 @@ export async function POST(request: NextRequest) {
 
     const response = await fetch(`${health.url}/pipeline/run`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Request-Id': requestId },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Request-Id': requestId,
+        ...(llmSession ? { 'X-LLM-Session': llmSession } : {}),
+      },
       body: JSON.stringify({
         idea,
         repos: approvedRepos,
