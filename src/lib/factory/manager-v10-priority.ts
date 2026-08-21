@@ -21,7 +21,7 @@ function desiredEffort(priority: unknown): CustomerComposition['effort'] {
   return 'Balanced'
 }
 
-function reorderPlans(report: FactoryManagerV10Report, input: PriorityAwareFactoryManagerInput) {
+function reorderPlans(report: FactoryManagerV10Report, input: PriorityAwareFactoryManagerInput): CustomerComposition[] {
   const selectedId = text(input.selectedCompositionId)
   const explicit = selectedId ? report.compositionSuggestions.find((plan) => plan.id === selectedId) : undefined
   const wanted = desiredEffort(input.customerContext?.priority)
@@ -29,10 +29,14 @@ function reorderPlans(report: FactoryManagerV10Report, input: PriorityAwareFacto
   if (!chosen) return report.compositionSuggestions
 
   return [chosen, ...report.compositionSuggestions.filter((plan) => plan.id !== chosen.id)]
-    .map((plan, index) => ({
-      ...plan,
-      type: index === 0 ? 'recommended' : plan.type === 'recommended' ? 'two-repo-fusion' : plan.type,
-    }))
+    .map<CustomerComposition>((plan, index) => {
+      const planType: CustomerComposition['type'] = index === 0
+        ? 'recommended'
+        : plan.type === 'recommended'
+          ? 'two-repo-fusion'
+          : plan.type
+      return { ...plan, type: planType }
+    })
 }
 
 function implementationPrompt(
