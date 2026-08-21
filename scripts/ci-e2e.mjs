@@ -79,7 +79,7 @@ const root = await fetch(BASE, { redirect: 'manual' })
 assert([307, 308].includes(root.status), `/ returned ${root.status}; expected redirect`)
 assert((root.headers.get('location') || '').endsWith('/studio'), 'homepage did not redirect to /studio')
 const hydratedHtml = renderHydratedDom('/studio')
-for (const expected of ['Connect an AI', 'DeepSeek', 'OpenAI', 'Anthropic', 'Google Gemini', 'NVIDIA NIM', 'Test AI', 'Advanced model settings']) {
+for (const expected of ['Use cloud AI', 'DeepSeek', 'OpenAI', 'Anthropic', 'Google Gemini', 'NVIDIA NIM', 'Ollama', 'LM Studio', 'Offline test mode', 'Test AI', 'Advanced model settings']) {
   assert(hydratedHtml.includes(expected), `hydrated /studio missing: ${expected}`)
 }
 
@@ -87,6 +87,7 @@ console.log('[e2e] 2/10 local runtime session')
 const localModel = await post('/api/factory/llm/configure', { provider: 'local', apiKey: '', model: 'local-deterministic' }, { useSession: false })
 assert(localModel.sessionId, 'local runtime session missing')
 assert(localModel.provider === 'local', 'local runtime provider mismatch')
+assert(localModel.localExecution === true, 'local runtime should be marked as local execution')
 runtimeSessionId = localModel.sessionId
 
 console.log('[e2e] 3/10 product intelligence')
@@ -172,7 +173,7 @@ runtimeSessionId = ''
 console.log('[e2e] 10/10 optional paid-provider smoke')
 await optionalRealProviderSmoke()
 
-console.log('[e2e] PASS — Studio + intent + filtered research + Manager V10 + approval + locked build')
+console.log('[e2e] PASS — Studio + local provider choices + intent + filtered research + Manager V10 + approval + locked build')
 console.log(JSON.stringify({
   runId: strategize.run_id,
   strategyId,
