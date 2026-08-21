@@ -16,6 +16,7 @@ export async function POST(request: NextRequest) {
     const provider = typeof body.provider === 'string' ? body.provider.trim() : ''
     const apiKey = typeof body.apiKey === 'string' ? body.apiKey.trim() : ''
     const model = typeof body.model === 'string' ? body.model.trim() : ''
+    const baseUrl = typeof body.baseUrl === 'string' ? body.baseUrl.trim() : ''
 
     if (!provider) {
       return NextResponse.json({ success: false, error: 'Choose an AI provider.' }, { status: 400 })
@@ -24,7 +25,7 @@ export async function POST(request: NextRequest) {
     const response = await fetch(`${PYTHON_BACKEND}/llm/runtime/configure`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ provider, api_key: apiKey, model }),
+      body: JSON.stringify({ provider, api_key: apiKey, model, base_url: baseUrl }),
       signal: AbortSignal.timeout(55000),
     })
 
