@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createFactoryManagerV8Report } from '@/lib/factory/manager-v8'
+import { createFactoryManagerV10Report } from '@/lib/factory/manager-v10'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -8,7 +8,7 @@ function text(value: unknown) {
   return typeof value === 'string' ? value.trim() : ''
 }
 
-function normalizeRecommendedStrategy(report: ReturnType<typeof createFactoryManagerV8Report>, graph: Record<string, any>) {
+function normalizeRecommendedStrategy(report: ReturnType<typeof createFactoryManagerV10Report>, graph: Record<string, any>) {
   const strategies = Array.isArray(graph.strategies)
     ? graph.strategies.filter((strategy: unknown): strategy is Record<string, any> => Boolean(strategy) && typeof strategy === 'object' && !Array.isArray(strategy))
     : []
@@ -53,16 +53,16 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const report = createFactoryManagerV8Report({
+    const report = createFactoryManagerV10Report({
       idea: typeof body.idea === 'string' ? body.idea.trim() : undefined,
       runId: typeof body.runId === 'string' ? body.runId : undefined,
       graph,
       liveResearch: body?.liveResearch && typeof body.liveResearch === 'object' ? body.liveResearch : null,
+      customerContext: body?.customerContext && typeof body.customerContext === 'object' ? body.customerContext : null,
     })
 
-    // Approval is a separate API contract and accepts only IDs that exist in
-    // graph.strategies. Never let a display-only/synthetic manager label such
-    // as "recommended" escape as an approvable strategy ID.
+    // Approval accepts only strategy IDs that actually exist in graph.strategies.
+    // Display labels and recommendation-plan IDs must never leak into this API contract.
     normalizeRecommendedStrategy(report, graph)
 
     return NextResponse.json({ success: true, report })
