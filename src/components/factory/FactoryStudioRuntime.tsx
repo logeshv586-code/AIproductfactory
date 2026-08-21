@@ -7,7 +7,7 @@ import {
 } from 'lucide-react'
 import FactoryStudioV9 from '@/components/factory/FactoryStudioV9'
 
-type ProviderId = 'openai' | 'anthropic' | 'gemini' | 'nvidia' | 'local'
+type ProviderId = 'openai' | 'anthropic' | 'gemini' | 'nvidia' | 'deepseek' | 'local'
 
 type RuntimeConnection = {
   provider: ProviderId
@@ -26,6 +26,7 @@ const PROVIDERS: Array<{
   { id: 'anthropic', name: 'Anthropic', label: 'Claude models', model: 'claude-sonnet-4-20250514', note: 'Strong long-context reasoning and architecture work.' },
   { id: 'gemini', name: 'Google Gemini', label: 'Gemini models', model: 'gemini-3.6-flash', note: 'Fast multimodal and research-oriented workflows.' },
   { id: 'nvidia', name: 'NVIDIA NIM', label: 'Hosted/open models', model: 'openai/gpt-oss-20b', note: 'OpenAI-compatible NVIDIA-hosted model execution.' },
+  { id: 'deepseek', name: 'DeepSeek', label: 'Chat & R1 models', model: 'deepseek-chat', note: 'Official DeepSeek API (deepseek-chat, deepseek-reasoner).' },
   { id: 'local', name: 'Local mode', label: 'No API key', model: 'local-deterministic', note: 'Offline deterministic fallback for testing and development.' },
 ]
 
@@ -257,7 +258,7 @@ export default function FactoryStudioRuntime() {
               </div>
             </div>
 
-            <div className="mt-6 grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+            <div className="mt-6 grid gap-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
               {PROVIDERS.map((item) => {
                 const active = provider === item.id
                 return (

@@ -31,18 +31,22 @@ PROVIDER_ALIASES = {
     "openai": "openai",
     "nim": "nvidia",
     "nvidia": "nvidia",
+    "deepseek": "deepseek",
+    "deepseek-ai": "deepseek",
+    "r1": "deepseek",
     "local": "local",
     "auto": "auto",
 }
 
 PROVIDER_ENV = {
+    "deepseek": "DEEPSEEK_API_KEY",
     "nvidia": "NVIDIA_API_KEY",
     "openai": "OPENAI_API_KEY",
     "anthropic": "ANTHROPIC_API_KEY",
     "gemini": "GEMINI_API_KEY",
 }
 
-DEFAULT_PROVIDER_ORDER = ["nvidia", "openai", "anthropic", "gemini"]
+DEFAULT_PROVIDER_ORDER = ["deepseek", "nvidia", "openai", "anthropic", "gemini"]
 
 
 def _canonical_provider_name(name: str | None) -> str:
@@ -344,6 +348,56 @@ class NvidiaProvider(LLMProvider):
         return deterministic_embedding(text)
 
 
+class DeepSeekProvider(LLMProvider):
+    """DeepSeek official API provider using its OpenAI-compatible endpoint."""
+
+    def __init__(self, api_key: Optional[str] = None, model: Optional[str] = None):
+        self.api_key = api_key or os.environ.get("DEEPSEEK_API_KEY", "")
+        self.model = model or os.environ.get("DEEPSEEK_MODEL", "deepseek-chat")
+        self.base_url = os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
+        self._client = None
+
+    @property
+    def client(self):
+        if self._client is None:
+            from openai import AsyncOpenAI
+
+            self._client = AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
+        return self._client
+
+    async def chat(
+        self,
+        messages: list[dict[str, str]],
+        temperature: float = 0.5,
+        max_tokens: int = 1000,
+        enable_thinking: bool | None = None,
+    ) -> str:
+        try:
+            kwargs: dict[str, Any] = {
+                "model": self.model,
+                "messages": messages,
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+            }
+            response = await self.client.chat.completions.create(**kwargs)
+            choice = response.choices[0] if response.choices else None
+            if not choice:
+                return ""
+            msg = choice.message
+            content = getattr(msg, "content", None)
+            if not content:
+                content = getattr(msg, "reasoning_content", None)
+            if not content and hasattr(msg, "model_extra") and msg.model_extra:
+                content = msg.model_extra.get("reasoning_content") or msg.model_extra.get("reasoning")
+            return (content or "").strip()
+        except Exception as exc:
+            print(f"[DeepSeek] chat error: {exc}")
+            return ""
+
+    async def get_embedding(self, text: str) -> list[float]:
+        return deterministic_embedding(text)
+
+
 class ResilientProvider(LLMProvider):
     """Wrap one remote provider with timeout and deterministic local fallback."""
 
@@ -466,6 +520,8 @@ class ProviderPool(LLMProvider):
 
 def _build_remote(provider_name: str) -> LLMProvider:
     name = _canonical_provider_name(provider_name)
+    if name == "deepseek":
+        return DeepSeekProvider()
     if name == "nvidia":
         return NvidiaProvider()
     if name == "openai":
@@ -480,6 +536,7 @@ def _build_remote(provider_name: str) -> LLMProvider:
 def get_provider_status() -> dict[str, Any]:
     """Return configuration/model metadata without exposing any API keys."""
     models = {
+        "deepseek": os.environ.get("DEEPSEEK_MODEL", "deepseek-chat"),
         "nvidia": os.environ.get("NVIDIA_MODEL", "openai/gpt-oss-20b"),
         "openai": os.environ.get("OPENAI_MODEL", "gpt-5-mini"),
         "anthropic": os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-20250514"),
@@ -496,7 +553,7 @@ def get_provider_status() -> dict[str, Any]:
                 "native_embeddings": name in {"openai", "gemini"},
                 "local_embedding_fallback": True,
             }
-            for name in ["nvidia", "openai", "anthropic", "gemini"]
+            for name in ["deepseek", "nvidia", "openai", "anthropic", "gemini"]
         },
     }
 

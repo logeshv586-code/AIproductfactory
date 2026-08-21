@@ -1,12 +1,12 @@
 # AI Product Factory — Model Providers
 
-AI Product Factory supports the same Product Intelligence and autonomous build flow with NVIDIA, OpenAI, Anthropic Claude, Google Gemini, or deterministic local execution.
+AI Product Factory supports the same Product Intelligence and autonomous build flow with DeepSeek, NVIDIA, OpenAI, Anthropic Claude, Google Gemini, or deterministic local execution.
 
 ## Studio runtime setup — recommended for customers
 
-The `/studio` experience now starts with a simple model connection screen. A customer can:
+The `/studio` experience starts with a simple model connection screen. A customer can:
 
-1. choose OpenAI, Anthropic, Google Gemini, NVIDIA NIM, or Local mode;
+1. choose DeepSeek, OpenAI, Anthropic, Google Gemini, NVIDIA NIM, or Local mode;
 2. paste their provider API key;
 3. enter the exact model ID available to their provider account;
 4. click **Test model & start**;

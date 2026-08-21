@@ -6,6 +6,7 @@ from types import SimpleNamespace
 from llm.base import LLMProvider
 from llm.provider import (
     AnthropicProvider,
+    DeepSeekProvider,
     GeminiProvider,
     NvidiaProvider,
     OpenAIProvider,
@@ -210,7 +211,27 @@ def test_provider_aliases_and_auto_mode(monkeypatch):
     assert [name for name, _ in auto.providers] == ["anthropic", "openai"]
 
 
+def test_deepseek_adapter_chat_and_embeddings(monkeypatch):
+    monkeypatch.setenv("DEEPSEEK_MODEL", "test-deepseek-model")
+    provider = DeepSeekProvider(api_key="test")
+    fake = FakeOpenAIClient("deepseek-ok")
+    provider._client = fake
+
+    async def run():
+        text = await provider.chat([{"role": "user", "content": "hello"}])
+        vector = await provider.get_embedding("hello")
+        return text, vector
+
+    text, vector = asyncio.run(run())
+    assert text == "deepseek-ok"
+    assert len(vector) == 1536
+    assert any(value != 0 for value in vector)
+    call = fake.completions.calls[0]
+    assert call["model"] == "test-deepseek-model"
+
+
 def test_provider_status_never_exposes_keys(monkeypatch):
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "super-secret-deepseek")
     monkeypatch.setenv("NVIDIA_API_KEY", "super-secret-nvidia")
     monkeypatch.setenv("OPENAI_API_KEY", "super-secret-openai")
     monkeypatch.setenv("LLM_PROVIDER", "auto")
@@ -219,6 +240,7 @@ def test_provider_status_never_exposes_keys(monkeypatch):
     rendered = repr(status)
 
     assert status["mode"] == "auto"
+    assert status["providers"]["deepseek"]["configured"] is True
     assert status["providers"]["nvidia"]["configured"] is True
     assert status["providers"]["openai"]["configured"] is True
     assert "super-secret" not in rendered

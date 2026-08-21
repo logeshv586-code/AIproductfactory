@@ -31,6 +31,7 @@ from llm.base import LLMProvider
 from llm.local_provider import LocalProvider
 from llm.provider import (
     AnthropicProvider,
+    DeepSeekProvider,
     GeminiProvider,
     NvidiaProvider,
     OpenAIProvider,
@@ -39,10 +40,18 @@ from llm.provider import (
 
 
 SESSION_TTL_SECONDS = int(os.environ.get("LLM_RUNTIME_SESSION_TTL_SECONDS", "28800"))
-SUPPORTED_PROVIDERS = {"openai", "anthropic", "gemini", "nvidia", "local"}
-ALIASES = {"claude": "anthropic", "google": "gemini", "nim": "nvidia", "gpt": "openai"}
+SUPPORTED_PROVIDERS = {"openai", "anthropic", "gemini", "nvidia", "deepseek", "local"}
+ALIASES = {
+    "claude": "anthropic",
+    "google": "gemini",
+    "nim": "nvidia",
+    "gpt": "openai",
+    "deepseek-ai": "deepseek",
+    "r1": "deepseek",
+}
 
 DEFAULT_MODELS = {
+    "deepseek": os.environ.get("DEEPSEEK_MODEL", "deepseek-chat"),
     "openai": os.environ.get("OPENAI_MODEL", "gpt-5-mini"),
     "anthropic": os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-20250514"),
     "gemini": os.environ.get("GEMINI_MODEL", "gemini-3.6-flash"),
@@ -62,7 +71,7 @@ class RuntimeModelSession:
 
 
 class RuntimeModelRequest(BaseModel):
-    provider: str = Field(..., description="openai | anthropic | gemini | nvidia | local")
+    provider: str = Field(..., description="openai | anthropic | gemini | nvidia | deepseek | local")
     api_key: str = Field(default="", description="Provider API key; not required for local mode")
     model: str = Field(default="", description="Provider model id")
 
@@ -105,6 +114,8 @@ def _provider_for(provider_name: str, api_key: str, model: str) -> LLMProvider:
         raise ValueError("An API key is required for the selected provider.")
     if not resolved_model:
         raise ValueError("A model id is required for the selected provider.")
+    if name == "deepseek":
+        return DeepSeekProvider(api_key=api_key.strip(), model=resolved_model)
     if name == "openai":
         return OpenAIProvider(api_key=api_key.strip(), model=resolved_model)
     if name == "anthropic":

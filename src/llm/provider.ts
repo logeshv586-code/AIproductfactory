@@ -8,7 +8,7 @@ import path from "path";
 // Support for: OpenAI, Anthropic, Gemini, NVIDIA (DeepSeek)
 // ============================================================
 
-export type LLMProviderType = "openai" | "anthropic" | "gemini" | "nvidia";
+export type LLMProviderType = "openai" | "anthropic" | "gemini" | "nvidia" | "deepseek";
 export type RoutingProfile = "structured" | "reasoning" | "long_context";
 
 export interface LLMMessage {
@@ -43,7 +43,7 @@ export interface LLMOptions {
 const DEFAULT_REQUEST_TIMEOUT_MS = Number(process.env.LLM_REQUEST_TIMEOUT_MS || 15000);
 const DEFAULT_CACHE_TTL_MS = Number(process.env.LLM_CACHE_TTL_MS || 1000 * 60 * 60 * 24);
 const DEFAULT_CACHE_VERSION = process.env.LLM_CACHE_VERSION || "v1";
-const PROVIDERS: LLMProviderType[] = ["openai", "anthropic", "gemini", "nvidia"];
+const PROVIDERS: LLMProviderType[] = ["openai", "anthropic", "gemini", "nvidia", "deepseek"];
 
 // ── Routing Profiles ────────────────────────────────────────────────────────
 
@@ -385,12 +385,54 @@ class GeminiAdapter extends LLMAdapter {
   }
 }
 
+class DeepSeekAdapter extends LLMAdapter {
+  async generate(messages: LLMMessage[], options?: LLMOptions): Promise<LLMResponse> {
+    const apiKey = process.env.DEEPSEEK_API_KEY;
+    if (!apiKey) throw new Error("DEEPSEEK_API_KEY is not set");
+    const model = options?.model || "deepseek-chat";
+    const baseUrl = process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com";
+    const start = Date.now();
+
+    const response = await fetch(`${baseUrl}/chat/completions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model,
+        messages: messages.map(m => ({ role: m.role, content: m.content })),
+        temperature: options?.temperature ?? 0.7,
+        max_tokens: options?.maxTokens ?? 4096,
+      }),
+      signal: options?.timeout ? AbortSignal.timeout(options.timeout) : undefined,
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw Object.assign(new Error(`DeepSeek: ${err.message || response.statusText}`), { status: response.status });
+    }
+    const data = await response.json();
+    const promptTokens = data.usage?.prompt_tokens || 0;
+    const completionTokens = data.usage?.completion_tokens || 0;
+    const message = data.choices?.[0]?.message;
+    const text = message?.content || message?.reasoning_content || message?.reasoning || "";
+
+    return {
+      text,
+      usage: { promptTokens, completionTokens },
+      model,
+      provider: "deepseek",
+      costEstimate: estimateCost(model, promptTokens, completionTokens),
+      latency: Date.now() - start,
+    };
+  }
+}
+
 export class LLMManager {
   private adapters: Record<LLMProviderType, LLMAdapter> = {
     openai: new OpenAIAdapter(),
     anthropic: new AnthropicAdapter(),
     gemini: new GeminiAdapter(),
     nvidia: new NvidiaAdapter(),
+    deepseek: new DeepSeekAdapter(),
   };
 
   async generate(messages: LLMMessage[], options?: LLMOptions): Promise<LLMResponse> {
