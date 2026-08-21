@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { runDeepResearchV12, type DeepResearchSignalV12 } from '@/lib/factory/deep-research-v12'
+import { runTokenlessPublicResearch } from '@/lib/factory/tokenless-public-research'
 
 export const runtime = 'nodejs'
 export const maxDuration = 90
@@ -13,29 +14,55 @@ function clamp(value: number, min = 0, max = 1) {
   return Math.min(max, Math.max(min, Number.isFinite(value) ? value : 0))
 }
 
-const EXPERT_SEED_GROUPS: Array<{ pattern: RegExp; repos: string[] }> = [
+const EXPERT_SEED_GROUPS: Array<{ pattern: RegExp; capability: string; repos: string[] }> = [
   {
     pattern: /desktop|computer[- ]?use|windows app|screen control|mouse|keyboard|rpa|vision|screenshot|gui/i,
+    capability: 'Desktop computer control',
     repos: ['microsoft/UFO', 'bytedance/UI-TARS-desktop', 'OpenAdaptAI/OpenAdapt'],
   },
   {
+    pattern: /vision|screen|screenshot|visual|ocr|multimodal/i,
+    capability: 'Vision screen understanding',
+    repos: ['microsoft/UFO', 'bytedance/UI-TARS-desktop'],
+  },
+  {
     pattern: /powerpoint|pptx|presentation/i,
+    capability: 'PowerPoint automation',
     repos: ['gitbrent/PptxGenJS', 'scanny/python-pptx'],
   },
   {
     pattern: /excel|xlsx|spreadsheet|workbook|worksheet/i,
+    capability: 'Excel automation',
     repos: ['xlwings/xlwings', 'exceljs/exceljs', 'jmcnamara/XlsxWriter'],
   },
   {
     pattern: /word document|docx|microsoft word|office document/i,
+    capability: 'Word document automation',
     repos: ['python-openxml/python-docx'],
   },
   {
     pattern: /browser|website|web automation|playwright|selenium/i,
+    capability: 'Browser automation',
     repos: ['browser-use/browser-use', 'microsoft/playwright'],
   },
   {
-    pattern: /autonomous|agentic|self[- ]?evolving|self[- ]?improv|plan task|workflow|orchestration/i,
+    pattern: /autonomous|agentic|self[- ]?evolving|self[- ]?improv|plan task|planner/i,
+    capability: 'Autonomous task planning',
+    repos: ['langchain-ai/langgraph', 'microsoft/autogen'],
+  },
+  {
+    pattern: /memory|self[- ]?evolving|self[- ]?improv|learn|reflection|experience/i,
+    capability: 'Memory and learning loop',
+    repos: ['langchain-ai/langgraph', 'microsoft/autogen'],
+  },
+  {
+    pattern: /workflow|automation|orchestration|schedule|trigger/i,
+    capability: 'Workflow orchestration',
+    repos: ['langchain-ai/langgraph', 'microsoft/autogen'],
+  },
+  {
+    pattern: /any task|tool use|tool-use|skills|plugin|mcp|automation/i,
+    capability: 'Tool and skill execution',
     repos: ['langchain-ai/langgraph', 'microsoft/autogen'],
   },
 ]
@@ -44,7 +71,11 @@ function expertSeedsForIdea(idea: string) {
   const ordered = EXPERT_SEED_GROUPS
     .filter((group) => group.pattern.test(idea))
     .flatMap((group) => group.repos)
-  return [...new Set(ordered)].slice(0, 8)
+  return [...new Set(ordered)].slice(0, 10)
+}
+
+function expertCapabilitiesForIdea(idea: string) {
+  return [...new Set(EXPERT_SEED_GROUPS.filter((group) => group.pattern.test(idea)).map((group) => group.capability))]
 }
 
 function repositoryName(signal: DeepResearchSignalV12) {
@@ -146,16 +177,17 @@ function proofBelongsTo(signal: DeepResearchSignalV12, allowedNames: Set<string>
   return true
 }
 
-function applyRunnableGuard(research: Awaited<ReturnType<typeof runDeepResearchV12>>) {
+function applyRunnableGuard(research: any) {
   const specializedCapabilities = Array.isArray(research.profile?.specializedCapabilities)
-    ? research.profile.specializedCapabilities.filter((value): value is string => typeof value === 'string' && Boolean(value.trim()))
+    ? research.profile.specializedCapabilities.filter((value: unknown): value is string => typeof value === 'string' && Boolean(value.trim()))
     : []
-  const originalRepos = research.signals.filter((signal) => signal.kind === 'github-repository')
-  const selectedRepos = selectRunnableRepositories(research.signals, specializedCapabilities)
+  const researchSignals: DeepResearchSignalV12[] = Array.isArray(research.signals) ? research.signals : []
+  const originalRepos = researchSignals.filter((signal) => signal.kind === 'github-repository')
+  const selectedRepos = selectRunnableRepositories(researchSignals, specializedCapabilities)
   const allowedNames = new Set(selectedRepos.map(repositoryName).filter(Boolean))
   const selectedByName = new Map(selectedRepos.map((signal) => [repositoryName(signal), signal]))
 
-  const signals = research.signals
+  const signals = researchSignals
     .filter((signal) => signal.kind !== 'github-repository')
     .filter((signal) => proofBelongsTo(signal, allowedNames))
   signals.push(...selectedRepos)
@@ -203,7 +235,7 @@ function applyRunnableGuard(research: Awaited<ReturnType<typeof runDeepResearchV
     sourceLinks,
     architecturePatterns,
     summary: {
-      ...research.summary,
+      ...(research.summary || {}),
       signalCount: signals.length,
       relevantSignalCount: evidenceSignals.length,
       rejectedSignalCount: numberValue(research.summary?.rejectedSignalCount) + Math.max(0, originalRepos.length - selectedRepos.length),
@@ -221,13 +253,75 @@ function applyRunnableGuard(research: Awaited<ReturnType<typeof runDeepResearchV
           ? 'medium'
           : 'low',
     },
-    accuracyPolicy: 'A GitHub source must now pass three independent filters before recommendation: direct specialized-capability proof, deep README/source inspection, and runnable-code evidence. Curated lists, generic frameworks, data-only scrapers and keyword-only matches are rejected. The 90% gate is an evidence-quality target, not a universal correctness guarantee.',
+    accuracyPolicy: 'A GitHub source must pass direct specialized-capability proof, README/source inspection and runnable-code evidence. In tokenless mode, deep file verification comes from a shallow public clone pinned to an observed commit; repository code is never executed during research. The 90% gate remains an evidence-quality target, not a universal correctness guarantee.',
     repositoryGuard: {
       originalDeepCandidates: originalRepos.length,
       runnableQualified: selectedRepos.length,
       rejectedAfterInspection: Math.max(0, originalRepos.length - selectedRepos.length),
       qualifiedRepositories: [...selectedByName.keys()],
     },
+  }
+}
+
+function tokenlessResearchShape(idea: string, local: Awaited<ReturnType<typeof runTokenlessPublicResearch>>) {
+  const specializedCapabilities = expertCapabilitiesForIdea(idea)
+  const sourceLinks = local.signals.flatMap((signal) => signal.inspection?.sourceLinks || [])
+  const architecturePatterns = [...new Set(local.signals.flatMap((signal) => signal.inspection?.architectureHints || []))]
+  const averageRelevance = local.signals.length
+    ? local.signals.reduce((sum, signal) => sum + numberValue(signal.relevance), 0) / local.signals.length
+    : 0
+  const averageInspection = local.signals.length
+    ? Math.round(local.signals.reduce((sum, signal) => sum + numberValue(signal.inspection?.inspectionScore), 0) / local.signals.length)
+    : 0
+  const covered = new Set(local.signals.flatMap((signal) => signal.inspection?.specializedCapabilities || []))
+  const capabilityCoverage = specializedCapabilities.length ? Math.round(covered.size / specializedCapabilities.length * 100) : 0
+
+  return {
+    success: true,
+    engineVersion: '12.0',
+    query: idea,
+    profile: {
+      query: idea,
+      queries: [],
+      intentTerms: idea.toLowerCase().match(/[a-z0-9+#.-]{3,}/g) || [],
+      domainTerms: specializedCapabilities.flatMap((capability) => capability.toLowerCase().split(/\s+/)).filter(Boolean),
+      capabilities: specializedCapabilities,
+      specializedCapabilities,
+      genericCapabilities: [],
+      domain: 'Tokenless public GitHub product research',
+      productArchetype: specializedCapabilities.join(' + ') || 'public GitHub software product',
+    },
+    generatedAt: new Date().toISOString(),
+    elapsedMs: 0,
+    sourceCatalog: [
+      { id: 'github-public-discovery', name: 'GitHub public discovery', mode: 'tokenless', purpose: 'Find public repositories without requiring a personal GitHub token.' },
+      { id: 'github-local-clone', name: 'Local shallow clone inspection', mode: 'core', purpose: 'Map repository tree and inspect README/source files locally at a pinned commit without executing repository code.' },
+    ],
+    signals: local.signals,
+    sourceLinks,
+    architecturePatterns,
+    summary: {
+      signalCount: local.signals.length,
+      relevantSignalCount: local.signals.length,
+      rejectedSignalCount: Math.max(0, local.telemetry.repositoriesDiscovered - local.signals.length),
+      sourcesWithResults: local.signals.length ? 1 : 0,
+      sourceCounts: local.signals.length ? { 'GitHub local clone': local.signals.length } : {},
+      githubCandidates: local.signals.length,
+      repositoriesDiscovered: local.telemetry.repositoriesDiscovered,
+      repositoriesInspected: local.telemetry.repositoriesLocallyInspected,
+      repositorySourceLinks: sourceLinks.length,
+      averageRelevance: Number(averageRelevance.toFixed(3)),
+      averageInspection,
+      capabilityCoverage,
+      researchCompleteness: Math.round(clamp(
+        Math.min(1, local.signals.length / 5) * 0.24 +
+        capabilityCoverage / 100 * 0.40 +
+        averageInspection / 100 * 0.26 +
+        Math.min(1, averageRelevance / 0.82) * 0.10,
+      ) * 100),
+      confidenceBand: 'low',
+    },
+    accuracyPolicy: 'Public repositories are discovered without a personal token and source-verified from shallow local clones. No cloned code is executed during research. Source lock still requires license/build/security/outcome verification.',
   }
 }
 
@@ -250,25 +344,47 @@ export async function POST(request: NextRequest) {
       : []
 
     const expertSeeds = expertSeedsForIdea(idea)
-    const seedRepos = [...new Set([...expertSeeds, ...repos])].slice(0, 8)
-    const research = await runDeepResearchV12(idea, graph, seedRepos)
-    const guarded = applyRunnableGuard(research)
+    const seedRepos = [...new Set([...expertSeeds, ...repos])].slice(0, 10)
     const githubAuthenticated = Boolean(process.env.GITHUB_TOKEN)
+    const forcePublicLocal = body?.researchMode === 'public-local'
+    const usePublicLocal = !githubAuthenticated || forcePublicLocal
+
+    let localTelemetry: Awaited<ReturnType<typeof runTokenlessPublicResearch>>['telemetry'] | null = null
+    let research: any
+
+    if (usePublicLocal) {
+      const local = await runTokenlessPublicResearch(idea, seedRepos)
+      localTelemetry = local.telemetry
+      research = tokenlessResearchShape(idea, local)
+    } else {
+      research = await runDeepResearchV12(idea, graph, seedRepos)
+    }
+
+    const guarded = applyRunnableGuard(research)
 
     return NextResponse.json({
       ...guarded,
       researchRuntime: {
-        mode: 'expert-source-proof',
-        githubAuthenticated,
+        mode: usePublicLocal ? 'public-local-clone' : 'authenticated-api-plus-source-proof',
+        githubAuthenticated: githubAuthenticated && !forcePublicLocal,
         suppliedSeedRepositories: repos.length,
         expertSeedRepositories: expertSeeds,
         effectiveSeedRepositories: seedRepos,
-        githubRequestBudget: githubAuthenticated ? 'authenticated' : 'public-rate-limited',
+        githubRequestBudget: usePublicLocal ? 'public-discovery-only' : 'authenticated',
+        localCloneInspection: usePublicLocal,
+        localCloneRepositoriesInspected: localTelemetry?.repositoriesLocallyInspected || 0,
+        localCloneCacheHits: localTelemetry?.cacheHits || 0,
+        publicDiscoveryRateLimited: localTelemetry?.rateLimited || false,
+        tokenOptional: true,
         guidance: guarded.summary.githubCandidates > 0
-          ? 'Repository evidence passed deep source and runnable-code qualification.'
-          : githubAuthenticated
-            ? 'No repository passed the strict evidence gates. Expand the brief or inspect the rejected capability gaps.'
-            : 'GitHub research is using the public rate limit. Configure GITHUB_TOKEN for deeper inspection before treating zero qualified repositories as a strong conclusion.',
+          ? usePublicLocal
+            ? 'Public repositories were discovered without a personal GitHub token and deeply verified from shallow local clones pinned to observed commits. A token is optional acceleration, not a requirement.'
+            : 'Repository evidence passed authenticated deep source and runnable-code qualification.'
+          : usePublicLocal
+            ? localTelemetry?.rateLimited
+              ? 'Public discovery hit a GitHub rate limit. Cached/seed repositories were still inspected locally. Retry later or optionally add GITHUB_TOKEN to widen discovery; the token is not required for local source verification.'
+              : 'No public repository passed the strict local source-proof gates. The result reflects inspected code evidence, not model confidence. Refine capabilities or add a known public repository seed and re-run.'
+            : 'No repository passed the strict evidence gates. Expand the brief or inspect the rejected capability gaps.',
       },
     })
   } catch (error) {
