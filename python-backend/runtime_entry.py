@@ -159,7 +159,7 @@ async def _test_connection(provider_name: str, api_key: str, model: str) -> str:
                     {"role": "user", "content": "Connection test."},
                 ],
                 temperature=0.0,
-                max_tokens=16,
+                max_tokens=256,
             ),
             timeout=45,
         )

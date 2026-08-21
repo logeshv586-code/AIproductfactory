@@ -101,7 +101,16 @@ class OpenAIProvider(LLMProvider):
                 temperature=temperature,
                 max_tokens=max_tokens,
             )
-            return response.choices[0].message.content or ""
+            choice = response.choices[0] if response.choices else None
+            if not choice:
+                return ""
+            msg = choice.message
+            content = getattr(msg, "content", None)
+            if not content:
+                content = getattr(msg, "reasoning_content", None)
+            if not content and hasattr(msg, "model_extra") and msg.model_extra:
+                content = msg.model_extra.get("reasoning_content") or msg.model_extra.get("reasoning")
+            return (content or "").strip()
         except Exception as exc:
             print(f"[OpenAI] chat error: {exc}")
             return ""
@@ -314,7 +323,16 @@ class NvidiaProvider(LLMProvider):
                 }
 
             response = await self.client.chat.completions.create(**kwargs)
-            return response.choices[0].message.content or ""
+            choice = response.choices[0] if response.choices else None
+            if not choice:
+                return ""
+            msg = choice.message
+            content = getattr(msg, "content", None)
+            if not content:
+                content = getattr(msg, "reasoning_content", None)
+            if not content and hasattr(msg, "model_extra") and msg.model_extra:
+                content = msg.model_extra.get("reasoning_content") or msg.model_extra.get("reasoning")
+            return (content or "").strip()
         except Exception as exc:
             print(f"[NVIDIA] chat error: {exc}")
             return ""

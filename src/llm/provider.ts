@@ -267,12 +267,14 @@ class OpenAIAdapter extends LLMAdapter {
 
     if (!response.ok) throw Object.assign(new Error(`OpenAI: ${response.statusText}`), { status: response.status });
     const data = await response.json();
+    const message = data.choices?.[0]?.message;
+    const text = message?.content || message?.reasoning_content || message?.reasoning || "";
     return {
-      text: data.choices[0].message.content || "",
-      usage: { promptTokens: data.usage.prompt_tokens, completionTokens: data.usage.completion_tokens },
+      text,
+      usage: { promptTokens: data.usage?.prompt_tokens ?? 0, completionTokens: data.usage?.completion_tokens ?? 0 },
       model: data.model,
       provider: "openai",
-      costEstimate: estimateCost(data.model, data.usage.prompt_tokens, data.usage.completion_tokens),
+      costEstimate: estimateCost(data.model, data.usage?.prompt_tokens ?? 0, data.usage?.completion_tokens ?? 0),
       latency: Date.now() - start,
     };
   }
@@ -306,9 +308,11 @@ class NvidiaAdapter extends LLMAdapter {
     const data = await response.json();
     const promptTokens = data.usage?.prompt_tokens || 0;
     const completionTokens = data.usage?.completion_tokens || 0;
+    const message = data.choices?.[0]?.message;
+    const text = message?.content || message?.reasoning_content || message?.reasoning || "";
 
     return {
-      text: data.choices[0].message.content || "",
+      text,
       usage: { promptTokens, completionTokens },
       model,
       provider: "nvidia",
