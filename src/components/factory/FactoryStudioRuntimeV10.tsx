@@ -5,7 +5,7 @@ import {
   Bot, Check, CheckCircle2, ChevronDown, Cpu, KeyRound, Loader2, LockKeyhole,
   RefreshCw, ShieldCheck, Sparkles, WandSparkles,
 } from 'lucide-react'
-import FactoryStudioV10 from '@/components/factory/FactoryStudioV10'
+import FactoryStudioV11 from '@/components/factory/FactoryStudioV11'
 
 type ProviderId = 'openai' | 'anthropic' | 'gemini' | 'nvidia' | 'deepseek' | 'local'
 
@@ -215,7 +215,7 @@ export default function FactoryStudioRuntimeV10() {
             </div>
           </div>
         </div>
-        <FactoryStudioV10 />
+        <FactoryStudioV11 />
       </div>
     )
   }
