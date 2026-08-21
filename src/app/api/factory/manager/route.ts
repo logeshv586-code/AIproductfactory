@@ -59,6 +59,7 @@ export async function POST(request: NextRequest) {
       graph,
       liveResearch: body?.liveResearch && typeof body.liveResearch === 'object' ? body.liveResearch : null,
       customerContext: body?.customerContext && typeof body.customerContext === 'object' ? body.customerContext : null,
+      selectedCompositionId: typeof body.selectedCompositionId === 'string' ? body.selectedCompositionId : null,
     })
 
     // Approval accepts only strategy IDs that actually exist in graph.strategies.
