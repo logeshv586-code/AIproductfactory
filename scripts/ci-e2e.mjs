@@ -65,12 +65,15 @@ async function optionalRealProviderSmoke() {
   console.log('[e2e] real OpenAI smoke passed')
 }
 
-const idea = 'Build an AI developer research assistant that discovers open-source repositories, explains how to combine them, verifies the composition and produces a runnable product plan.'
+// Positive source-proof fixture: these are known, runnable computer-use products.
+// They are seeds only. Deep Research must still inspect and independently qualify them.
+const idea = 'Build a Windows computer-use agent that uses screenshots and vision to understand the screen and autonomously clicks, types, scrolls and completes multi-step desktop tasks.'
+const knownComputerUseSeeds = ['microsoft/UFO', 'bytedance/UI-TARS-desktop']
 const customerContext = {
-  audience: 'Product teams and software engineers',
+  audience: 'Non-technical Windows users',
   priority: 'balanced',
-  platform: 'Web app',
-  privacy: 'Standard secure cloud',
+  platform: 'Desktop app',
+  privacy: 'Local-first / offline where possible',
   budget: 'Balance cost and quality',
 }
 
@@ -95,7 +98,10 @@ const strategize = await post('/api/factory/pi/strategize', { idea })
 assert(strategize.run_id, 'strategize run_id missing')
 assert(strategize.graph && typeof strategize.graph === 'object', 'strategize graph missing')
 assert(Array.isArray(strategize.strategies) && strategize.strategies.length > 0, 'strategize returned no strategies')
-const repoNames = Array.isArray(strategize.graph?.repos) ? strategize.graph.repos.map((repo) => repo?.full_name).filter(Boolean).slice(0, 8) : []
+const graphSeeds = Array.isArray(strategize.graph?.repos)
+  ? strategize.graph.repos.map((repo) => repo?.full_name).filter(Boolean)
+  : []
+const repoNames = [...new Set([...knownComputerUseSeeds, ...graphSeeds])].slice(0, 8)
 
 console.log('[e2e] 4/12 code-aware live research')
 const liveResearch = await post('/api/factory/research/live', { idea, repos: repoNames, graph: strategize.graph })
@@ -108,11 +114,17 @@ assert(typeof liveResearch.summary?.repositoriesInspected === 'number', 'deep-in
 assert(typeof liveResearch.summary?.researchCompleteness === 'number', 'research completeness missing')
 assert(liveResearch.signals.every((signal) => typeof signal.relevance === 'number'), 'research relevance score missing')
 assert(liveResearch.signals.filter((signal) => signal.source === 'arXiv').every((signal) => signal.relevance >= 0.78), 'low-relevance arXiv result leaked through')
-for (const signal of liveResearch.signals.filter((signal) => signal.kind === 'github-repository')) {
+const computerUseRepos = liveResearch.signals.filter((signal) => signal.kind === 'github-repository')
+assert(computerUseRepos.length >= 2, `positive computer-use fixture returned only ${computerUseRepos.length} source-qualified repository candidate(s)`)
+for (const signal of computerUseRepos) {
   assert(signal.inspection?.inspected === true, `GitHub repo was not deeply inspected: ${signal.title}`)
   assert(Array.isArray(signal.inspection?.specializedCapabilities) && signal.inspection.specializedCapabilities.length > 0, `GitHub repo lacks direct specialized capability proof: ${signal.title}`)
   assert(Array.isArray(signal.inspection?.sourceLinks) && signal.inspection.sourceLinks.length >= 1, `GitHub repo missing source proof links: ${signal.title}`)
+  assert(signal.inspection?.sourceLinks?.some((link) => link.kind === 'readme'), `GitHub repo missing README proof: ${signal.title}`)
 }
+const positiveNames = new Set(computerUseRepos.map((signal) => String(signal.repository?.fullName || signal.title).toLowerCase()))
+assert(positiveNames.has('microsoft/ufo'), 'microsoft/UFO did not pass deep source-proof qualification')
+assert(positiveNames.has('bytedance/ui-tars-desktop'), 'bytedance/UI-TARS-desktop did not pass deep source-proof qualification')
 
 console.log('[e2e] 5/12 strict customer-first Manager V12')
 const manager = await post('/api/factory/manager', {
@@ -124,17 +136,13 @@ assert(manager.report.customerBrief?.goal, 'customer brief missing')
 assert(manager.report.recommendationQuality?.targetRelevance === 90, '90% relevance target missing')
 assert(manager.report.researchProof?.gateTarget === 90, 'strict research gate missing')
 assert(manager.report.recommendationQuality.repositoriesQualified <= manager.report.sourceIntelligence.githubCandidates, 'qualified-repo count exceeded source-qualified GitHub candidates')
-assert(Array.isArray(manager.report.compositionSuggestions) && manager.report.compositionSuggestions.length > 0, 'no source-qualified product plan was produced for the developer-research fixture')
+assert(Array.isArray(manager.report.compositionSuggestions) && manager.report.compositionSuggestions.length > 0, 'no source-qualified product plan was produced for the computer-use positive fixture')
 assert(manager.report.compositionSuggestions.every((plan) => typeof plan.capabilityCoverage === 'number'), 'capability coverage missing')
 assert(manager.report.compositionSuggestions.every((plan) => typeof plan.domainRelevance === 'number'), 'domain relevance missing')
+assert(manager.report.recommendationQuality.score >= 90, `positive fixture recommendation quality stayed below 90% (${manager.report.recommendationQuality.score}%)`)
+assert(manager.report.researchProof.gatePassed === true, 'positive fixture did not open the strict V12 research gate')
 const initialComposition = manager.report.compositionSuggestions[0]
 assert(initialComposition.effort === 'Balanced', `balanced priority did not select Balanced plan first (${initialComposition.effort})`)
-if (manager.report.recommendationQuality.score >= 90) {
-  assert(manager.report.researchProof.gatePassed === true, '90% score did not open the V12 research gate')
-} else {
-  assert(manager.report.researchProof.gatePassed === false, 'sub-90 score incorrectly opened the V12 research gate')
-  assert(manager.report.managerVerdict.decision === 'RESEARCH_MORE', 'sub-90 score must keep build recommendation locked')
-}
 
 console.log('[e2e] 6/12 approval + architecture')
 const strategyId = manager.report.recommendedStrategy?.id || strategize.strategies[0]?.id
@@ -154,8 +162,9 @@ const finalManager = await post('/api/factory/manager', {
 const composition = finalManager.report?.compositionSuggestions?.[0]
 assert(composition, 'final manager produced no composition')
 assert(composition.id === initialComposition.id, 'explicitly selected plan was not preserved')
-assert(Array.isArray(composition.repos) && composition.repos.length >= 1 && composition.repos.length <= 5, 'composition repo count is outside 1-5')
+assert(Array.isArray(composition.repos) && composition.repos.length >= 1 && composition.repos.length <= 3, 'composition repo count is outside build API limit 1-3')
 assert(composition.repos.every((repo) => repo.fullName && repo.url), 'composition has invalid repository descriptor')
+assert(composition.repos.every((repo) => computerUseRepos.some((signal) => String(signal.repository?.fullName || '').toLowerCase() === repo.fullName.toLowerCase())), 'selected plan includes a repository that did not pass deep research')
 assert(finalManager.report.idePrompt.includes(composition.customerTitle), 'developer handoff is not aligned to selected plan')
 
 console.log('[e2e] 8/12 approved source-locked build')
@@ -186,12 +195,20 @@ assert(build.pipelineVerified === true, `pipeline verification incomplete: ${JSO
 console.log('[e2e] 9/12 office + desktop automation false-positive guard')
 const officeIdea = 'Create one AI application that automates PowerPoint, Excel, Word and arbitrary Windows desktop applications through vision and screen understanding, executes multi-step tasks autonomously, learns reusable skills from successful runs, and improves those skills over time with evaluation and rollback.'
 const officeStrategy = await post('/api/factory/pi/strategize', { idea: officeIdea })
-const officeSeeds = Array.isArray(officeStrategy.graph?.repos) ? officeStrategy.graph.repos.map((repo) => repo?.full_name).filter(Boolean).slice(0, 8) : []
+const officeGraphSeeds = Array.isArray(officeStrategy.graph?.repos)
+  ? officeStrategy.graph.repos.map((repo) => repo?.full_name).filter(Boolean)
+  : []
+const officeSeeds = [...new Set([...knownComputerUseSeeds, ...officeGraphSeeds])].slice(0, 8)
 const officeResearch = await post('/api/factory/research/live', { idea: officeIdea, repos: officeSeeds, graph: officeStrategy.graph })
 assert(officeResearch.engineVersion === '12.0', 'office fixture did not use Deep Research V12')
 const officeRepos = officeResearch.signals.filter((signal) => signal.kind === 'github-repository')
 assert(officeRepos.length > 0, 'office/desktop fixture returned no source-qualified GitHub candidates')
-const forbidden = new Set(['dylanpicart/excel_api_access', 'ivan-borovets/fastapi-clean-example', 'drmingler/docling-api'])
+const forbidden = new Set([
+  'dylanpicart/excel_api_access',
+  'ivan-borovets/fastapi-clean-example',
+  'drmingler/docling-api',
+  'taishi-i/awesome-chatgpt-repositories',
+])
 for (const repo of officeRepos) {
   assert(!forbidden.has(String(repo.repository?.fullName || repo.title).toLowerCase()), `known false-positive repository leaked into office automation research: ${repo.title}`)
   assert(repo.inspection?.inspected === true, `office candidate lacks inspection: ${repo.title}`)
@@ -213,6 +230,7 @@ assert(officeManager.report.recommendationQuality.repositoriesQualified <= offic
 assert(officeManager.report.repoExplainers.every((repo) => officeRepos.some((signal) => String(signal.repository?.fullName || '').toLowerCase() === repo.fullName.toLowerCase())), 'manager qualified a repository with no deep-research source proof')
 if (officeManager.report.recommendationQuality.score < 90) {
   assert(officeManager.report.managerVerdict.decision === 'RESEARCH_MORE', 'office fixture below 90% must remain locked rather than fabricating confidence')
+  assert(officeManager.report.researchProof.gatePassed === false, 'office fixture below 90% incorrectly opened the research gate')
 }
 
 console.log('[e2e] 10/12 source-link transparency contract')
