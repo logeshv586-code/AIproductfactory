@@ -74,7 +74,7 @@ const customerContext = {
   budget: 'Balance cost and quality',
 }
 
-console.log('[e2e] 1/10 route + premium customer onboarding')
+console.log('[e2e] 1/12 route + premium customer onboarding')
 const root = await fetch(BASE, { redirect: 'manual' })
 assert([307, 308].includes(root.status), `/ returned ${root.status}; expected redirect`)
 assert((root.headers.get('location') || '').endsWith('/studio'), 'homepage did not redirect to /studio')
@@ -83,49 +83,66 @@ for (const expected of ['Use cloud AI', 'DeepSeek', 'OpenAI', 'Anthropic', 'Goog
   assert(hydratedHtml.includes(expected), `hydrated /studio missing: ${expected}`)
 }
 
-console.log('[e2e] 2/10 local runtime session')
+console.log('[e2e] 2/12 local runtime session')
 const localModel = await post('/api/factory/llm/configure', { provider: 'local', apiKey: '', model: 'local-deterministic' }, { useSession: false })
 assert(localModel.sessionId, 'local runtime session missing')
 assert(localModel.provider === 'local', 'local runtime provider mismatch')
 assert(localModel.localExecution === true, 'local runtime should be marked as local execution')
 runtimeSessionId = localModel.sessionId
 
-console.log('[e2e] 3/10 product intelligence')
+console.log('[e2e] 3/12 product intelligence')
 const strategize = await post('/api/factory/pi/strategize', { idea })
 assert(strategize.run_id, 'strategize run_id missing')
 assert(strategize.graph && typeof strategize.graph === 'object', 'strategize graph missing')
 assert(Array.isArray(strategize.strategies) && strategize.strategies.length > 0, 'strategize returned no strategies')
 const repoNames = Array.isArray(strategize.graph?.repos) ? strategize.graph.repos.map((repo) => repo?.full_name).filter(Boolean).slice(0, 8) : []
 
-console.log('[e2e] 4/10 capability-aware live research')
+console.log('[e2e] 4/12 code-aware live research')
 const liveResearch = await post('/api/factory/research/live', { idea, repos: repoNames, graph: strategize.graph })
+assert(liveResearch.engineVersion === '12.0', `expected Deep Research V12, got ${liveResearch.engineVersion}`)
 assert(Array.isArray(liveResearch.sourceCatalog), 'source catalog missing')
 assert(Array.isArray(liveResearch.signals), 'research signals missing')
 assert(liveResearch.profile && Array.isArray(liveResearch.profile.intentTerms), 'intent/research profile missing')
 assert(typeof liveResearch.summary?.rejectedSignalCount === 'number', 'rejected-signal count missing')
+assert(typeof liveResearch.summary?.repositoriesInspected === 'number', 'deep-inspection count missing')
+assert(typeof liveResearch.summary?.researchCompleteness === 'number', 'research completeness missing')
 assert(liveResearch.signals.every((signal) => typeof signal.relevance === 'number'), 'research relevance score missing')
-assert(liveResearch.signals.filter((signal) => signal.source === 'arXiv').every((signal) => signal.relevance >= 0.72), 'low-relevance arXiv result leaked through')
+assert(liveResearch.signals.filter((signal) => signal.source === 'arXiv').every((signal) => signal.relevance >= 0.78), 'low-relevance arXiv result leaked through')
+for (const signal of liveResearch.signals.filter((signal) => signal.kind === 'github-repository')) {
+  assert(signal.inspection?.inspected === true, `GitHub repo was not deeply inspected: ${signal.title}`)
+  assert(Array.isArray(signal.inspection?.specializedCapabilities) && signal.inspection.specializedCapabilities.length > 0, `GitHub repo lacks direct specialized capability proof: ${signal.title}`)
+  assert(Array.isArray(signal.inspection?.sourceLinks) && signal.inspection.sourceLinks.length >= 1, `GitHub repo missing source proof links: ${signal.title}`)
+}
 
-console.log('[e2e] 5/10 customer-first Manager V10')
+console.log('[e2e] 5/12 strict customer-first Manager V12')
 const manager = await post('/api/factory/manager', {
   idea, runId: strategize.run_id, graph: strategize.graph, liveResearch, customerContext,
 })
-assert(manager.report?.version === '10.0', `expected Manager V10, got ${manager.report?.version}`)
+assert(manager.report?.version === '10.0', `base report compatibility changed unexpectedly: ${manager.report?.version}`)
+assert(manager.report?.engineVersion === '12.0', `expected Manager V12, got ${manager.report?.engineVersion}`)
 assert(manager.report.customerBrief?.goal, 'customer brief missing')
 assert(manager.report.recommendationQuality?.targetRelevance === 90, '90% relevance target missing')
-assert(Array.isArray(manager.report.compositionSuggestions) && manager.report.compositionSuggestions.length > 0, 'no ranked product plans')
+assert(manager.report.researchProof?.gateTarget === 90, 'strict research gate missing')
+assert(manager.report.recommendationQuality.repositoriesQualified <= manager.report.sourceIntelligence.githubCandidates, 'qualified-repo count exceeded source-qualified GitHub candidates')
+assert(Array.isArray(manager.report.compositionSuggestions) && manager.report.compositionSuggestions.length > 0, 'no source-qualified product plan was produced for the developer-research fixture')
 assert(manager.report.compositionSuggestions.every((plan) => typeof plan.capabilityCoverage === 'number'), 'capability coverage missing')
 assert(manager.report.compositionSuggestions.every((plan) => typeof plan.domainRelevance === 'number'), 'domain relevance missing')
 const initialComposition = manager.report.compositionSuggestions[0]
 assert(initialComposition.effort === 'Balanced', `balanced priority did not select Balanced plan first (${initialComposition.effort})`)
+if (manager.report.recommendationQuality.score >= 90) {
+  assert(manager.report.researchProof.gatePassed === true, '90% score did not open the V12 research gate')
+} else {
+  assert(manager.report.researchProof.gatePassed === false, 'sub-90 score incorrectly opened the V12 research gate')
+  assert(manager.report.managerVerdict.decision === 'RESEARCH_MORE', 'sub-90 score must keep build recommendation locked')
+}
 
-console.log('[e2e] 6/10 approval + architecture')
+console.log('[e2e] 6/12 approval + architecture')
 const strategyId = manager.report.recommendedStrategy?.id || strategize.strategies[0]?.id
 assert(strategyId, 'no strategy available for approval')
 const approved = await post('/api/factory/pi/approve', { runId: strategize.run_id, strategyId })
 assert(approved.graph && typeof approved.graph === 'object', 'approval did not return final graph')
 
-console.log('[e2e] 7/10 selected-plan preservation')
+console.log('[e2e] 7/12 selected-plan preservation')
 const finalManager = await post('/api/factory/manager', {
   idea,
   runId: strategize.run_id,
@@ -141,7 +158,7 @@ assert(Array.isArray(composition.repos) && composition.repos.length >= 1 && comp
 assert(composition.repos.every((repo) => repo.fullName && repo.url), 'composition has invalid repository descriptor')
 assert(finalManager.report.idePrompt.includes(composition.customerTitle), 'developer handoff is not aligned to selected plan')
 
-console.log('[e2e] 8/10 approved source-locked build')
+console.log('[e2e] 8/12 approved source-locked build')
 const build = await post('/api/factory/build/approved', {
   idea,
   runId: strategize.run_id,
@@ -166,14 +183,52 @@ assert(build.verification?.architectureGenerated === true, 'architecture generat
 assert(build.verification?.pipelineCompleted === true, 'pipeline did not reach COMPLETE')
 assert(build.pipelineVerified === true, `pipeline verification incomplete: ${JSON.stringify(build.verification)}`)
 
-console.log('[e2e] 9/10 session cleanup')
+console.log('[e2e] 9/12 office + desktop automation false-positive guard')
+const officeIdea = 'Create one AI application that automates PowerPoint, Excel, Word and arbitrary Windows desktop applications through vision and screen understanding, executes multi-step tasks autonomously, learns reusable skills from successful runs, and improves those skills over time with evaluation and rollback.'
+const officeStrategy = await post('/api/factory/pi/strategize', { idea: officeIdea })
+const officeSeeds = Array.isArray(officeStrategy.graph?.repos) ? officeStrategy.graph.repos.map((repo) => repo?.full_name).filter(Boolean).slice(0, 8) : []
+const officeResearch = await post('/api/factory/research/live', { idea: officeIdea, repos: officeSeeds, graph: officeStrategy.graph })
+assert(officeResearch.engineVersion === '12.0', 'office fixture did not use Deep Research V12')
+const officeRepos = officeResearch.signals.filter((signal) => signal.kind === 'github-repository')
+assert(officeRepos.length > 0, 'office/desktop fixture returned no source-qualified GitHub candidates')
+const forbidden = new Set(['dylanpicart/excel_api_access', 'ivan-borovets/fastapi-clean-example', 'drmingler/docling-api'])
+for (const repo of officeRepos) {
+  assert(!forbidden.has(String(repo.repository?.fullName || repo.title).toLowerCase()), `known false-positive repository leaked into office automation research: ${repo.title}`)
+  assert(repo.inspection?.inspected === true, `office candidate lacks inspection: ${repo.title}`)
+  assert(repo.inspection?.sourceLinks?.some((link) => link.kind === 'readme'), `office candidate lacks README proof: ${repo.title}`)
+  assert(repo.inspection?.sourceLinks?.some((link) => link.kind === 'source-file') || repo.inspection?.depth === 'readme', `office candidate lacks source-level proof: ${repo.title}`)
+}
+const officeCapabilityProof = new Set(officeRepos.flatMap((repo) => repo.inspection?.specializedCapabilities || []))
+assert(officeCapabilityProof.has('Desktop computer control'), 'office fixture did not find direct desktop-control evidence')
+assert(officeCapabilityProof.has('Vision screen understanding'), 'office fixture did not find direct vision/screen evidence')
+const officeManager = await post('/api/factory/manager', {
+  idea: officeIdea,
+  runId: officeStrategy.run_id,
+  graph: officeStrategy.graph,
+  liveResearch: officeResearch,
+  customerContext: { ...customerContext, audience: 'Non-technical office workers', priority: 'scale', platform: 'Desktop app', privacy: 'Local-first / offline where possible' },
+})
+assert(officeManager.report.engineVersion === '12.0', 'office fixture did not use Manager V12')
+assert(officeManager.report.recommendationQuality.repositoriesQualified <= officeResearch.summary.githubCandidates, 'office manager reintroduced repositories that did not pass deep GitHub research')
+assert(officeManager.report.repoExplainers.every((repo) => officeRepos.some((signal) => String(signal.repository?.fullName || '').toLowerCase() === repo.fullName.toLowerCase())), 'manager qualified a repository with no deep-research source proof')
+if (officeManager.report.recommendationQuality.score < 90) {
+  assert(officeManager.report.managerVerdict.decision === 'RESEARCH_MORE', 'office fixture below 90% must remain locked rather than fabricating confidence')
+}
+
+console.log('[e2e] 10/12 source-link transparency contract')
+assert(Array.isArray(officeResearch.sourceLinks) && officeResearch.sourceLinks.length > 0, 'research response did not expose clickable source links')
+assert(Array.isArray(officeManager.report.researchProof?.sourceLinks), 'manager report did not preserve source links')
+assert(officeManager.report.researchProof.sourceLinks.every((link) => /^https:\/\/github\.com\//.test(link.url)), 'non-GitHub URL leaked into repository source-proof list')
+assert(officeManager.report.sourceIntelligence.githubCandidates === officeManager.report.recommendationQuality.repositoriesQualified, 'GitHub candidate and qualified-repository counters diverged again')
+
+console.log('[e2e] 11/12 session cleanup')
 await request('/api/factory/llm/configure', { method: 'DELETE', headers: { 'X-LLM-Session': runtimeSessionId } })
 runtimeSessionId = ''
 
-console.log('[e2e] 10/10 optional paid-provider smoke')
+console.log('[e2e] 12/12 optional paid-provider smoke')
 await optionalRealProviderSmoke()
 
-console.log('[e2e] PASS — Studio + local provider choices + intent + filtered research + Manager V10 + approval + locked build')
+console.log('[e2e] PASS — Studio + local providers + Deep Research V12 + strict source proof + Manager V12 + locked build flow')
 console.log(JSON.stringify({
   runId: strategize.run_id,
   strategyId,
@@ -183,5 +238,9 @@ console.log(JSON.stringify({
   recommendationQuality: manager.report.recommendationQuality?.score || 0,
   selectedPlan: composition.customerTitle,
   selectedRepos: build.selectedRepos?.map((repo) => repo.name) || [],
+  officeGithubCandidates: officeResearch.summary?.githubCandidates || 0,
+  officeQualifiedRepos: officeManager.report.recommendationQuality.repositoriesQualified || 0,
+  officeRecommendationQuality: officeManager.report.recommendationQuality.score || 0,
+  officeResearchGatePassed: Boolean(officeManager.report.researchProof?.gatePassed),
   buildId: build.buildId,
 }, null, 2))
