@@ -115,6 +115,15 @@ jobs:
             tail -n 300 next-e2e.log || true
             exit 1
           }
+      - name: Verify tokenless public GitHub research
+        env:
+          FACTORY_BASE_URL: http://127.0.0.1:3000
+        run: |
+          node scripts/ci-tokenless-research.mjs || {
+            echo "--- Next server log ---"
+            tail -n 300 next-e2e.log || true
+            exit 1
+          }
       - name: Stop services
         if: always()
         run: |
