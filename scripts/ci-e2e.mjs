@@ -62,9 +62,7 @@ function renderHydratedDom(path) {
       maxBuffer: 12 * 1024 * 1024,
     })
 
-    if (result.status === 0 && result.stdout?.includes('<html')) {
-      return result.stdout
-    }
+    if (result.status === 0 && result.stdout?.includes('<html')) return result.stdout
     attempts.push(`${binary}: ${result.error?.code || result.status || 'failed'}`)
   }
 
@@ -97,23 +95,32 @@ async function optionalRealProviderSmoke() {
 }
 
 const idea = 'Build an AI developer research assistant that discovers open-source repositories, explains how to combine them, verifies the composition and produces a runnable product plan.'
+const customerContext = {
+  audience: 'Product teams and software engineers',
+  priority: 'balanced',
+  platform: 'Web app',
+  privacy: 'Standard secure cloud',
+  budget: 'Balance cost and quality',
+}
 
-console.log('[e2e] 1/9 homepage routes customers to premium Studio')
+console.log('[e2e] 1/10 homepage routes customers to premium Studio')
 const root = await fetch(BASE, { redirect: 'manual' })
 assert([307, 308].includes(root.status), `/ returned ${root.status}; expected a redirect to /studio`)
 const location = root.headers.get('location') || ''
 assert(location.endsWith('/studio'), `/ redirected to ${location || 'nowhere'} instead of /studio`)
 
-console.log('[e2e] 2/9 hydrated Studio onboarding')
+console.log('[e2e] 2/10 hydrated customer-first AI setup')
 const hydratedHtml = renderHydratedDom('/studio')
-assert(hydratedHtml.includes('Connect your AI model'), 'hydrated /studio did not render model onboarding')
+assert(hydratedHtml.includes('Connect an AI'), 'hydrated /studio did not render customer-first AI onboarding')
+assert(hydratedHtml.includes('DeepSeek'), 'hydrated /studio did not render DeepSeek provider card')
 assert(hydratedHtml.includes('OpenAI'), 'hydrated /studio did not render OpenAI provider card')
 assert(hydratedHtml.includes('Anthropic'), 'hydrated /studio did not render Anthropic provider card')
 assert(hydratedHtml.includes('Google Gemini'), 'hydrated /studio did not render Gemini provider card')
 assert(hydratedHtml.includes('NVIDIA NIM'), 'hydrated /studio did not render NVIDIA provider card')
-assert(hydratedHtml.includes('Test model'), 'hydrated /studio did not render the model validation action')
+assert(hydratedHtml.includes('Test AI & open Product Studio'), 'hydrated /studio did not render the AI validation action')
+assert(hydratedHtml.includes('Advanced model settings'), 'model ID is not hidden behind the advanced-settings affordance')
 
-console.log('[e2e] 3/9 local runtime model session')
+console.log('[e2e] 3/10 local runtime model session')
 const localModel = await post('/api/factory/llm/configure', {
   provider: 'local',
   apiKey: '',
@@ -123,7 +130,7 @@ assert(localModel.sessionId, 'local runtime model configuration returned no sess
 assert(localModel.provider === 'local', 'local runtime model configuration returned the wrong provider')
 runtimeSessionId = localModel.sessionId
 
-console.log('[e2e] 4/9 strategize')
+console.log('[e2e] 4/10 strategize')
 const strategize = await post('/api/factory/pi/strategize', { idea })
 assert(strategize.run_id, 'strategize did not return run_id')
 assert(strategize.graph && typeof strategize.graph === 'object', 'strategize did not return graph')
@@ -132,47 +139,63 @@ assert(Array.isArray(strategize.strategies) && strategize.strategies.length > 0,
 const repoNames = Array.isArray(strategize.graph?.repos)
   ? strategize.graph.repos.map((repo) => repo?.full_name).filter(Boolean).slice(0, 8)
   : []
-console.log(`[e2e] discovered ${repoNames.length} repo candidates`)
+console.log(`[e2e] discovered ${repoNames.length} graph repo candidates`)
 
-console.log('[e2e] 5/9 live research')
-const liveResearch = await post('/api/factory/research/live', { idea, repos: repoNames })
+console.log('[e2e] 5/10 capability-aware live research')
+const liveResearch = await post('/api/factory/research/live', {
+  idea,
+  repos: repoNames,
+  graph: strategize.graph,
+})
 assert(Array.isArray(liveResearch.sourceCatalog), 'live research did not return source catalog')
 assert(Array.isArray(liveResearch.signals), 'live research did not return signals array')
+assert(liveResearch.profile && Array.isArray(liveResearch.profile.intentTerms), 'live research did not return an intent/research profile')
+assert(typeof liveResearch.summary?.rejectedSignalCount === 'number', 'live research did not report rejected-signal count')
+assert(liveResearch.signals.every((signal) => typeof signal.relevance === 'number'), 'live evidence is missing relevance scores')
+assert(liveResearch.signals.filter((signal) => signal.source === 'arXiv').every((signal) => signal.relevance >= 0.72), 'low-relevance arXiv evidence leaked through the research gate')
 
-console.log('[e2e] 6/9 final manager')
+console.log('[e2e] 6/10 Manager V10 customer brief + ranked plans')
 const manager = await post('/api/factory/manager', {
   idea,
   runId: strategize.run_id,
   graph: strategize.graph,
   liveResearch,
+  customerContext,
 })
 assert(manager.report, 'manager did not return report')
+assert(manager.report.version === '10.0', `expected Manager V10, got ${manager.report.version}`)
+assert(manager.report.customerBrief?.goal, 'manager customer brief is missing')
+assert(manager.report.recommendationQuality?.targetRelevance === 90, 'manager relevance target is missing')
 assert(Array.isArray(manager.report.repoExplainers), 'manager repo explainers missing')
 assert(Array.isArray(manager.report.compositionSuggestions), 'manager composition suggestions missing')
 assert(manager.report.compositionSuggestions.length > 0, 'manager produced no buildable composition')
+assert(manager.report.compositionSuggestions.every((plan) => typeof plan.capabilityCoverage === 'number'), 'plans are missing capability coverage')
+assert(manager.report.compositionSuggestions.every((plan) => typeof plan.domainRelevance === 'number'), 'plans are missing domain relevance')
 
 const strategyId = manager.report.recommendedStrategy?.id || strategize.strategies[0]?.id
 assert(strategyId, 'no strategy available for approval')
 
-console.log('[e2e] 7/9 approve + architecture')
+console.log('[e2e] 7/10 approve + architecture')
 const approved = await post('/api/factory/pi/approve', {
   runId: strategize.run_id,
   strategyId,
 })
 assert(approved.graph && typeof approved.graph === 'object', 'approve did not return final graph')
 
-console.log('[e2e] 8/9 final manager refresh')
+console.log('[e2e] 8/10 final Manager V10 refresh')
 const finalManager = await post('/api/factory/manager', {
   idea,
   runId: strategize.run_id,
   graph: approved.graph,
   liveResearch,
+  customerContext,
 })
 const composition = finalManager.report?.compositionSuggestions?.[0]
 assert(composition, 'approved manager report has no composition')
-assert(Array.isArray(composition.repos) && composition.repos.length >= 1 && composition.repos.length <= 3, 'composition must contain 1-3 repos')
+assert(Array.isArray(composition.repos) && composition.repos.length >= 1 && composition.repos.length <= 5, 'composition must contain 1-5 bounded repos')
+assert(composition.repos.every((repo) => repo.fullName && repo.url), 'composition contains an invalid repository descriptor')
 
-console.log(`[e2e] 9/9 approved composition build: ${composition.repos.map((repo) => repo.fullName).join(' + ')}`)
+console.log(`[e2e] 9/10 approved composition build: ${composition.repos.map((repo) => repo.fullName).join(' + ')}`)
 const build = await post('/api/factory/build/approved', {
   idea,
   runId: strategize.run_id,
@@ -198,6 +221,7 @@ assert(build.verification?.architectureGenerated === true, 'architecture was not
 assert(build.verification?.pipelineCompleted === true, 'Python pipeline did not reach COMPLETE')
 assert(build.pipelineVerified === true, `pipeline verification incomplete: ${JSON.stringify(build.verification)}`)
 
+console.log('[e2e] 10/10 cleanup + optional real provider smoke')
 await request('/api/factory/llm/configure', {
   method: 'DELETE',
   headers: { 'X-LLM-Session': runtimeSessionId },
@@ -206,12 +230,14 @@ runtimeSessionId = ''
 
 await optionalRealProviderSmoke()
 
-console.log('[e2e] PASS — hydrated Studio + full Product Factory flow completed with runtime model session and approved repo lock')
+console.log('[e2e] PASS — customer-first Studio + filtered research + Manager V10 + approved repo lock completed')
 console.log(JSON.stringify({
   runId: strategize.run_id,
   strategyId,
   liveSignals: liveResearch.summary?.signalCount || 0,
-  sourcesWithResults: liveResearch.summary?.sourcesWithResults || 0,
+  rejectedSignals: liveResearch.summary?.rejectedSignalCount || 0,
+  githubCandidates: liveResearch.summary?.githubCandidates || 0,
+  recommendationQuality: manager.report.recommendationQuality?.score || 0,
   selectedRepos: build.selectedRepos?.map((repo) => repo.name) || [],
   buildId: build.buildId,
 }, null, 2))
