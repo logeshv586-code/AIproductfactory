@@ -44,7 +44,6 @@ yarn-error.log*
 # vercel
 .vercel
 
-
 # typescript
 *.tsbuildinfo
 next-env.d.ts
@@ -58,6 +57,14 @@ test
 prompt
 
 server.log
-# Skills directory
+
+# Local agent/code-understanding tooling.
+# `npm run understand:install` recreates these paths from the pinned upstream source.
+/.tools/understand-anything/
+/.agents/skills/
+/.understand-anything.local.json
+/.ua/
+/.understand-anything/
+
 # AI Product Factory Builds
 output/

@@ -12,7 +12,10 @@
     "db:push": "prisma db push",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
-    "db:reset": "prisma migrate reset"
+    "db:reset": "prisma migrate reset",
+    "understand:install": "node scripts/install-understand-anything.mjs",
+    "understand:update": "node scripts/install-understand-anything.mjs --update",
+    "understand:status": "node scripts/install-understand-anything.mjs --status"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -80,7 +83,6 @@
     "uuid": "^11.1.0",
     "vaul": "^1.1.2",
     "yaml": "^2.8.3",
-
     "zod": "^4.0.2",
     "zustand": "^5.0.6"
   },
