@@ -65,8 +65,8 @@ async function optionalRealProviderSmoke() {
   console.log('[e2e] real OpenAI smoke passed')
 }
 
-// Positive source-proof fixture: these are known, runnable computer-use products.
-// They are seeds only. Deep Research must still inspect and independently qualify them.
+// Positive source-proof fixture. Seeds accelerate discovery but do not dictate winners:
+// every repository must still independently pass Deep Research V12 inspection.
 const idea = 'Build a Windows computer-use agent that uses screenshots and vision to understand the screen and autonomously clicks, types, scrolls and completes multi-step desktop tasks.'
 const knownComputerUseSeeds = ['microsoft/UFO', 'bytedance/UI-TARS-desktop']
 const customerContext = {
@@ -121,10 +121,21 @@ for (const signal of computerUseRepos) {
   assert(Array.isArray(signal.inspection?.specializedCapabilities) && signal.inspection.specializedCapabilities.length > 0, `GitHub repo lacks direct specialized capability proof: ${signal.title}`)
   assert(Array.isArray(signal.inspection?.sourceLinks) && signal.inspection.sourceLinks.length >= 1, `GitHub repo missing source proof links: ${signal.title}`)
   assert(signal.inspection?.sourceLinks?.some((link) => link.kind === 'readme'), `GitHub repo missing README proof: ${signal.title}`)
+  assert(signal.inspection?.sourceLinks?.some((link) => link.kind === 'source-file') || signal.inspection?.depth === 'readme', `GitHub repo missing source-level proof: ${signal.title}`)
 }
-const positiveNames = new Set(computerUseRepos.map((signal) => String(signal.repository?.fullName || signal.title).toLowerCase()))
-assert(positiveNames.has('microsoft/ufo'), 'microsoft/UFO did not pass deep source-proof qualification')
-assert(positiveNames.has('bytedance/ui-tars-desktop'), 'bytedance/UI-TARS-desktop did not pass deep source-proof qualification')
+const positiveCapabilityProof = new Set(computerUseRepos.flatMap((repo) => repo.inspection?.specializedCapabilities || []))
+assert(positiveCapabilityProof.has('Desktop computer control'), 'positive fixture did not find direct desktop-control evidence')
+assert(positiveCapabilityProof.has('Vision screen understanding'), 'positive fixture did not find direct vision/screen evidence')
+assert(positiveCapabilityProof.has('Autonomous task planning'), 'positive fixture did not find direct autonomous-planning evidence')
+const positiveForbidden = new Set([
+  'dylanpicart/excel_api_access',
+  'ivan-borovets/fastapi-clean-example',
+  'drmingler/docling-api',
+  'taishi-i/awesome-chatgpt-repositories',
+])
+for (const repo of computerUseRepos) {
+  assert(!positiveForbidden.has(String(repo.repository?.fullName || repo.title).toLowerCase()), `known false-positive leaked into positive computer-use research: ${repo.title}`)
+}
 
 console.log('[e2e] 5/12 strict customer-first Manager V12')
 const manager = await post('/api/factory/manager', {
