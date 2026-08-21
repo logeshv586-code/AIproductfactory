@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createFactoryManagerV10Report } from '@/lib/factory/manager-v10'
+import { createPriorityAwareFactoryManagerV10Report } from '@/lib/factory/manager-v10-priority'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -8,7 +8,7 @@ function text(value: unknown) {
   return typeof value === 'string' ? value.trim() : ''
 }
 
-function normalizeRecommendedStrategy(report: ReturnType<typeof createFactoryManagerV10Report>, graph: Record<string, any>) {
+function normalizeRecommendedStrategy(report: ReturnType<typeof createPriorityAwareFactoryManagerV10Report>, graph: Record<string, any>) {
   const strategies = Array.isArray(graph.strategies)
     ? graph.strategies.filter((strategy: unknown): strategy is Record<string, any> => Boolean(strategy) && typeof strategy === 'object' && !Array.isArray(strategy))
     : []
@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const report = createFactoryManagerV10Report({
+    const report = createPriorityAwareFactoryManagerV10Report({
       idea: typeof body.idea === 'string' ? body.idea.trim() : undefined,
       runId: typeof body.runId === 'string' ? body.runId : undefined,
       graph,
