@@ -177,16 +177,17 @@ function proofBelongsTo(signal: DeepResearchSignalV12, allowedNames: Set<string>
   return true
 }
 
-function applyRunnableGuard(research: Awaited<ReturnType<typeof runDeepResearchV12>>) {
+function applyRunnableGuard(research: any) {
   const specializedCapabilities = Array.isArray(research.profile?.specializedCapabilities)
-    ? research.profile.specializedCapabilities.filter((value): value is string => typeof value === 'string' && Boolean(value.trim()))
+    ? research.profile.specializedCapabilities.filter((value: unknown): value is string => typeof value === 'string' && Boolean(value.trim()))
     : []
-  const originalRepos = research.signals.filter((signal) => signal.kind === 'github-repository')
-  const selectedRepos = selectRunnableRepositories(research.signals, specializedCapabilities)
+  const researchSignals: DeepResearchSignalV12[] = Array.isArray(research.signals) ? research.signals : []
+  const originalRepos = researchSignals.filter((signal) => signal.kind === 'github-repository')
+  const selectedRepos = selectRunnableRepositories(researchSignals, specializedCapabilities)
   const allowedNames = new Set(selectedRepos.map(repositoryName).filter(Boolean))
   const selectedByName = new Map(selectedRepos.map((signal) => [repositoryName(signal), signal]))
 
-  const signals = research.signals
+  const signals = researchSignals
     .filter((signal) => signal.kind !== 'github-repository')
     .filter((signal) => proofBelongsTo(signal, allowedNames))
   signals.push(...selectedRepos)
@@ -234,7 +235,7 @@ function applyRunnableGuard(research: Awaited<ReturnType<typeof runDeepResearchV
     sourceLinks,
     architecturePatterns,
     summary: {
-      ...research.summary,
+      ...(research.summary || {}),
       signalCount: signals.length,
       relevantSignalCount: evidenceSignals.length,
       rejectedSignalCount: numberValue(research.summary?.rejectedSignalCount) + Math.max(0, originalRepos.length - selectedRepos.length),
@@ -321,7 +322,7 @@ function tokenlessResearchShape(idea: string, local: Awaited<ReturnType<typeof r
       confidenceBand: 'low',
     },
     accuracyPolicy: 'Public repositories are discovered without a personal token and source-verified from shallow local clones. No cloned code is executed during research. Source lock still requires license/build/security/outcome verification.',
-  } as Awaited<ReturnType<typeof runDeepResearchV12>>
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -349,7 +350,7 @@ export async function POST(request: NextRequest) {
     const usePublicLocal = !githubAuthenticated || forcePublicLocal
 
     let localTelemetry: Awaited<ReturnType<typeof runTokenlessPublicResearch>>['telemetry'] | null = null
-    let research: Awaited<ReturnType<typeof runDeepResearchV12>>
+    let research: any
 
     if (usePublicLocal) {
       const local = await runTokenlessPublicResearch(idea, seedRepos)
