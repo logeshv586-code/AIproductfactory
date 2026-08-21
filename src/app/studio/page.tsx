@@ -1,5 +1,5 @@
-import FactoryStudioRuntime from '@/components/factory/FactoryStudioRuntime'
+import FactoryStudioRuntimeV10 from '@/components/factory/FactoryStudioRuntimeV10'
 
 export default function StudioPage() {
-  return <FactoryStudioRuntime />
+  return <FactoryStudioRuntimeV10 />
 }
