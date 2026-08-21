@@ -18,17 +18,17 @@ The installer:
 
 1. checks out `Egonex-AI/Understand-Anything` under `.tools/understand-anything`;
 2. uses a pinned upstream commit for reproducible behavior;
-3. links the upstream skills into this repository's `.agents/skills` directory;
-4. works with project-local links/junctions rather than requiring the user's global agent configuration;
+3. creates small project-local skill adapters in `.agents/skills`;
+4. each adapter resolves the local upstream checkout through `CLAUDE_PLUGIN_ROOT`, so the upstream workflow can find its bundled scripts without a global installation;
 5. writes local provenance to `.understand-anything.local.json`;
-6. keeps the checkout, linked skills and generated `.ua` graph out of Git.
+6. keeps the checkout, generated adapters and `.ua` graph out of Git.
 
 ## Use it
 
 After installation, restart/reload the coding agent if it does not immediately discover the project-local skills.
 
 - Codex/compatible agents: `$understand`
-- Claude Code native plugin style: `/understand`
+- Claude Code native marketplace users can still use `/understand`
 - Plain-language fallback: `Use the understand skill to analyze this project.`
 
 The generated graph is stored locally at:
