@@ -144,7 +144,7 @@ export async function runTokenlessPublicResearch(idea: string, seedRepos: string
     return { item, score: lexical * 0.58 + seedBoost + popularity }
   }).sort((a, b) => b.score - a.score).slice(0, 6)
 
-  const signals = (await Promise.all(ranked.map(async ({ item }) => {
+  const inspected = await Promise.all(ranked.map(async ({ item }): Promise<DeepResearchSignalV12 | null> => {
     const fullName = String(item.full_name || '').trim()
     if (!fullName) return null
     const snapshot = await inspectPublicRepositoryLocally(fullName, String(item.default_branch || '').trim() || undefined)
@@ -221,7 +221,7 @@ export async function runTokenlessPublicResearch(idea: string, seedRepos: string
       },
       inspection: {
         inspected: true,
-        depth: 'code-sample' as const,
+        depth: 'code-sample',
         defaultBranch: snapshot.defaultBranch,
         filesSeen: snapshot.files.length,
         sourceFilesSampled,
@@ -241,11 +241,15 @@ export async function runTokenlessPublicResearch(idea: string, seedRepos: string
           ...(!item.license?.spdx_id ? ['License metadata unavailable in tokenless discovery; verify license from the cloned repository before source lock.'] : []),
         ],
       },
-    } satisfies DeepResearchSignalV12
-  }))).filter((signal): signal is DeepResearchSignalV12 => Boolean(signal))
+    }
+  }))
+
+  const signals: DeepResearchSignalV12[] = []
+  for (const signal of inspected) if (signal) signals.push(signal)
+  signals.sort((a, b) => Number(b.relevance || 0) - Number(a.relevance || 0))
 
   return {
-    signals: signals.sort((a, b) => Number(b.relevance || 0) - Number(a.relevance || 0)),
+    signals,
     telemetry: {
       mode: 'public-local-clone',
       authenticated: false,
