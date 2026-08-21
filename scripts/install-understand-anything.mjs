@@ -10,7 +10,8 @@ const REPO_URL = 'https://github.com/Egonex-AI/Understand-Anything.git'
 const DEFAULT_REF = '32944829e7a63a9fa9c55d811d7f98a9530c6a6a'
 const TOOLS_DIR = path.join(ROOT, '.tools')
 const CHECKOUT = path.join(TOOLS_DIR, 'understand-anything')
-const SKILLS_SOURCE = path.join(CHECKOUT, 'understand-anything-plugin', 'skills')
+const PLUGIN_ROOT = path.join(CHECKOUT, 'understand-anything-plugin')
+const SKILLS_SOURCE = path.join(PLUGIN_ROOT, 'skills')
 const AGENT_SKILLS = path.join(ROOT, '.agents', 'skills')
 const STATE_FILE = path.join(ROOT, '.understand-anything.local.json')
 
@@ -49,27 +50,6 @@ function gitOutput(cwd, gitArgs) {
   return execFileSync('git', gitArgs, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
 }
 
-function removeGeneratedLink(target) {
-  if (!fs.existsSync(target) && !fs.lstatSync(path.dirname(target), { throwIfNoEntry: false })) return
-  try {
-    const stat = fs.lstatSync(target)
-    if (stat.isSymbolicLink()) fs.unlinkSync(target)
-    else if (process.platform === 'win32') fs.rmSync(target, { recursive: true, force: true })
-  } catch {
-    // A missing/stale target is safe to recreate below.
-  }
-}
-
-function linkDirectory(source, target) {
-  fs.mkdirSync(path.dirname(target), { recursive: true })
-  removeGeneratedLink(target)
-  try {
-    fs.symlinkSync(source, target, process.platform === 'win32' ? 'junction' : 'dir')
-  } catch (error) {
-    throw new Error(`Could not create the project-local skill link ${target}: ${error instanceof Error ? error.message : String(error)}`)
-  }
-}
-
 function listSkills() {
   if (!fs.existsSync(SKILLS_SOURCE)) {
     throw new Error(`Understand Anything skills were not found at ${SKILLS_SOURCE}`)
@@ -78,6 +58,26 @@ function listSkills() {
     .filter((entry) => entry.isDirectory() && fs.existsSync(path.join(SKILLS_SOURCE, entry.name, 'SKILL.md')))
     .map((entry) => entry.name)
     .sort()
+}
+
+function upstreamDescription(skill) {
+  try {
+    const source = fs.readFileSync(path.join(SKILLS_SOURCE, skill, 'SKILL.md'), 'utf8')
+    const match = source.match(/^description:\s*(.+)$/m)
+    return match?.[1]?.trim() || `Use Understand Anything's ${skill} workflow with project-local codebase context.`
+  } catch {
+    return `Use Understand Anything's ${skill} workflow with project-local codebase context.`
+  }
+}
+
+function writeSkillAdapter(skill) {
+  const targetDir = path.join(AGENT_SKILLS, skill)
+  fs.rmSync(targetDir, { recursive: true, force: true })
+  fs.mkdirSync(targetDir, { recursive: true })
+
+  const description = upstreamDescription(skill).replace(/\r?\n/g, ' ')
+  const wrapper = `---\nname: ${skill}\ndescription: ${description}\n---\n\n# Project-local Understand Anything adapter\n\nThis repository keeps Understand Anything local under \`.tools/understand-anything\`. Do not look for or require a global plugin installation.\n\nBefore following the upstream skill, resolve the project and plugin roots:\n\n\`\`\`bash\nPROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)\nexport CLAUDE_PLUGIN_ROOT="$PROJECT_ROOT/.tools/understand-anything/understand-anything-plugin"\nUPSTREAM_SKILL="$CLAUDE_PLUGIN_ROOT/skills/${skill}/SKILL.md"\n\`\`\`\n\nRead \`$UPSTREAM_SKILL\` in full and follow it as the authoritative workflow for this skill. Keep \`CLAUDE_PLUGIN_ROOT\` set for shell commands so upstream scripts resolve the local plugin checkout correctly.\n\nIf the checkout is missing, tell the user to run \`npm run understand:install\` from the AI Product Factory repository root.\n`
+  fs.writeFileSync(path.join(targetDir, 'SKILL.md'), wrapper)
 }
 
 function printStatus() {
@@ -92,8 +92,8 @@ function printStatus() {
   console.log('Understand Anything — AI Product Factory local integration')
   console.log(`  checkout: ${checkoutExists ? CHECKOUT : 'not installed'}`)
   console.log(`  commit:   ${commit || state?.commit || 'unknown'}`)
-  console.log(`  skills:   ${installed ? AGENT_SKILLS : 'not linked'}`)
-  console.log(`  mode:     project-local (no global plugin installation required)`)
+  console.log(`  skills:   ${installed ? AGENT_SKILLS : 'not installed'}`)
+  console.log('  mode:     project-local adapters (no global plugin installation required)')
 }
 
 if (statusOnly) {
@@ -128,11 +128,9 @@ const installedCommit = gitOutput(CHECKOUT, ['rev-parse', 'HEAD'])
 
 const skills = listSkills()
 fs.mkdirSync(AGENT_SKILLS, { recursive: true })
-console.log(`→ Linking ${skills.length} Understand Anything skills into .agents/skills`)
+console.log(`→ Creating ${skills.length} project-local Understand Anything skill adapters in .agents/skills`)
 for (const skill of skills) {
-  const source = path.join(SKILLS_SOURCE, skill)
-  const target = path.join(AGENT_SKILLS, skill)
-  linkDirectory(source, target)
+  writeSkillAdapter(skill)
   console.log(`  ✓ ${skill}`)
 }
 
@@ -142,16 +140,17 @@ const state = {
   repository: REPO_URL,
   commit: installedCommit,
   installedAt: new Date().toISOString(),
-  installMode: 'project-local-symlink',
+  installMode: 'project-local-adapters',
+  pluginRoot: path.relative(ROOT, PLUGIN_ROOT),
   skills,
   dataDirectory: '.ua',
-  note: 'The plugin understands codebases/knowledge bases. AI Product Factory user-intent understanding remains handled by the Factory intent and recommendation pipeline.',
+  note: 'Understand Anything supplies codebase/knowledge-base context. Customer natural-language intent is handled separately by the AI Product Factory intent and recommendation pipeline.',
 }
 fs.writeFileSync(STATE_FILE, `${JSON.stringify(state, null, 2)}\n`)
 
 console.log('\n✓ Understand Anything is installed locally for this repository.')
 console.log('  Codex/compatible agents: invoke $understand (or ask to use the understand skill).')
-console.log('  Claude Code: /understand')
+console.log('  Claude Code native marketplace users can still use /understand; this project-local setup does not require it.')
 console.log('  Output: .ua/knowledge-graph.json')
 console.log('  Run npm run understand:status to verify the local integration.')
 if (update) console.log(`  Updated/pinned revision: ${installedCommit}`)
