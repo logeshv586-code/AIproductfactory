@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="860" viewBox="0 0 1400 860" role="img" aria-labelledby="title desc">
+  <title id="title">AI Product Factory Studio</title>
+  <desc id="desc">Current AI Product Factory Studio experience: describe an outcome, research evidence, choose a plan, approve, build and verify.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#f7f8ff"/><stop offset="0.55" stop-color="#eef4ff"/><stop offset="1" stop-color="#f5efff"/>
+    </linearGradient>
+    <linearGradient id="brand" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#2563eb"/><stop offset="1" stop-color="#7c3aed"/></linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="12" stdDeviation="18" flood-color="#334155" flood-opacity="0.10"/></filter>
+    <style>
+      .t{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;fill:#0f172a}.muted{fill:#64748b}.tiny{font-size:13px}.small{font-size:16px}.med{font-size:20px;font-weight:700}.title{font-size:43px;font-weight:800;letter-spacing:-1.6px}.step{font-size:14px;font-weight:700}.card{fill:#fff;stroke:#dbe3f0;stroke-width:1.2}.soft{fill:#f8fafc;stroke:#dbe3f0;stroke-width:1.2}
+    </style>
+  </defs>
+  <rect width="1400" height="860" rx="32" fill="url(#bg)"/>
+
+  <g filter="url(#shadow)"><rect x="22" y="20" width="1356" height="74" rx="24" class="card"/></g>
+  <rect x="42" y="38" width="42" height="42" rx="13" fill="url(#brand)"/><path d="M55 68l16-16M55 57l5-5M66 68l5-5" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+  <text x="98" y="54" class="t med">AI Product Factory</text><text x="98" y="75" class="t tiny muted">Plain-language idea → evidence-backed plan → verified build.</text>
+  <rect x="1075" y="39" width="78" height="36" rx="12" fill="#f8fafc" stroke="#dbe3f0"/><text x="1098" y="62" class="t tiny">Simple</text>
+  <rect x="1156" y="39" width="76" height="36" rx="12" fill="#fff" stroke="#cbd5e1"/><text x="1179" y="62" class="t tiny" font-weight="700">Expert</text>
+  <rect x="1242" y="39" width="116" height="36" rx="18" fill="#ecfdf5" stroke="#a7f3d0"/><circle cx="1258" cy="57" r="4" fill="#10b981"/><text x="1268" y="62" class="t tiny" fill="#047857">Evidence gated</text>
+
+  <g transform="translate(22 112)">
+    <g><rect width="322" height="72" rx="16" fill="#ecfdf5" stroke="#a7f3d0"/><circle cx="26" cy="24" r="13" fill="#10b981"/><text x="22" y="29" font-family="sans-serif" font-size="14" fill="#fff">✓</text><text x="48" y="29" class="t step">Describe</text><text x="16" y="55" class="t tiny muted">Tell us the outcome in your own words.</text></g>
+    <g transform="translate(334)"><rect width="322" height="72" rx="16" fill="#ecfdf5" stroke="#a7f3d0"/><circle cx="26" cy="24" r="13" fill="#10b981"/><text x="22" y="29" font-family="sans-serif" font-size="14" fill="#fff">✓</text><text x="48" y="29" class="t step">Understand &amp; research</text><text x="16" y="55" class="t tiny muted">Find requirements and source evidence.</text></g>
+    <g transform="translate(668)"><rect width="322" height="72" rx="16" fill="#eff6ff" stroke="#93c5fd"/><circle cx="26" cy="24" r="13" fill="#2563eb"/><text x="21" y="29" font-family="sans-serif" font-size="11" fill="#fff">03</text><text x="48" y="29" class="t step">Choose</text><text x="16" y="55" class="t tiny muted">Compare plain-language product plans.</text></g>
+    <g transform="translate(1002)"><rect width="334" height="72" rx="16" class="card"/><circle cx="26" cy="24" r="13" fill="#e2e8f0"/><text x="21" y="29" font-family="sans-serif" font-size="11" fill="#64748b">04</text><text x="48" y="29" class="t step">Build &amp; verify</text><text x="16" y="55" class="t tiny muted">Approve, lock sources and run checks.</text></g>
+  </g>
+
+  <g filter="url(#shadow)"><rect x="22" y="206" width="1356" height="630" rx="32" class="card"/></g>
+  <line x1="808" y1="206" x2="808" y2="836" stroke="#dbe3f0"/>
+
+  <g transform="translate(60 248)">
+    <rect width="124" height="28" rx="14" fill="#eff6ff" stroke="#bfdbfe"/><text x="16" y="19" class="t tiny" fill="#2563eb">No coding required</text>
+    <text x="0" y="78" class="t title">Tell us the outcome.</text><text x="402" y="78" class="title" fill="url(#brand)" font-family="Inter,ui-sans-serif,system-ui" font-weight="800">AI works</text>
+    <text x="0" y="126" class="title" fill="url(#brand)" font-family="Inter,ui-sans-serif,system-ui" font-weight="800">out the product.</text>
+    <text x="0" y="164" class="t small muted">Everyday language becomes requirements, capability research, source proof,</text><text x="0" y="188" class="t small muted">three practical plans and a build that cannot start until evidence is strong enough.</text>
+
+    <g transform="translate(0 220)"><rect width="346" height="74" rx="16" fill="#eff6ff" stroke="#60a5fa" stroke-width="2"/><text x="18" y="29" class="t small" font-weight="700">Create something new</text><text x="18" y="53" class="t tiny muted">Start from an idea and let AI discover the safest route.</text><circle cx="322" cy="24" r="8" fill="#2563eb"/><circle cx="322" cy="24" r="3" fill="#fff"/></g>
+    <g transform="translate(362 220)"><rect width="346" height="74" rx="16" class="card"/><text x="18" y="29" class="t small" font-weight="700">Improve what I already have</text><text x="18" y="53" class="t tiny muted">Keep working behavior and add capabilities safely.</text></g>
+
+    <g transform="translate(0 310)"><rect width="708" height="172" rx="18" class="soft"/><text x="18" y="28" class="t tiny" font-weight="700">What should the product do for you?</text><rect x="18" y="42" width="672" height="103" rx="13" fill="#fff" stroke="#cbd5e1"/><text x="34" y="67" class="t tiny">Create an application that can automate PowerPoint, Excel, Word and desktop apps</text><text x="34" y="89" class="t tiny">using vision, understand the screen, perform tasks autonomously and improve over</text><text x="34" y="111" class="t tiny">time — delivered as one coherent application.</text></g>
+
+    <g transform="translate(0 500)"><rect width="346" height="64" rx="16" class="card"/><text x="16" y="24" class="t tiny" font-weight="700">Who will use it?</text><text x="16" y="48" class="t tiny muted">Customers</text><rect x="362" width="346" height="64" rx="16" class="card"/><text x="378" y="24" class="t tiny" font-weight="700">Where will it be used?</text><text x="378" y="48" class="t tiny muted">Desktop app</text></g>
+  </g>
+
+  <g transform="translate(850 250)">
+    <text x="0" y="20" class="t tiny" fill="#2563eb" font-weight="700" letter-spacing="2">WHAT AI DOES FOR YOU</text><text x="0" y="58" class="t med">Technical complexity stays underneath.</text>
+    <g transform="translate(0 92)"><rect width="476" height="60" rx="15" class="card"/><circle cx="30" cy="30" r="17" fill="#0f172a"/><text x="21" y="35" font-family="sans-serif" font-size="12" fill="#fff">01</text><text x="58" y="36" class="t small">Understand your goal and users</text></g>
+    <g transform="translate(0 166)"><rect width="476" height="60" rx="15" class="card"/><circle cx="30" cy="30" r="17" fill="#0f172a"/><text x="21" y="35" font-family="sans-serif" font-size="12" fill="#fff">02</text><text x="58" y="36" class="t small">Map the capabilities the product actually needs</text></g>
+    <g transform="translate(0 240)"><rect width="476" height="60" rx="15" class="card"/><circle cx="30" cy="30" r="17" fill="#0f172a"/><text x="21" y="35" font-family="sans-serif" font-size="12" fill="#fff">03</text><text x="58" y="36" class="t small">Research current tools and repositories</text></g>
+    <g transform="translate(0 314)"><rect width="476" height="60" rx="15" class="card"/><circle cx="30" cy="30" r="17" fill="#0f172a"/><text x="21" y="35" font-family="sans-serif" font-size="12" fill="#fff">04</text><text x="58" y="36" class="t small">Reject irrelevant or weak evidence</text></g>
+    <g transform="translate(0 388)"><rect width="476" height="60" rx="15" class="card"/><circle cx="30" cy="30" r="17" fill="#0f172a"/><text x="21" y="35" font-family="sans-serif" font-size="12" fill="#fff">05</text><text x="58" y="36" class="t small">Explain three practical plans</text></g>
+    <g transform="translate(0 462)"><rect width="476" height="60" rx="15" class="card"/><circle cx="30" cy="30" r="17" fill="#0f172a"/><text x="21" y="35" font-family="sans-serif" font-size="12" fill="#fff">06</text><text x="58" y="36" class="t small">Lock only the plan you approve</text></g>
+    <g transform="translate(0 538)"><rect width="476" height="58" rx="15" fill="#eff6ff" stroke="#bfdbfe"/><text x="18" y="25" class="t small" font-weight="700">You stay in control</text><text x="18" y="45" class="t tiny muted">AI cannot silently replace your approved direction or source set.</text></g>
+  </g>
+</svg>
