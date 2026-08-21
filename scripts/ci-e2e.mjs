@@ -171,6 +171,8 @@ assert(Array.isArray(manager.report.compositionSuggestions), 'manager compositio
 assert(manager.report.compositionSuggestions.length > 0, 'manager produced no buildable composition')
 assert(manager.report.compositionSuggestions.every((plan) => typeof plan.capabilityCoverage === 'number'), 'plans are missing capability coverage')
 assert(manager.report.compositionSuggestions.every((plan) => typeof plan.domainRelevance === 'number'), 'plans are missing domain relevance')
+const initialComposition = manager.report.compositionSuggestions[0]
+assert(initialComposition.effort === 'Balanced', `balanced customer priority did not put the Balanced plan first (got ${initialComposition.effort})`)
 
 const strategyId = manager.report.recommendedStrategy?.id || strategize.strategies[0]?.id
 assert(strategyId, 'no strategy available for approval')
@@ -182,18 +184,21 @@ const approved = await post('/api/factory/pi/approve', {
 })
 assert(approved.graph && typeof approved.graph === 'object', 'approve did not return final graph')
 
-console.log('[e2e] 8/10 final Manager V10 refresh')
+console.log('[e2e] 8/10 final Manager V10 refresh preserves selected plan')
 const finalManager = await post('/api/factory/manager', {
   idea,
   runId: strategize.run_id,
   graph: approved.graph,
   liveResearch,
   customerContext,
+  selectedCompositionId: initialComposition.id,
 })
 const composition = finalManager.report?.compositionSuggestions?.[0]
 assert(composition, 'approved manager report has no composition')
+assert(composition.id === initialComposition.id, 'manager refresh did not preserve the explicitly selected composition')
 assert(Array.isArray(composition.repos) && composition.repos.length >= 1 && composition.repos.length <= 5, 'composition must contain 1-5 bounded repos')
 assert(composition.repos.every((repo) => repo.fullName && repo.url), 'composition contains an invalid repository descriptor')
+assert(finalManager.report.idePrompt.includes(composition.customerTitle), 'developer handoff is not aligned to the preserved selected plan')
 
 console.log(`[e2e] 9/10 approved composition build: ${composition.repos.map((repo) => repo.fullName).join(' + ')}`)
 const build = await post('/api/factory/build/approved', {
@@ -230,7 +235,7 @@ runtimeSessionId = ''
 
 await optionalRealProviderSmoke()
 
-console.log('[e2e] PASS — customer-first Studio + filtered research + Manager V10 + approved repo lock completed')
+console.log('[e2e] PASS — customer-first Studio + filtered research + priority-aware Manager V10 + approved repo lock completed')
 console.log(JSON.stringify({
   runId: strategize.run_id,
   strategyId,
@@ -238,6 +243,7 @@ console.log(JSON.stringify({
   rejectedSignals: liveResearch.summary?.rejectedSignalCount || 0,
   githubCandidates: liveResearch.summary?.githubCandidates || 0,
   recommendationQuality: manager.report.recommendationQuality?.score || 0,
+  selectedPlan: composition.customerTitle,
   selectedRepos: build.selectedRepos?.map((repo) => repo.name) || [],
   buildId: build.buildId,
 }, null, 2))
