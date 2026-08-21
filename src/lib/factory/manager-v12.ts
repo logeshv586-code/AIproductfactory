@@ -1,0 +1,485 @@
+import {
+  createPriorityAwareFactoryManagerV10Report,
+  type PriorityAwareFactoryManagerInput,
+} from '@/lib/factory/manager-v10-priority'
+import type {
+  CustomerComposition,
+  FactoryManagerV10Report,
+  RankedRepo,
+} from '@/lib/factory/manager-v10'
+import type { DeepResearchSignalV12, RepoInspectionV12 } from '@/lib/factory/deep-research-v12'
+
+export type FactoryManagerV12Report = FactoryManagerV10Report & {
+  engineVersion: '12.0'
+  researchProof: {
+    gateTarget: number
+    gatePassed: boolean
+    researchCompleteness: number
+    capabilityCoverage: number
+    averageInspection: number
+    averageRepositoryRelevance: number
+    inspectedRepositories: number
+    qualifiedRepositories: number
+    sourceLinks: Array<{ label: string; url: string; kind: string }>
+    architecturePatterns: string[]
+    explanation: string
+  }
+}
+
+const GENERIC = new Set([
+  'backend api', 'frontend ui', 'authentication', 'data store', 'monitoring', 'observability', 'scheduling',
+  'error handling', 'audit logging', 'execution runner', 'workflow engine', 'notifications', 'search',
+])
+
+function text(value: unknown) {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+function numberValue(value: unknown, fallback = 0) {
+  const parsed = typeof value === 'number' ? value : Number(value)
+  return Number.isFinite(parsed) ? parsed : fallback
+}
+
+function clamp(value: number, min = 0, max = 100) {
+  return Math.min(max, Math.max(min, Number.isFinite(value) ? value : 0))
+}
+
+function tokens(value: string) {
+  return [...new Set(value.toLowerCase().match(/[a-z0-9+#.-]{3,}/g) || [])]
+}
+
+function capabilityMatches(wanted: string, provided: string) {
+  if (wanted.toLowerCase() === provided.toLowerCase()) return true
+  const wantedTokens = tokens(wanted)
+  const providedTokens = new Set(tokens(provided))
+  return wantedTokens.length > 0 && wantedTokens.filter((token) => providedTokens.has(token)).length / wantedTokens.length >= 0.55
+}
+
+function liveObject(input: PriorityAwareFactoryManagerInput): Record<string, any> {
+  const value = input.liveResearch
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, any> : {}
+}
+
+function researchSignals(input: PriorityAwareFactoryManagerInput): DeepResearchSignalV12[] {
+  const raw = liveObject(input).signals
+  return Array.isArray(raw) ? raw.filter((value): value is DeepResearchSignalV12 => Boolean(value) && typeof value === 'object') : []
+}
+
+function requestedSpecialized(report: FactoryManagerV10Report, input: PriorityAwareFactoryManagerInput): string[] {
+  const live = liveObject(input)
+  const raw = live?.profile?.specializedCapabilities
+  const explicit: string[] = Array.isArray(raw)
+    ? raw.filter((value: unknown): value is string => typeof value === 'string' && Boolean(value.trim())).map((value: string) => value.trim())
+    : []
+  if (explicit.length) return Array.from(new Set<string>(explicit))
+  return report.customerBrief.capabilities.filter((capability) => !GENERIC.has(capability.toLowerCase()))
+}
+
+function githubSignals(input: PriorityAwareFactoryManagerInput): DeepResearchSignalV12[] {
+  return researchSignals(input).filter((signal) => signal.kind === 'github-repository' && Boolean(signal.repository?.fullName))
+}
+
+function strictRepositories(report: FactoryManagerV10Report, input: PriorityAwareFactoryManagerInput) {
+  const signals = githubSignals(input)
+  const signalByName = new Map<string, DeepResearchSignalV12>()
+  for (const signal of signals) {
+    const name = text(signal.repository?.fullName).toLowerCase()
+    if (name) signalByName.set(name, signal)
+  }
+
+  const repos = report.repoExplainers
+    .filter((repo) => {
+      const signal = signalByName.get(repo.fullName.toLowerCase())
+      const inspection = signal?.inspection
+      if (!signal || !inspection?.inspected) return false
+      if (!inspection.specializedCapabilities.length) return false
+      if (numberValue(signal.relevance) < 0.64) return false
+      if (inspection.inspectionScore < 50) return false
+      if (repo.productRelevance < 58 || repo.recommendationScore < 58) return false
+      return true
+    })
+    .map<RankedRepo>((repo) => {
+      const signal = signalByName.get(repo.fullName.toLowerCase())!
+      const inspection = signal.inspection!
+      const evidenceStrength = Math.round(clamp(
+        inspection.inspectionScore * 0.55 +
+        numberValue(signal.relevance) * 100 * 0.30 +
+        Math.min(100, inspection.sourceFilesSampled * 18 + inspection.sourceLinks.length * 8) * 0.15,
+      ))
+      return {
+        ...repo,
+        capabilities: inspection.verifiedCapabilities.length ? inspection.verifiedCapabilities : repo.capabilities,
+        productRelevance: Math.max(repo.productRelevance, Math.round(numberValue(signal.relevance) * 100)),
+        evidenceStrength,
+        whySelected: [
+          `${Math.round(numberValue(signal.relevance) * 100)}% deep-research relevance after README/source inspection`,
+          `${inspection.inspectionScore}% repository inspection score`,
+          `Verified capabilities: ${inspection.specializedCapabilities.join(', ')}`,
+          ...repo.whySelected.filter((item) => !/live product relevance/i.test(item)).slice(0, 2),
+        ],
+        strengths: [
+          ...repo.strengths.slice(0, 2),
+          `${inspection.sourceFilesSampled} representative source file(s) inspected`,
+          `${inspection.filesSeen} repository file(s) mapped`,
+        ],
+        validationSteps: [
+          ...inspection.sourceLinks.slice(0, 5).map((link) => `Re-check ${link.label}: ${link.url}`),
+          ...repo.validationSteps.slice(0, 3),
+        ],
+        evidence: {
+          ...(repo.evidence || {}),
+          deepInspection: inspection,
+          sourceLinks: inspection.sourceLinks,
+        },
+      }
+    })
+    .sort((a, b) =>
+      (b.productRelevance * 0.42 + b.capabilityCoverage * 0.24 + b.evidenceStrength * 0.22 + b.maintenanceScore * 0.12) -
+      (a.productRelevance * 0.42 + a.capabilityCoverage * 0.24 + a.evidenceStrength * 0.22 + a.maintenanceScore * 0.12),
+    )
+
+  return { repos, signalByName }
+}
+
+function coveredCapabilities(repos: RankedRepo[], requested: string[]) {
+  return requested.filter((capability) => repos.some((repo) => repo.capabilities.some((provided) => capabilityMatches(capability, provided))))
+}
+
+function chooseRepos(pool: RankedRepo[], requested: string[], maxRepos: number, mode: 'fast' | 'balanced' | 'scale') {
+  const chosen: RankedRepo[] = []
+  const remaining = [...pool]
+  const covered = new Set<string>()
+
+  while (remaining.length && chosen.length < maxRepos) {
+    let bestIndex = 0
+    let bestScore = -Infinity
+    remaining.forEach((repo, index) => {
+      const newCaps = requested.filter((capability) =>
+        !covered.has(capability) && repo.capabilities.some((provided) => capabilityMatches(capability, provided)),
+      )
+      const coverageGain = requested.length ? newCaps.length / requested.length * 100 : repo.capabilityCoverage
+      const modeScore = mode === 'scale'
+        ? repo.maintenanceScore * 0.17 + repo.licenseScore * 0.10 + repo.evidenceStrength * 0.16
+        : mode === 'fast'
+          ? repo.productRelevance * 0.18 + Math.max(0, 100 - repo.weaknesses.length * 12) * 0.10
+          : repo.evidenceStrength * 0.18 + repo.productRelevance * 0.16
+      const score = repo.recommendationScore * 0.34 + coverageGain * 0.38 + modeScore
+      if (score > bestScore) {
+        bestScore = score
+        bestIndex = index
+      }
+    })
+
+    const [winner] = remaining.splice(bestIndex, 1)
+    if (!winner) break
+    chosen.push(winner)
+    for (const capability of coveredCapabilities([winner], requested)) covered.add(capability)
+    const target = mode === 'fast' ? 0.48 : mode === 'balanced' ? 0.75 : 0.90
+    if (requested.length && covered.size / requested.length >= target) break
+  }
+
+  return chosen
+}
+
+function repoSignature(repos: RankedRepo[]) {
+  return repos.map((repo) => repo.fullName.toLowerCase()).sort().join('|')
+}
+
+function makePlan(
+  id: string,
+  title: string,
+  bestFor: string,
+  effort: CustomerComposition['effort'],
+  type: CustomerComposition['type'],
+  repos: RankedRepo[],
+  requested: string[],
+  idea: string,
+  signalByName: Map<string, DeepResearchSignalV12>,
+): CustomerComposition | null {
+  if (!repos.length) return null
+  const covered = coveredCapabilities(repos, requested)
+  const missing = requested.filter((capability) => !covered.includes(capability))
+  const coverage = requested.length
+    ? Math.round(covered.length / requested.length * 100)
+    : Math.round(repos.reduce((sum, repo) => sum + repo.capabilityCoverage, 0) / repos.length)
+  const relevance = Math.round(repos.reduce((sum, repo) => sum + repo.productRelevance, 0) / repos.length)
+  const maintenance = Math.round(repos.reduce((sum, repo) => sum + repo.maintenanceScore, 0) / repos.length)
+  const license = Math.round(repos.reduce((sum, repo) => sum + repo.licenseScore, 0) / repos.length)
+  const inspection = Math.round(repos.reduce((sum, repo) =>
+    sum + numberValue(signalByName.get(repo.fullName.toLowerCase())?.inspection?.inspectionScore, repo.evidenceStrength), 0,
+  ) / repos.length)
+  const runtimeCount = new Set(repos.map((repo) => repo.language).filter((language) => language && language !== 'Unknown')).size
+  const complexityPenalty = Math.max(0, repos.length - 1) * 3 + Math.max(0, runtimeCount - 1) * 4
+  const fit = Math.round(clamp(
+    coverage * 0.42 + relevance * 0.24 + inspection * 0.18 + maintenance * 0.08 + license * 0.08 - complexityPenalty,
+    15,
+    97,
+  ))
+  const confidence = Math.round(clamp(
+    fit * 0.48 + inspection * 0.28 + relevance * 0.16 + Math.min(100, repos.length * 16 + covered.length * 7) * 0.08,
+    20,
+    96,
+  ))
+  const integrationComplexity: CustomerComposition['integrationComplexity'] = repos.length <= 1 && runtimeCount <= 1
+    ? 'Low'
+    : repos.length <= 3 && runtimeCount <= 2
+      ? 'Medium'
+      : 'High'
+  const sourceProofCount = repos.reduce((sum, repo) =>
+    sum + (signalByName.get(repo.fullName.toLowerCase())?.inspection?.sourceLinks.length || 0), 0,
+  )
+
+  return {
+    id,
+    title,
+    customerTitle: title,
+    bestFor,
+    type,
+    repos,
+    overlapWithRecommended: 0,
+    estimatedFit: fit,
+    confidence,
+    capabilityCoverage: coverage,
+    domainRelevance: relevance,
+    maintenanceScore: maintenance,
+    licenseScore: license,
+    integrationComplexity,
+    effort,
+    customerBenefits: [
+      `${coverage}% of requested specialized capabilities are directly covered by inspected repositories.`,
+      `${sourceProofCount} clickable README/source proof link(s) support the selected components.`,
+      'Keyword-only and generic-framework-only repositories are excluded.',
+      missing.length ? `${missing.length} capability area(s) remain product-owned rather than forcing unrelated code.` : 'Every currently identified specialized capability has an inspected implementation candidate.',
+    ],
+    missingCapabilities: missing,
+    whyThisCombination: [
+      `${relevance}% average direct product relevance after code-aware inspection.`,
+      `${inspection}% average README/source inspection quality.`,
+      `${coverage}% specialized capability coverage with ${maintenance}% maintenance and ${license}% license-safety signals.`,
+      'Popularity contributes only after direct capability proof passes.',
+    ],
+    combinationPattern: runtimeCount > 1
+      ? 'capability services + typed adapters + product-owned orchestration'
+      : 'modular components + typed adapters + product-owned orchestration',
+    dataFlow: [
+      'Natural language is converted into a specialized capability graph.',
+      'Each capability is routed only to a repository that proved it in inspected documentation/source.',
+      ...repos.map((repo) => `${repo.fullName} is isolated behind an adapter for ${repo.capabilities.slice(0, 3).join(', ') || 'its verified role'}.`),
+      'A first-party planner, permissions layer, memory policy, audit trail and unified schema coordinate the components.',
+      'The customer receives one coherent application, not a bundle of repositories.',
+    ],
+    resultingProduct: `${idea} is delivered as one coherent product. Existing open-source products accelerate only behavior proven by inspected source; orchestration, safety, UX, approvals, memory policy and differentiating intelligence remain product-owned.`,
+    customCodeNeeded: [
+      'Product-owned capability router, workflow state machine and typed contracts',
+      'Permission boundaries and human approval for destructive or externally visible actions',
+      'Unified vision/action abstraction across desktop, browser and Office automation',
+      'Versioned skills/memory with evaluation and rollback instead of unrestricted self-modifying production code',
+      ...missing.slice(0, 6).map((capability) => `${capability} — first-party implementation or later inspected adapter`),
+      'Telemetry, cost metering, retries, timeouts, sandboxing and deployment configuration',
+    ],
+    buildSteps: [
+      'Pin every approved repository to an exact commit/release and preserve its proof links.',
+      'Re-read README, architecture docs, manifests and capability-bearing source before adapter work.',
+      'Run each external component independently and capture contract tests.',
+      'Implement the smallest complete end-to-end customer workflow.',
+      'Add permissions, approvals, secrets isolation, sandboxing, retries, idempotency and rollback.',
+      'Promote learned skills only after regression evaluation succeeds.',
+      'Run lint, typecheck, unit, contract, integration, E2E, security and production-build gates.',
+    ],
+    risks: [
+      ...repos.flatMap((repo) => repo.weaknesses.slice(0, 1)),
+      ...(missing.length ? [`${missing.length} specialized capability area(s) still require first-party implementation.`] : []),
+      'Autonomous self-improvement must be versioned, evaluated and reversible.',
+      ...(integrationComplexity === 'High' ? ['Multiple runtimes/components increase deployment and observability complexity.'] : []),
+    ].slice(0, 8),
+    validationGates: [
+      'Deep relevance gate: every selected repository has README/source proof for a requested specialized capability.',
+      'Source-truth gate: URL, proof links and exact commit/version are reproducible.',
+      'License gate: reuse/distribution obligations match the intended delivery model.',
+      'Build gate: fresh install and production build pass from pinned sources.',
+      'Contract gate: each adapter passes success, timeout, malformed-response and upstream-change tests.',
+      'Safety gate: high-impact desktop actions obey least privilege and approval policy.',
+      'Learning gate: skills/memory changes pass evaluation and rollback tests before promotion.',
+      'Outcome gate: realistic customer workflows succeed with measured latency, reliability and cost.',
+    ],
+    technicalSummary: `Compose only deeply inspected sources: ${repos.map((repo) => `${repo.fullName} (${repo.capabilities.slice(0, 3).join(', ')})`).join('; ')}. Keep each behind a replaceable product-owned adapter and implement uncovered behavior in first-party code.`,
+  }
+}
+
+function buildPlans(
+  repos: RankedRepo[],
+  requested: string[],
+  idea: string,
+  signalByName: Map<string, DeepResearchSignalV12>,
+) {
+  const candidates = [
+    makePlan('option-a', 'Best balance', 'Best mix of direct capability coverage, inspectability and manageable integration complexity.', 'Balanced', 'recommended', chooseRepos(repos, requested, 4, 'balanced'), requested, idea, signalByName),
+    makePlan('option-b', 'Fastest credible launch', 'Smallest inspected source set covering the highest-value capabilities without padding with generic repositories.', 'Fastest', 'two-repo-fusion', chooseRepos(repos, requested, 2, 'fast'), requested, idea, signalByName),
+    makePlan('option-c', 'Built to scale', 'Broader inspected composition optimized for maintainability, replaceability and governance.', 'Most robust', 'alternative-stack', chooseRepos(repos, requested, 5, 'scale'), requested, idea, signalByName),
+  ].filter((plan): plan is CustomerComposition => Boolean(plan))
+
+  const unique: CustomerComposition[] = []
+  const signatures = new Set<string>()
+  for (const plan of candidates) {
+    const signature = repoSignature(plan.repos as RankedRepo[])
+    if (!signature || signatures.has(signature)) continue
+    signatures.add(signature)
+    unique.push(plan)
+  }
+  return unique
+}
+
+function reorderForUser(plans: CustomerComposition[], input: PriorityAwareFactoryManagerInput) {
+  if (!plans.length) return plans
+  const selectedId = text(input.selectedCompositionId)
+  const selected = selectedId ? plans.find((plan) => plan.id === selectedId) : undefined
+  const priority = text(input.customerContext?.priority).toLowerCase()
+  const wanted: CustomerComposition['effort'] = priority === 'speed' ? 'Fastest' : priority === 'scale' ? 'Most robust' : 'Balanced'
+  const first = selected || plans.find((plan) => plan.effort === wanted) || plans[0]
+  return [first, ...plans.filter((plan) => plan.id !== first.id)].map((plan, index) => ({
+    ...plan,
+    type: index === 0 ? 'recommended' as const : plan.type === 'recommended' ? 'alternative-stack' as const : plan.type,
+  }))
+}
+
+function implementationPrompt(
+  idea: string,
+  plan: CustomerComposition | undefined,
+  report: FactoryManagerV12Report,
+  signalByName: Map<string, DeepResearchSignalV12>,
+) {
+  const repos = (plan?.repos || []) as RankedRepo[]
+  const sources = repos.length
+    ? repos.map((repo, index) => {
+      const proof = signalByName.get(repo.fullName.toLowerCase())?.inspection
+      const links = (proof?.sourceLinks || []).slice(0, 5).map((link) => `     - ${link.label}: ${link.url}`).join('\n')
+      return `${index + 1}. ${repo.fullName} — ${repo.url}\n   Verified role: ${repo.capabilities.join(', ') || 'Inspected component'}\n   Relevance: ${repo.productRelevance}% · Evidence: ${repo.evidenceStrength}% · License: ${repo.license}\n   Proof:\n${links || '     - Re-open repository and re-inspect before implementation'}`
+    }).join('\n')
+    : '- No external repository passed the deep-inspection gate. Keep source-based implementation locked until research improves.'
+
+  return `You are the implementation engineer for AI Product Factory V12. Build only from the exact customer-approved, deeply inspected source set.\n\nPRODUCT OUTCOME\n${idea}\n\nRECOMMENDATION GATE\n- Evidence quality: ${report.recommendationQuality.score}%\n- 90% gate passed: ${report.researchProof.gatePassed ? 'YES' : 'NO'}\n- Specialized capability coverage: ${report.researchProof.capabilityCoverage}%\n- Average repository inspection: ${report.researchProof.averageInspection}%\n- If the 90% gate is NO, do not start source-based implementation; research/refine first.\n\nAPPROVED PLAN\n- ${plan?.customerTitle || 'No build-ready plan'}\n- Fit: ${plan?.estimatedFit ?? 0}%\n- Confidence: ${plan?.confidence ?? 0}%\n- Coverage: ${plan?.capabilityCoverage ?? 0}%\n\nINSPECTED OPEN-SOURCE SOURCES\n${sources}\n\nNON-NEGOTIABLE SOURCE RULES\n- Never substitute a generic repository merely to fill a capability slot.\n- Never qualify a repository from name, stars or description alone. Re-open README/source proof before integration.\n- Pin exact commits/releases and maintain THIRD_PARTY_NOTICES.md.\n- Keep every third-party dependency behind a typed, replaceable adapter.\n- If executable tests contradict research evidence, reject the source and return to research.\n\nAUTONOMY / SELF-IMPROVEMENT SAFETY\n- Do not implement unrestricted self-modifying production code.\n- Use versioned skills, memory and policy updates with offline evaluation, regression tests and rollback.\n- Destructive desktop actions, external communications and credential-sensitive actions require policy and human approval.\n\nIMPLEMENTATION FLOW\n1. Reproduce source proof and pin source truth.\n2. Write ADRs and typed product-owned capability contracts.\n3. Validate each external component independently.\n4. Build the smallest complete end-to-end user workflow.\n5. Add sandboxing, permissions, approvals, auth, secrets, retries, timeouts, idempotency and rollback.\n6. Add skill-learning evaluation and reversible promotion.\n7. Run unit, contract, integration, E2E, security, performance and production-build gates.\n8. Deliver setup docs, architecture, source manifest, attribution and verification evidence.\n\nDo not call the product verified until all executable gates pass.`
+}
+
+export function createFactoryManagerV12Report(input: PriorityAwareFactoryManagerInput): FactoryManagerV12Report {
+  const base = createPriorityAwareFactoryManagerV10Report(input)
+  const live = liveObject(input)
+  const requested = requestedSpecialized(base, input)
+  const { repos, signalByName } = strictRepositories(base, input)
+  const plans = reorderForUser(buildPlans(repos, requested, text(input.idea) || base.idea, signalByName), input)
+  const recommended = plans[0]
+  const covered = coveredCapabilities(repos, requested)
+  const capabilityCoverage = requested.length ? Math.round(covered.length / requested.length * 100) : 0
+  const repoSignals = githubSignals(input).filter((signal) =>
+    repos.some((repo) => repo.fullName.toLowerCase() === text(signal.repository?.fullName).toLowerCase()),
+  )
+  const averageInspection = repoSignals.length
+    ? Math.round(repoSignals.reduce((sum, signal) => sum + numberValue(signal.inspection?.inspectionScore), 0) / repoSignals.length)
+    : 0
+  const averageRepositoryRelevance = repoSignals.length
+    ? Math.round(repoSignals.reduce((sum, signal) => sum + numberValue(signal.relevance) * 100, 0) / repoSignals.length)
+    : 0
+  const researchCompleteness = Math.round(clamp(numberValue(live?.summary?.researchCompleteness)))
+  const evidenceBonus = Math.min(5,
+    repos.length * 1.5 + Math.min(2, repoSignals.filter((signal) => (signal.inspection?.sourceFilesSampled || 0) >= 2).length * 0.5),
+  )
+  const qualityScore = Math.round(clamp(
+    researchCompleteness * 0.25 + capabilityCoverage * 0.35 + averageInspection * 0.25 + averageRepositoryRelevance * 0.15 + evidenceBonus,
+  ))
+  const relevantSignals = researchSignals(input).filter((signal) =>
+    signal.kind !== 'github-source-proof' && numberValue(signal.relevance) >= 0.68,
+  )
+  const rejectedSignals = Math.round(numberValue(live?.summary?.rejectedSignalCount))
+  const gatePassed = qualityScore >= 90 && repos.length >= 2 && capabilityCoverage >= 75 && averageInspection >= 65 && Boolean(recommended)
+  const band: FactoryManagerV10Report['recommendationQuality']['band'] = gatePassed
+    ? 'High'
+    : qualityScore >= 75
+      ? 'Medium'
+      : 'Needs more evidence'
+  const sourceLinks: Array<{ label: string; url: string; kind: string }> = repoSignals
+    .flatMap((signal) => signal.inspection?.sourceLinks || [])
+    .filter((link, index, all) => all.findIndex((item) => item.url === link.url) === index)
+    .slice(0, 50)
+  const architecturePatterns: string[] = Array.isArray(live?.architecturePatterns)
+    ? live.architecturePatterns.filter((value: unknown): value is string => typeof value === 'string' && Boolean(value.trim())).slice(0, 16)
+    : Array.from(new Set<string>(repoSignals.flatMap((signal) => signal.inspection?.architectureHints || []))).slice(0, 16)
+
+  const result: FactoryManagerV12Report = {
+    ...base,
+    engineVersion: '12.0',
+    repoExplainers: repos,
+    compositionSuggestions: plans,
+    recommendationQuality: {
+      targetRelevance: 90,
+      score: qualityScore,
+      band,
+      relevantSignals: relevantSignals.length,
+      rejectedSignals,
+      repositoriesConsidered: Math.round(numberValue(live?.summary?.repositoriesDiscovered, base.recommendationQuality.repositoriesConsidered)),
+      repositoriesQualified: repos.length,
+      explanation: gatePassed
+        ? '90% recommendation gate passed: source choices are backed by code-aware GitHub inspection, direct specialized-capability coverage and reproducible source links. Executable build/security/outcome checks are still required.'
+        : `Recommendation remains locked at ${qualityScore}%. Deep research found ${repos.length} source-qualified repository candidate(s) covering ${capabilityCoverage}% of specialized capabilities. The factory will not pad the plan with unrelated repositories just to show three options.`,
+    },
+    managerVerdict: {
+      ...base.managerVerdict,
+      decision: !gatePassed
+        ? 'RESEARCH_MORE'
+        : recommended && recommended.estimatedFit >= 88 && recommended.confidence >= 85 && recommended.capabilityCoverage >= 85
+          ? 'GO'
+          : 'GO_WITH_GUARDS',
+      estimatedFeasibility: recommended?.estimatedFit || 0,
+      confidence: gatePassed ? recommended?.confidence || qualityScore : Math.min(69, recommended?.confidence || qualityScore),
+      summary: gatePassed && recommended
+        ? `${recommended.customerTitle} passed the 90% research-quality gate with ${recommended.capabilityCoverage}% specialized capability coverage. Every selected repository has direct README/source proof and remains replaceable behind product-owned adapters.`
+        : `The factory deliberately rejected weak or unrelated sources. Current research quality is ${qualityScore}%, below the 90% source-lock threshold, so approval/build remains blocked until stronger direct evidence is found.`,
+      reasons: recommended?.whyThisCombination || [
+        'No build-ready composition is emitted until repositories prove requested specialized capabilities in inspected documentation/source.',
+        `Current direct specialized capability coverage is ${capabilityCoverage}%.`,
+        `${rejectedSignals} weak or unrelated research candidate(s) were rejected.`,
+      ],
+      riskFlags: [
+        ...base.managerVerdict.riskFlags.filter((item) => !/evidence quality/i.test(item)),
+        ...(!gatePassed ? ['The strict 90% research gate has not passed; do not lock or build from the current source set.'] : []),
+        ...(requested.some((item: string) => /self|memory|learning/i.test(item))
+          ? ['Self-improvement must use versioned skills/memory with evaluation and rollback, not unrestricted self-modifying production code.']
+          : []),
+      ],
+      humanChecks: [
+        'Confirm the AI-understood outcome and specialized capability list.',
+        'Open source-proof links for the recommended repositories before approval.',
+        'Approve only after the 90% research gate passes and the exact source set is acceptable.',
+      ],
+    },
+    sourceIntelligence: {
+      ...base.sourceIntelligence,
+      signalCount: relevantSignals.length,
+      sourcesWithResults: new Set(relevantSignals.map((signal) => signal.source)).size,
+      topSignals: researchSignals(input)
+        .filter((signal) => numberValue(signal.relevance) >= 0.62)
+        .sort((a, b) => numberValue(b.relevance) - numberValue(a.relevance))
+        .slice(0, 24) as any,
+      rejectedSignalCount: rejectedSignals,
+      averageRelevance: averageRepositoryRelevance,
+      githubCandidates: repos.length,
+    },
+    researchProof: {
+      gateTarget: 90,
+      gatePassed,
+      researchCompleteness,
+      capabilityCoverage,
+      averageInspection,
+      averageRepositoryRelevance,
+      inspectedRepositories: Math.round(numberValue(live?.summary?.repositoriesInspected, repoSignals.length)),
+      qualifiedRepositories: repos.length,
+      sourceLinks,
+      architecturePatterns,
+      explanation: gatePassed
+        ? 'Direct capability evidence, code-aware inspection and coverage are strong enough to present a source-locked recommendation.'
+        : 'More direct source evidence is required. Generic frameworks and repositories that only share keywords with the request are intentionally excluded.',
+    },
+    idePrompt: base.idePrompt,
+  }
+
+  result.idePrompt = implementationPrompt(text(input.idea) || result.idea, recommended, result, signalByName)
+  return result
+}
