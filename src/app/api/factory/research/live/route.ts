@@ -13,6 +13,40 @@ function clamp(value: number, min = 0, max = 1) {
   return Math.min(max, Math.max(min, Number.isFinite(value) ? value : 0))
 }
 
+const EXPERT_SEED_GROUPS: Array<{ pattern: RegExp; repos: string[] }> = [
+  {
+    pattern: /desktop|computer[- ]?use|windows app|screen control|mouse|keyboard|rpa|vision|screenshot|gui/i,
+    repos: ['microsoft/UFO', 'bytedance/UI-TARS-desktop', 'OpenAdaptAI/OpenAdapt'],
+  },
+  {
+    pattern: /powerpoint|pptx|presentation/i,
+    repos: ['gitbrent/PptxGenJS', 'scanny/python-pptx'],
+  },
+  {
+    pattern: /excel|xlsx|spreadsheet|workbook|worksheet/i,
+    repos: ['xlwings/xlwings', 'exceljs/exceljs', 'jmcnamara/XlsxWriter'],
+  },
+  {
+    pattern: /word document|docx|microsoft word|office document/i,
+    repos: ['python-openxml/python-docx'],
+  },
+  {
+    pattern: /browser|website|web automation|playwright|selenium/i,
+    repos: ['browser-use/browser-use', 'microsoft/playwright'],
+  },
+  {
+    pattern: /autonomous|agentic|self[- ]?evolving|self[- ]?improv|plan task|workflow|orchestration/i,
+    repos: ['langchain-ai/langgraph', 'microsoft/autogen'],
+  },
+]
+
+function expertSeedsForIdea(idea: string) {
+  const ordered = EXPERT_SEED_GROUPS
+    .filter((group) => group.pattern.test(idea))
+    .flatMap((group) => group.repos)
+  return [...new Set(ordered)].slice(0, 8)
+}
+
 function repositoryName(signal: DeepResearchSignalV12) {
   return String(signal.repository?.fullName || signal.title || '').trim()
 }
@@ -215,8 +249,28 @@ export async function POST(request: NextRequest) {
         .slice(0, 8)
       : []
 
-    const research = await runDeepResearchV12(idea, graph, repos)
-    return NextResponse.json(applyRunnableGuard(research))
+    const expertSeeds = expertSeedsForIdea(idea)
+    const seedRepos = [...new Set([...expertSeeds, ...repos])].slice(0, 8)
+    const research = await runDeepResearchV12(idea, graph, seedRepos)
+    const guarded = applyRunnableGuard(research)
+    const githubAuthenticated = Boolean(process.env.GITHUB_TOKEN)
+
+    return NextResponse.json({
+      ...guarded,
+      researchRuntime: {
+        mode: 'expert-source-proof',
+        githubAuthenticated,
+        suppliedSeedRepositories: repos.length,
+        expertSeedRepositories: expertSeeds,
+        effectiveSeedRepositories: seedRepos,
+        githubRequestBudget: githubAuthenticated ? 'authenticated' : 'public-rate-limited',
+        guidance: guarded.summary.githubCandidates > 0
+          ? 'Repository evidence passed deep source and runnable-code qualification.'
+          : githubAuthenticated
+            ? 'No repository passed the strict evidence gates. Expand the brief or inspect the rejected capability gaps.'
+            : 'GitHub research is using the public rate limit. Configure GITHUB_TOKEN for deeper inspection before treating zero qualified repositories as a strong conclusion.',
+      },
+    })
   } catch (error) {
     return NextResponse.json(
       { success: false, error: error instanceof Error ? error.message : 'Deep product research failed' },
