@@ -18,13 +18,6 @@ from intelligence.prompt_utils import as_dict, as_list, as_str
 from llm.provider import LLMProvider
 
 
-_TEXT_EXTENSIONS = {
-    ".py", ".pyi", ".ts", ".tsx", ".js", ".jsx", ".json", ".md", ".txt",
-    ".toml", ".yaml", ".yml", ".ini", ".cfg", ".env", ".html", ".css",
-    ".scss", ".sql", ".sh", ".ps1", ".dockerfile",
-}
-
-
 def _flatten_tasks(execution_plan: dict[str, Any]) -> list[dict[str, Any]]:
     """Convert milestone strings into task objects understood by ExecutionAgent."""
     tasks: list[dict[str, Any]] = []
@@ -78,6 +71,25 @@ def _seed_tasks(
             ),
         },
     ]
+
+
+def _folder_entries(blueprint: dict[str, Any]) -> list[str]:
+    """Normalize blueprint folder paths for FSSimulator.create_structure.
+
+    Product blueprints describe directories as ``apps/api`` rather than
+    ``apps/api/``. Mark those entries explicitly as directories while leaving
+    obvious files alone if a future blueprint includes them.
+    """
+    known_files = {"Dockerfile", "Makefile", "Procfile", "README", "LICENSE"}
+    normalized: list[str] = []
+    for raw in as_list(blueprint.get("folder_structure")):
+        value = as_str(raw).strip().replace("\\", "/")
+        if not value:
+            continue
+        name = value.rstrip("/").split("/")[-1]
+        looks_like_file = "." in name or name in known_files
+        normalized.append(value if looks_like_file or value.endswith("/") else f"{value}/")
+    return normalized
 
 
 def _verify_python(path: Path) -> dict[str, Any]:
@@ -172,7 +184,7 @@ async def build_approved_product(
 ) -> dict[str, Any]:
     """Generate all planned implementation tasks and verify the persisted workspace."""
     agent = get_execution_agent(run_id, provider)
-    folders = [as_str(item) for item in as_list(blueprint.get("folder_structure")) if as_str(item)]
+    folders = _folder_entries(blueprint)
     if folders:
         agent.simulator.create_structure(folders)
 
