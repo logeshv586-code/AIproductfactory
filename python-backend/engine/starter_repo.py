@@ -12,7 +12,7 @@ async def generate_starter_repo(
     architecture: dict[str, Any],
     provider: Optional[LLMProvider] = None,
 ) -> dict[str, Any]:
-    """Generate a complete starter repo blueprint with correctly named content."""
+    """Generate a complete starter repo blueprint with explicit content fields."""
     if provider is None:
         provider = get_provider()
 
@@ -23,15 +23,17 @@ async def generate_starter_repo(
     readme = await _generate_readme(product, architecture, provider)
     folder_structure = _generate_folder_structure(product_name, components, tech_stack)
     main_py_content = _generate_main_py(product_name, components, tech_stack)
-    docker_compose_yaml = _generate_docker_compose(product_name)
+    compose_yaml = _generate_docker_compose(product_name)
     env_example = _generate_env_example(product_name, components)
 
     return {
         "readme_content": readme,
         "folder_structure": folder_structure,
         "main_py_content": main_py_content,
-        "docker_compose_yaml": docker_compose_yaml,
-        "compose_yaml": docker_compose_yaml,
+        # Deprecated compatibility alias. The legacy engine still reads this
+        # key when writing main.py; new code must use main_py_content.
+        "docker_compose_yaml": main_py_content,
+        "compose_yaml": compose_yaml,
         "env_example": env_example,
     }
 
@@ -149,7 +151,7 @@ def _generate_main_py(
 
 
 def _generate_docker_compose(product_name: str) -> str:
-    """Generate Docker Compose YAML; this content is never placed in main.py."""
+    """Generate Docker Compose YAML under the explicit compose_yaml field."""
     service = product_name.lower().replace(" ", "-").replace("_", "-") or "app"
     return f"""services:
   {service}:
