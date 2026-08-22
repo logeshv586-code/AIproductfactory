@@ -1,8 +1,9 @@
 """Autonomous approved-product build runner.
 
 Turns the approved Product Knowledge Graph execution plan into an actual workspace,
-asks the existing ExecutionAgent to implement each task, and applies deterministic
-verification gates before the Product Factory reports the build as complete.
+asks the existing ExecutionAgent to implement each milestone, and applies
+deterministic verification gates before the Product Factory reports the build as
+complete.
 
 The runner intentionally does not install arbitrary dependencies during an API
 request. Generated dependency manifests are verified for presence, while compile,
@@ -28,7 +29,7 @@ from intelligence.prompt_utils import as_dict, as_list, as_str
 from llm.provider import LLMProvider
 
 
-_MAX_TASKS = 14
+_MAX_MILESTONES = 6
 _MAX_COMMAND_SECONDS = 120
 
 
@@ -60,23 +61,31 @@ def _project_context(graph: dict[str, Any], live_sources: dict[str, Any] | None 
 
 
 def _milestone_tasks(execution_plan: dict[str, Any]) -> list[dict[str, Any]]:
-    tasks: list[dict[str, Any]] = []
+    """Collapse each milestone into one coherent implementation pass."""
+    milestones: list[dict[str, Any]] = []
     for milestone_index, milestone in enumerate(as_list(execution_plan.get("milestones")), start=1):
         md = as_dict(milestone)
         milestone_title = as_str(md.get("title")) or f"Milestone {milestone_index}"
-        for task_index, raw in enumerate(as_list(md.get("tasks")), start=1):
+        lines: list[str] = []
+        for raw in as_list(md.get("tasks")):
             if isinstance(raw, dict):
-                task = dict(raw)
-                task.setdefault("title", as_str(raw.get("name")) or f"{milestone_title} task {task_index}")
-                task.setdefault("description", as_str(raw.get("description")) or as_str(raw.get("summary")))
+                title = as_str(raw.get("title")) or as_str(raw.get("name"))
+                detail = as_str(raw.get("description")) or as_str(raw.get("summary"))
+                text = f"{title}: {detail}" if title and detail and title != detail else (title or detail)
             else:
                 text = as_str(raw)
-                if not text:
-                    continue
-                task = {"title": text, "description": text}
-            task["milestone"] = milestone_title
-            tasks.append(task)
-    return tasks[:_MAX_TASKS]
+            if text:
+                lines.append(text)
+        if not lines:
+            lines = [f"Implement and integrate the {milestone_title} deliverables from the approved architecture."]
+        milestones.append(
+            {
+                "title": f"Implement milestone: {milestone_title}",
+                "description": "Complete all of these milestone tasks in one consistent code update:\n- " + "\n- ".join(lines),
+                "milestone": milestone_title,
+            }
+        )
+    return milestones[:_MAX_MILESTONES]
 
 
 def _seed_files(agent: ExecutionAgent, graph: dict[str, Any]) -> None:
