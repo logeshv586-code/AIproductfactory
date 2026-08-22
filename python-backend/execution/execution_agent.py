@@ -103,3 +103,16 @@ def get_execution_agent(workspace_id: str, provider: Optional[LLMProvider] = Non
     if workspace_id not in _agents:
         _agents[workspace_id] = ExecutionAgent(workspace_id, provider)
     return _agents[workspace_id]
+
+
+# Main imports engine.pipeline before importing PiOrchestrator. engine.pipeline
+# imports this module, so installing here upgrades the class before FastAPI binds
+# /pi/approve. The installer is idempotent and keeps the integration isolated.
+try:
+    from execution.pi_integration import install_pi_build_bridge
+
+    install_pi_build_bridge()
+except Exception as exc:
+    # Never make the legacy pipeline unimportable because an optional bridge
+    # failed to install; /pipeline/approve still has its direct build wiring.
+    print(f"[Execution] PI build integration unavailable: {exc}")
