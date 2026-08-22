@@ -98,7 +98,6 @@ class PipelineOrchestrator:
         # STEP 3: Graphify (Knowledge Graph Construction)
         # ═══════════════════════════════════════════════════════════════════
         self._log("Graphify", "Building capability knowledge graph")
-        # Build initial graph with just repos and capabilities (products added after scoring)
         initial_graph = build_graph(analyzed_repos, capabilities, [])
         graph_stats = get_graph_stats(initial_graph)
 
@@ -114,7 +113,6 @@ class PipelineOrchestrator:
         else:
             raw_products = await generate_products(capabilities, strategy, user_input, self.provider)
 
-        # Design architecture for each product
         products_with_arch = []
         for product in raw_products:
             self._log("ArchitectureDesign", f"Designing architecture for {product.get('name', '')}")
@@ -136,7 +134,6 @@ class PipelineOrchestrator:
         self._log("Scoring", "Scoring and ranking products")
         ranked_products = rank_products(products_with_arch, selected_repos, capabilities)
 
-        # Rebuild graph with scored products
         final_graph = build_graph(analyzed_repos, capabilities, ranked_products)
         graph_stats = get_graph_stats(final_graph)
 
@@ -199,7 +196,7 @@ class PipelineOrchestrator:
         # ═══════════════════════════════════════════════════════════════════
         self._log("StarterRepoGeneration", "Generating starter repo blueprint")
         starter_blueprints = []
-        for product in ranked_products[:3]:  # Top 3 products get full blueprints
+        for product in ranked_products[:3]:
             try:
                 if product.get("architecture"):
                     blueprint = await generate_starter_repo(
@@ -218,25 +215,27 @@ class PipelineOrchestrator:
                         "blueprints_generated": len(starter_blueprints)})
 
         # ═══════════════════════════════════════════════════════════════════
-        # STEP 6.5: Automated Execution (Implementation)
+        # STEP 6.5: Automated Execution (Legacy starter path)
         # ═══════════════════════════════════════════════════════════════════
         if ranked_products and ranked_products[0].get("starter_blueprint"):
-            self._log("Execution", "Automatically implementing starter repository on disk")
+            self._log("Execution", "Persisting explicit runnable starter files on disk")
             try:
                 top_product = ranked_products[0]
                 blueprint = top_product["starter_blueprint"]
                 workspace_id = f"build_{int(time.time())}"
                 agent = get_execution_agent(workspace_id, self.provider)
-                
-                # Initialize structure
                 agent.simulator.create_structure(blueprint.get("folder_structure", []))
-                
-                # Write core files
-                agent.simulator.write_file("SKILL.md", blueprint.get("readme_content", ""))
-                agent.simulator.write_file("main.py", blueprint.get("docker_compose_yaml", "")) # reusing this field or a new one
-                agent.simulator.write_file(".env.example", blueprint.get("env_example", ""))
-                
-                self._log("Execution", f"Starter code for '{top_product['name']}' saved to output/{workspace_id}")
+
+                root_dir = str(blueprint.get("root_dir") or "").strip("/\\")
+                prefix = f"{root_dir}/" if root_dir else ""
+                agent.simulator.write_file(f"{prefix}README.md", blueprint.get("readme_content", ""))
+                agent.simulator.write_file(f"{prefix}main.py", blueprint.get("main_py_content", ""))
+                agent.simulator.write_file(f"{prefix}requirements.txt", blueprint.get("requirements_content", ""))
+                agent.simulator.write_file(f"{prefix}Dockerfile", blueprint.get("dockerfile_content", ""))
+                agent.simulator.write_file(f"{prefix}docker-compose.yml", blueprint.get("docker_compose_yaml", ""))
+                agent.simulator.write_file(f"{prefix}.env.example", blueprint.get("env_example", ""))
+
+                self._log("Execution", f"Starter code for '{top_product['name']}' saved to output/{workspace_id}/{root_dir}")
             except Exception as e:
                 self._log("Execution", f"Automatic execution failed: {e}")
 
@@ -248,7 +247,6 @@ class PipelineOrchestrator:
             v_memory = get_vector_memory()
             g_memory = get_graph_memory()
 
-            # Index Repos
             repo_docs = []
             for repo in selected_repos:
                 repo_id = repo.get("full_name", repo.get("name", ""))
@@ -258,7 +256,6 @@ class PipelineOrchestrator:
                 })
                 g_memory.add_node(repo_id, repo_id, "repo", {"description": repo.get("description")})
 
-            # Index Products
             product_docs = []
             for product in ranked_products:
                 prod_id = f"prod_{product['name'].replace(' ', '_')}"
@@ -267,14 +264,13 @@ class PipelineOrchestrator:
                     "metadata": {"id": prod_id, "type": "product", "name": product["name"]}
                 })
                 g_memory.add_node(prod_id, product["name"], "product", {"description": product["description"]})
-                
-                # Link product to repos it uses
+
                 for repo in selected_repos:
                     repo_id = repo.get("full_name", repo.get("name", ""))
                     g_memory.add_edge(prod_id, repo_id, "USES", "uses_repo")
 
             await v_memory.add_documents(repo_docs + product_docs)
-            
+
         except Exception as e:
             print(f"[Pipeline] Knowledge persistence error: {e}")
 
@@ -293,7 +289,6 @@ class PipelineOrchestrator:
 
         self._log("COMPLETE", f"Pipeline finished: {len(ranked_products)} products, {capability_engine['stats']['total_nodes']} graph nodes")
 
-        # ── Build final result ───────────────────────────────────────────
         result = {
             "intent": intent,
             "selected_repos": [
