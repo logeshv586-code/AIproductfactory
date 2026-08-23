@@ -1,6 +1,12 @@
 name: Daily Product Factory Proof
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/daily-product-proof.yml'
+      - 'scripts/daily-product-proof.mjs'
+      - 'docs/DAILY_PRODUCT_PROOF.md'
   schedule:
     # 08:00 Asia/Kolkata every day (02:30 UTC)
     - cron: '30 2 * * *'
