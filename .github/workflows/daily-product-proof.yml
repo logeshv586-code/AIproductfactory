@@ -1,0 +1,148 @@
+name: Daily Product Factory Proof
+
+on:
+  schedule:
+    # 08:00 Asia/Kolkata every day (02:30 UTC)
+    - cron: '30 2 * * *'
+  workflow_dispatch:
+    inputs:
+      idea:
+        description: Optional product idea override. Leave blank to discover a real public problem.
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-product-factory-proof
+  cancel-in-progress: false
+
+jobs:
+  proof:
+    name: Discover problem, build product, publish evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: python-backend/requirements.txt
+
+      - name: Install application dependencies
+        run: |
+          npm ci
+          pip install -r python-backend/requirements.txt
+
+      - name: Build current Product Factory
+        env:
+          DATABASE_URL: file:./db/custom.db
+          PYTHON_BACKEND_URL: http://127.0.0.1:8001
+        run: npm run build
+
+      - name: Start current Python and Next.js runtimes
+        env:
+          LLM_PROVIDER: local
+          PYTHON_BACKEND_PORT: '8001'
+          PYTHON_BACKEND_URL: http://127.0.0.1:8001
+          DATABASE_URL: file:./db/custom.db
+          GITHUB_TOKEN: ${{ github.token }}
+          HOSTNAME: 127.0.0.1
+          PORT: '3000'
+        run: |
+          (cd python-backend && python runtime_entry.py > ../python-daily-proof.log 2>&1) &
+          echo $! > python-daily-proof.pid
+          node .next/standalone/server.js > next-daily-proof.log 2>&1 &
+          echo $! > next-daily-proof.pid
+
+          for i in $(seq 1 90); do
+            if curl -fsS http://127.0.0.1:3000/api/health/python >/dev/null 2>&1; then
+              echo "Product Factory is ready"
+              exit 0
+            fi
+            sleep 1
+          done
+
+          echo "Product Factory did not become ready"
+          tail -n 250 python-daily-proof.log || true
+          tail -n 250 next-daily-proof.log || true
+          exit 1
+
+      - name: Run real-problem daily product proof
+        id: daily_proof
+        env:
+          FACTORY_BASE_URL: http://127.0.0.1:3000
+          GITHUB_TOKEN: ${{ github.token }}
+          FACTORY_DAILY_IDEA: ${{ inputs.idea }}
+          DAILY_PROOF_DIR: proof/daily
+          DAILY_PROOF_LOOKBACK_DAYS: '7'
+        shell: bash
+        run: |
+          set +e
+          node scripts/daily-product-proof.mjs
+          code=$?
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload proof and runtime logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-product-proof-${{ github.run_id }}
+          if-no-files-found: warn
+          path: |
+            proof/daily/
+            python-daily-proof.log
+            next-daily-proof.log
+
+      - name: Commit dated proof report
+        if: always()
+        shell: bash
+        run: |
+          if [ ! -d proof/daily ]; then
+            echo "No proof directory was produced"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add proof/daily
+
+          if git diff --cached --quiet; then
+            echo "No proof changes to commit"
+            exit 0
+          fi
+
+          git commit -m "proof: daily Product Factory evidence $(date -u +%F)"
+          git push
+
+      - name: Stop services
+        if: always()
+        run: |
+          kill $(cat python-daily-proof.pid) 2>/dev/null || true
+          kill $(cat next-daily-proof.pid) 2>/dev/null || true
+
+      - name: Enforce proof result
+        if: always()
+        shell: bash
+        run: |
+          code='${{ steps.daily_proof.outputs.exit_code }}'
+          if [ -z "$code" ]; then
+            echo "Daily proof did not run to completion"
+            exit 1
+          fi
+          if [ "$code" != "0" ]; then
+            echo "Daily proof reported FAILED. See the committed report/artifact."
+            exit "$code"
+          fi
