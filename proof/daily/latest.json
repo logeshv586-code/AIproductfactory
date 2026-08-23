@@ -1,0 +1,39 @@
+{
+  "date": "2026-08-23",
+  "status": "VERIFIED_GUARDRAIL",
+  "claim": "NOT CLAIMED: On 2026-08-23, the research/build gate correctly stayed closed because the evidence threshold was not met. No end-to-end product-build claim is published for this run.",
+  "problem": {
+    "source": "Hacker News",
+    "title": "Show HN: Make your logo extra bright on HDR screens",
+    "excerpt": "Certain logos started standing out to me on LinkedIn as brighter&#x2F;whiter than everything else around them. I dug in and found out this is accomplished by adding a gain-map to an existing JPEG, visible only on HDR screens like a newer MacBook Pro. LinkedIn is the only social…",
+    "url": "https://news.ycombinator.com/item?id=49402521",
+    "engagement": 149,
+    "publishedAt": "2026-08-22T18:43:03Z",
+    "score": 47.2
+  },
+  "idea": "Build a practical end-to-end product for people affected by this real public problem: \"Show HN: Make your logo extra bright on HDR screens\". Evidence context: Certain logos started standing out to me on LinkedIn as brighter&#x2F;whiter than everything else around them. I dug in and found out this is accomplished by adding a gain-map to an existing JPEG, visible only on HDR screens like a newer MacBook Pro. LinkedIn is the only social… The product should reduce manual effort, make the main workflow simple for non-experts, provide measurable completion or verification, and prefer reliable integrations over a thin single-feature demo.",
+  "sourceResults": [
+    {
+      "source": "Hacker News",
+      "ok": true,
+      "count": 40
+    },
+    {
+      "source": "Stack Overflow",
+      "ok": true,
+      "count": 40
+    },
+    {
+      "source": "GitHub Issues",
+      "ok": true,
+      "count": 40
+    }
+  ],
+  "candidateCount": 104,
+  "researchGatePassed": false,
+  "recommendationQuality": 72,
+  "selectedPlan": null,
+  "pipelineVerified": false,
+  "verification": {},
+  "error": null
+}
