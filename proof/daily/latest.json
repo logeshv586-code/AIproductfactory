@@ -1,7 +1,7 @@
 {
-  "date": "2026-08-23",
+  "date": "2026-08-24",
   "status": "VERIFIED_GUARDRAIL",
-  "claim": "NOT CLAIMED: On 2026-08-23, the research/build gate correctly stayed closed because the evidence threshold was not met. No end-to-end product-build claim is published for this run.",
+  "claim": "NOT CLAIMED: On 2026-08-24, the research/build gate correctly stayed closed because the evidence threshold was not met. No end-to-end product-build claim is published for this run.",
   "problem": {
     "source": "Hacker News",
     "title": "Show HN: Make your logo extra bright on HDR screens",
