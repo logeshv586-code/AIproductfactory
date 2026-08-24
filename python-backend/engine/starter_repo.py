@@ -1,9 +1,10 @@
 """
-Starter Repo Generator — Generates a starter codebase blueprint
-including README, folder structure, and docker-compose.yml.
+Starter Repo Generator — generates a small runnable starter codebase blueprint
+including README, source entrypoint, dependency manifest, Docker assets, and env.
 """
 
 from typing import Any, Optional
+
 from llm.provider import LLMProvider, get_provider
 
 
@@ -12,39 +13,30 @@ async def generate_starter_repo(
     architecture: dict[str, Any],
     provider: Optional[LLMProvider] = None,
 ) -> dict[str, Any]:
-    """
-    Generate a complete starter repo blueprint for a product.
-
-    Returns:
-      - readme_content: Full README.md content
-      - folder_structure: List of files/directories to create
-      - docker_compose_yaml: docker-compose.yml content
-      - env_example: .env.example content
-    """
+    """Generate an explicit starter-repository file contract."""
     if provider is None:
         provider = get_provider()
 
     product_name = product.get("name", "my-product")
     tech_stack = architecture.get("tech_stack", ["Python", "FastAPI", "Docker"])
     components = architecture.get("components", [])
-    deployment = architecture.get("deployment", "docker-compose")
 
-    # Generate README
     readme = await _generate_readme(product, architecture, provider)
-
-    # Generate folder structure
     folder_structure = _generate_folder_structure(product_name, components, tech_stack)
-
-    # Generate main.py
     main_py_content = _generate_main_py(product_name, components, tech_stack)
-
-    # Generate .env.example
     env_example = _generate_env_example(product_name, components)
+    docker_compose_yaml = _generate_docker_compose(product_name)
+    dockerfile_content = _generate_dockerfile()
+    requirements_content = _generate_requirements(tech_stack)
 
     return {
+        "root_dir": product_name.lower().replace(" ", "-"),
         "readme_content": readme,
         "folder_structure": folder_structure,
-        "docker_compose_yaml": main_py_content, # Reusing the field name for compatibility
+        "main_py_content": main_py_content,
+        "docker_compose_yaml": docker_compose_yaml,
+        "dockerfile_content": dockerfile_content,
+        "requirements_content": requirements_content,
         "env_example": env_example,
     }
 
@@ -63,7 +55,7 @@ async def _generate_readme(
     data_flows = architecture.get("data_flows", [])
     deployment = architecture.get("deployment", "docker-compose")
 
-    readme = f"""# {name}
+    return f"""# {name}
 
 {description}
 
@@ -87,54 +79,25 @@ async def _generate_readme(
 
 ## Getting Started
 
-### Prerequisites
-
-- Docker and Docker Compose
-- Python 3.11+
-- Node.js 20+ (if frontend included)
-
-### Quick Start
-
 ```bash
-# Clone the repository
-git clone https://github.com/your-org/{name.lower().replace(' ', '-')}.git
-cd {name.lower().replace(' ', '-')}
-
-# Copy environment variables
 cp .env.example .env
-
-# Start services
-docker-compose up -d
-
-# Access the application
-# API: http://localhost:8000
-# Dashboard: http://localhost:3000
+python main.py '{{"hello":"world"}}'
 ```
 
-### Development
+Or with Docker:
 
 ```bash
-# Install dependencies
-pip install -r requirements.txt
-
-# Run development server
-uvicorn app.main:app --reload --port 8000
+docker compose up --build
 ```
 
 ## Deployment
 
-This project uses **{deployment}** for deployment.
-
-```bash
-# Production deployment
-docker-compose -f docker-compose.prod.yml up -d
-```
+Architecture target: **{deployment}**.
 
 ## License
 
 MIT License
 """
-    return readme
 
 
 def _generate_folder_structure(
@@ -142,23 +105,22 @@ def _generate_folder_structure(
     components: list[dict[str, Any]],
     tech_stack: list[str],
 ) -> list[str]:
-    """Generate the folder structure for an MCP skill starter repo."""
+    """Generate the folder structure for the legacy starter path."""
     base = product_name.lower().replace(" ", "-")
-
     folders = [
         f"{base}/",
-        f"{base}/SKILL.md",
+        f"{base}/README.md",
         f"{base}/main.py",
         f"{base}/requirements.txt",
+        f"{base}/Dockerfile",
+        f"{base}/docker-compose.yml",
         f"{base}/.env.example",
     ]
 
-    # Add component-specific files based on capabilities
     for comp in components:
         comp_name = comp.get("name", "").lower().replace(" ", "_")
-        folders.extend([
-            f"{base}/src/{comp_name}.py",
-        ])
+        if comp_name:
+            folders.append(f"{base}/src/{comp_name}.py")
 
     return folders
 
@@ -168,15 +130,53 @@ def _generate_main_py(
     components: list[dict[str, Any]],
     tech_stack: list[str],
 ) -> str:
-    """Generate main.py content for the MCP skill."""
-    
-    imports = "import os\nfrom typing import Any, Dict\n\n"
-    
-    main_func = f'def run_skill(input_data: Dict[str, Any]) -> Dict[str, Any]:\n    """Execute the {product_name} skill."""\n    print("Executing skill...")\n    return {{"status": "success", "message": "Skill executed"}}\n\n'
-    
-    entry_point = 'if __name__ == "__main__":\n    import sys\n    import json\n    \n    input_data = json.loads(sys.argv[1]) if len(sys.argv) > 1 else {}\n    result = run_skill(input_data)\n    print(json.dumps(result))\n'
-    
+    """Generate an executable Python entrypoint."""
+    imports = "from typing import Any, Dict\n\n"
+    main_func = (
+        f'def run_skill(input_data: Dict[str, Any]) -> Dict[str, Any]:\n'
+        f'    """Execute the {product_name} starter."""\n'
+        '    return {"status": "success", "message": "Skill executed", "input": input_data}\n\n'
+    )
+    entry_point = (
+        'if __name__ == "__main__":\n'
+        '    import json\n'
+        '    import sys\n\n'
+        '    input_data = json.loads(sys.argv[1]) if len(sys.argv) > 1 else {}\n'
+        '    result = run_skill(input_data)\n'
+        '    print(json.dumps(result))\n'
+    )
     return imports + main_func + entry_point
+
+
+def _generate_docker_compose(product_name: str) -> str:
+    service = product_name.lower().replace(" ", "-") or "app"
+    return f"""services:
+  {service}:
+    build: .
+    command: python main.py
+    env_file:
+      - .env
+    environment:
+      APP_PORT: ${{APP_PORT:-8000}}
+"""
+
+
+def _generate_dockerfile() -> str:
+    return """FROM python:3.11-slim
+WORKDIR /app
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+COPY . .
+CMD ["python", "main.py"]
+"""
+
+
+def _generate_requirements(tech_stack: list[str]) -> str:
+    lowered = {str(item).lower() for item in tech_stack}
+    requirements: list[str] = []
+    if any("fastapi" in item for item in lowered):
+        requirements.extend(["fastapi>=0.115,<1", "uvicorn>=0.30,<1"])
+    return "\n".join(requirements) + ("\n" if requirements else "")
 
 
 def _generate_env_example(

@@ -21,6 +21,51 @@ class LocalProvider(LLMProvider):
         user = next((m["content"] for m in messages if m.get("role") == "user"), "")
         lowered = system.lower()
 
+        # Autonomous build contract used by ExecutionAgent. Keeping this
+        # deterministic means the full approve -> build -> verify path remains
+        # runnable in CI and when users deliberately select the local mock.
+        if "autonomous senior engineer" in lowered and '"files"' in lowered:
+            if "create runnable project foundation" in lowered:
+                return json.dumps({
+                    "files": [
+                        {
+                            "path": "main.py",
+                            "content": (
+                                '"""Generated Product Factory starter."""\n\n'
+                                'from typing import Any\n\n'
+                                'def run(input_data: dict[str, Any] | None = None) -> dict[str, Any]:\n'
+                                '    return {"status": "ok", "input": input_data or {}}\n\n'
+                                'if __name__ == "__main__":\n'
+                                '    import json\n'
+                                '    print(json.dumps(run()))\n'
+                            ),
+                        },
+                        {"path": "requirements.txt", "content": ""},
+                        {
+                            "path": "tests/test_smoke.py",
+                            "content": (
+                                "from main import run\n\n"
+                                "def test_generated_product_smoke():\n"
+                                "    assert run({\"hello\": \"world\"})[\"status\"] == \"ok\"\n"
+                            ),
+                        },
+                    ],
+                    "summary": "Created deterministic runnable foundation and smoke test",
+                })
+            return json.dumps({
+                "files": [
+                    {
+                        "path": "src/milestones.py",
+                        "content": (
+                            '"""Deterministic milestone implementation used by local/CI mode."""\n\n'
+                            'def implemented() -> bool:\n'
+                            '    return True\n'
+                        ),
+                    }
+                ],
+                "summary": "Implemented milestone in deterministic local mode",
+            })
+
         if "probability scoring" in lowered or "feasibility" in lowered:
             return json.dumps({
                 "feasibility": 0.72,

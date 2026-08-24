@@ -45,8 +45,10 @@ from intelligence.feasibility_engine import evaluate_feasibility
 from intelligence.self_improvement import suggest_improvements
 from intelligence.pipeline import ProductIntelligencePipeline
 from intelligence.pi_orchestrator import PiOrchestrator
-from intelligence.knowledge_graph import run_path as pi_run_path
+from intelligence.knowledge_graph import ProductKnowledgeGraph, run_path as pi_run_path
+from intelligence.live_source_engine import research_live_sources
 from execution.execution_agent import get_execution_agent
+from execution.autonomous_builder import build_approved_product
 from llm.provider import get_provider, LLMProvider
 from llm.router import get_provider_router
 
@@ -166,7 +168,6 @@ async def lifespan(app: FastAPI):
     print(f"[AI Product Builder] GitHub Token: {'set' if os.environ.get('GITHUB_TOKEN') else 'not set'}")
     yield
     print("[AI Product Builder] Shutting down...")
-
 
 
 app = FastAPI(
@@ -424,10 +425,12 @@ class ResearchRequest(BaseModel):
     idea: str
     domain: str
 
+
 class PlanRequest(BaseModel):
     idea: str
     architecture: dict[str, Any]
     repos: list[dict[str, Any]]
+
 
 @app.post("/research/conduct")
 async def conduct_research_endpoint(request: ResearchRequest):
@@ -439,6 +442,7 @@ async def conduct_research_endpoint(request: ResearchRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @app.post("/plan/generate")
 async def generate_plan_endpoint(request: PlanRequest):
     """Generate a structured implementation plan."""
@@ -449,6 +453,7 @@ async def generate_plan_endpoint(request: PlanRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @app.get("/skills/list")
 async def list_skills_endpoint():
     """List all available AI skills."""
@@ -457,6 +462,7 @@ async def list_skills_endpoint():
         return {"success": True, "skills": engine.list_skills()}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.get("/skills/{name}")
 async def get_skill_endpoint(name: str):
@@ -470,8 +476,10 @@ async def get_skill_endpoint(name: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 class ChatRequest(BaseModel):
     message: str
+
 
 @app.post("/knowledge/chat")
 async def knowledge_chat_endpoint(request: ChatRequest):
@@ -483,12 +491,15 @@ async def knowledge_chat_endpoint(request: ChatRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 class FeasibilityRequest(BaseModel):
     architecture: dict[str, Any]
+
 
 class ImprovementRequest(BaseModel):
     product: dict[str, Any]
     feasibility: dict[str, Any]
+
 
 @app.post("/intelligence/feasibility")
 async def evaluate_feasibility_endpoint(request: FeasibilityRequest):
@@ -500,6 +511,7 @@ async def evaluate_feasibility_endpoint(request: FeasibilityRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @app.post("/intelligence/improve")
 async def suggest_improvements_endpoint(request: ImprovementRequest):
     """Suggest architectural refinements for a product."""
@@ -510,9 +522,11 @@ async def suggest_improvements_endpoint(request: ImprovementRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 class ExecutionRequest(BaseModel):
     workspace_id: str
     task: dict[str, Any]
+
 
 @app.post("/execution/run_task")
 async def run_task_endpoint(request: ExecutionRequest):
@@ -523,6 +537,7 @@ async def run_task_endpoint(request: ExecutionRequest):
         return {"success": True, "result": result, "logs": agent.get_logs()}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.get("/execution/logs/{workspace_id}")
 async def get_execution_logs_endpoint(workspace_id: str):
@@ -623,19 +638,91 @@ async def pi_strategize_endpoint(request: PiStrategizeRequest):
 @app.post("/pi/approve")
 async def pi_approve_endpoint(request: PiApproveRequest):
     """
-    Continue from an approved v4 strategy through the engineering agents.
+    Approve a strategy, refresh live multi-source evidence, build the product,
+    and return success only when the generated workspace passes verification.
 
-    Re-loads the persisted Product Knowledge Graph for ``run_id`` and runs
-    deep research, repository composition, multi-view architecture, blueprint,
-    engineering setup, execution plan and the Learning System, returning the
-    complete blueprint.
+    The reasoning orchestrator still owns architecture/composition/engineering.
+    This endpoint adds the missing last mile: live-source evidence is attached
+    to deep research, execution-plan milestones are implemented on disk, and a
+    deterministic verification report gates the final status.
     """
     try:
-        orchestrator = PiOrchestrator()
+        provider = get_provider()
+        orchestrator = PiOrchestrator(provider)
         result = await orchestrator.approve(run_id=request.run_id, strategy_id=request.strategy_id)
         if not result.get("success", True):
             raise HTTPException(status_code=404, detail=result.get("error", "PI approval failed"))
-        return {"success": True, **result}
+
+        graph_payload = result.get("graph") if isinstance(result.get("graph"), dict) else {}
+
+        try:
+            live_sources = await research_live_sources(graph_payload.get("intent", {}))
+        except Exception as live_exc:
+            live_sources = {
+                "signals": [],
+                "summary": {"signal_count": 0, "sources_with_results": 0, "source_counts": {}},
+                "note": f"Live source research degraded gracefully: {live_exc}",
+            }
+
+        stored_graph = ProductKnowledgeGraph.load(pi_run_path(request.run_id))
+        if stored_graph is not None:
+            stored_graph.set("live_sources", live_sources)
+            deep_research = stored_graph.get("deep_research", {})
+            if not isinstance(deep_research, dict):
+                deep_research = {}
+            combined_research = dict(deep_research)
+            combined_research["live_source_signals"] = live_sources.get("signals", [])
+            combined_research["live_source_summary"] = live_sources.get("summary", {})
+            stored_graph.set("deep_research", combined_research)
+            stored_graph.add_trace(
+                "live_sources",
+                "combined GitHub decisions with live non-GitHub evidence",
+                f"{live_sources.get('summary', {}).get('signal_count', 0)} signals across "
+                f"{live_sources.get('summary', {}).get('sources_with_results', 0)} sources",
+            )
+            stored_graph.save(pi_run_path(request.run_id))
+            graph_payload = stored_graph.to_dict()
+
+        try:
+            build = await build_approved_product(
+                request.run_id,
+                graph_payload,
+                provider,
+                live_sources=live_sources,
+            )
+        except Exception as build_exc:
+            build = {
+                "workspace_id": "",
+                "output_path": "",
+                "package_path": "",
+                "status": "failed",
+                "verified": False,
+                "error": str(build_exc),
+                "verification": {"verified": False, "checks": [], "failed_checks": ["build-runner"]},
+            }
+
+        final_status = "complete" if build.get("verified") else "build_failed"
+        stored_graph = ProductKnowledgeGraph.load(pi_run_path(request.run_id))
+        if stored_graph is not None:
+            stored_graph.set("build", build)
+            stored_graph.set("_status", final_status)
+            stored_graph.add_trace(
+                "build",
+                "autonomous implementation and verification",
+                f"{build.get('status')} · {build.get('verification', {}).get('file_count', 0)} files",
+                {"verified": bool(build.get("verified")), "workspace_id": build.get("workspace_id", "")},
+            )
+            stored_graph.save(pi_run_path(request.run_id))
+            graph_payload = stored_graph.to_dict()
+
+        return {
+            **result,
+            "success": bool(build.get("verified")),
+            "status": final_status,
+            "graph": graph_payload,
+            "live_sources": live_sources,
+            "build": build,
+        }
     except HTTPException:
         raise
     except Exception as e:
@@ -653,8 +740,6 @@ async def pi_explain_endpoint(request: PiExplainRequest):
     the confidence of each node and the self-critique. This endpoint renders
     that traceability as plain English — no new LLM call.
     """
-    from intelligence.knowledge_graph import ProductKnowledgeGraph
-
     graph = ProductKnowledgeGraph.load(pi_run_path(request.run_id))
     if graph is None:
         raise HTTPException(status_code=404, detail=f"run_id {request.run_id} not found")
@@ -758,7 +843,6 @@ async def pi_tournament_endpoint(run_id: str):
     dimension scores, pairwise comparisons and the decision report. No LLM call.
     """
     try:
-        from intelligence.knowledge_graph import ProductKnowledgeGraph
         graph = ProductKnowledgeGraph.load(pi_run_path(run_id))
         if graph is None:
             raise HTTPException(status_code=404, detail=f"run_id {run_id} not found")
