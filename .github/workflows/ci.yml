@@ -82,6 +82,7 @@ jobs:
           LLM_PROVIDER: local
           PYTHON_BACKEND_PORT: '8001'
           PYTHON_BACKEND_URL: http://127.0.0.1:8001
+          FACTORY_OUTPUT_DIR: ${{ github.workspace }}/python-backend/output
           DATABASE_URL: file:./db/custom.db
           GITHUB_TOKEN: ${{ github.token }}
           HOSTNAME: 127.0.0.1
