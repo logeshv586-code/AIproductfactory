@@ -122,6 +122,14 @@ export async function POST(request: NextRequest) {
     const graphNodes = Array.isArray(result?.capability_graph_engine?.nodes) ? result.capability_graph_engine.nodes : []
     const topProduct = products[0] || null
     const starterBlueprintPresent = Boolean(topProduct?.starter_blueprint)
+    const rawDelivery = result?.delivery || topProduct?.delivery || null
+    const delivery = rawDelivery?.workspaceId
+      ? { ...rawDelivery, downloadUrl: `/api/factory/build/artifact/${encodeURIComponent(String(rawDelivery.workspaceId))}` }
+      : rawDelivery
+    const sourceFiles = Array.isArray(delivery?.sourceFiles) ? delivery.sourceFiles : []
+    const sourcePaths = new Set(sourceFiles.map((file: { path?: string }) => String(file?.path || '')))
+    const deliveryChecks = Array.isArray(delivery?.verification?.checks) ? delivery.verification.checks : []
+    const runtimeServerPassed = deliveryChecks.some((check: { name?: string; passed?: boolean }) => check?.name === 'runtimeServerSmoke' && check?.passed === true)
 
     const verification = {
       approvedRepoLock: repoLockPassed,
@@ -131,6 +139,12 @@ export async function POST(request: NextRequest) {
       capabilityGraphBuilt: graphNodes.length > 0,
       starterBlueprintGenerated: starterBlueprintPresent,
       architectureGenerated: Boolean(topProduct?.architecture),
+      sourceCodeGenerated: Boolean(delivery?.workspaceId) && Number(delivery?.fileCount || 0) >= 8 && sourceFiles.length >= 8,
+      sourceManifestGenerated: sourcePaths.has('SOURCE_MANIFEST.json') && sourcePaths.has('THIRD_PARTY_NOTICES.md'),
+      runtimeProductServerPassed: runtimeServerPassed,
+      demoPreviewGenerated: delivery?.previewSource === 'running-generated-application' && typeof delivery?.previewHtml === 'string' && delivery.previewHtml.includes('Generated build preview'),
+      zipArtifactGenerated: typeof delivery?.artifactName === 'string' && delivery.artifactName.endsWith('.zip') && Number(delivery?.artifactBytes || 0) > 0 && typeof delivery?.downloadUrl === 'string',
+      executableVerificationPassed: delivery?.verification?.passed === true && deliveryChecks.length >= 8,
       pipelineCompleted: Array.isArray(result.timeline) && result.timeline.some((entry: { step?: string }) => entry?.step === 'COMPLETE'),
     }
 
@@ -154,7 +168,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       pipelineVerified,
-      status: pipelineVerified ? 'pipeline_verified' : 'completed_with_unverified_gates',
+      status: pipelineVerified ? 'source_build_verified' : 'completed_with_unverified_gates',
       buildId,
       runId: runId || null,
       strategyId: strategyId || null,
@@ -163,9 +177,12 @@ export async function POST(request: NextRequest) {
       selectedRepos: returnedRepos,
       composedProducts: products,
       graphStats: result.graph_stats || result?.capability_graph_engine?.stats || null,
+      delivery,
       verification,
-      errors: failedGates.length ? [`Unverified pipeline gates: ${failedGates.join(', ')}`] : [],
-      note: 'pipeline_verified means the approved repository lock and Python composition pipeline completed. It does not replace clean-install, runtime, security or end-to-end release verification.',
+      errors: failedGates.length ? [`Unverified build gates: ${failedGates.join(', ')}`] : [],
+      note: pipelineVerified
+        ? 'The approved repository lock, full-source generation, running product server, served UI, generated tests, source manifest and downloadable ZIP artifact all passed for this build.'
+        : 'The approved plan was preserved, but this build is not labeled verified until every executable delivery gate passes.',
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Approved-composition build failed'
