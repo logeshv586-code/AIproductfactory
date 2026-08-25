@@ -22,6 +22,7 @@ from engine.repo_selector import select_best_repos
 from engine.scoring import score_product, rank_products
 from engine.starter_repo import generate_starter_repo
 from execution.execution_agent import get_execution_agent
+from execution.product_builder import build_product_delivery
 from graph.graphify import build_graph, get_graph_stats
 from graph.capability_graph import build_capability_graph_engine
 from memory.vector_memory import get_vector_memory
@@ -53,24 +54,9 @@ class PipelineOrchestrator:
         use_embeddings: bool = True,
         on_progress: Optional[Callable[[dict[str, Any]], None]] = None,
     ) -> dict[str, Any]:
-        """
-        Run the full 6-step pipeline.
-
-        Args:
-            user_input: User's product idea description
-            repos: List of available repos (from GitHub search)
-            strategy: Product generation strategy (crossPollination, gapAnalysis, trendBased, compositionalAI, all)
-            use_embeddings: Whether to use semantic embeddings for capability mapping
-            on_progress: Optional callback for progress updates
-
-        Returns:
-            Complete pipeline result with intent, repos, graph, products, scores, and starter blueprint
-        """
+        """Run the full Product Factory pipeline and return build + delivery evidence."""
         self.timeline = []
 
-        # ═══════════════════════════════════════════════════════════════════
-        # STEP 1: Intent Extraction & Repo Selection
-        # ═══════════════════════════════════════════════════════════════════
         self._log("IntentExtraction", "Extracting user intent and selecting best repos")
         selection_result = await select_best_repos(user_input, repos, self.provider)
         intent = selection_result["intent"]
@@ -79,9 +65,6 @@ class PipelineOrchestrator:
         if on_progress:
             on_progress({"step": "intent_extraction", "status": "complete", "intent": intent})
 
-        # ═══════════════════════════════════════════════════════════════════
-        # STEP 2: Repo Analysis & Capability Mapping
-        # ═══════════════════════════════════════════════════════════════════
         self._log("RepoAnalysis", f"Analyzing {len(selected_repos)} repos")
         analyzed_repos = analyze_repos(selected_repos)
 
@@ -94,27 +77,19 @@ class PipelineOrchestrator:
         if on_progress:
             on_progress({"step": "capability_mapping", "status": "complete", "capabilities": capabilities})
 
-        # ═══════════════════════════════════════════════════════════════════
-        # STEP 3: Graphify (Knowledge Graph Construction)
-        # ═══════════════════════════════════════════════════════════════════
         self._log("Graphify", "Building capability knowledge graph")
-        # Build initial graph with just repos and capabilities (products added after scoring)
         initial_graph = build_graph(analyzed_repos, capabilities, [])
         graph_stats = get_graph_stats(initial_graph)
 
         if on_progress:
             on_progress({"step": "graphify", "status": "complete", "stats": graph_stats})
 
-        # ═══════════════════════════════════════════════════════════════════
-        # STEP 4: Product Composition & Architecture Design
-        # ═══════════════════════════════════════════════════════════════════
         self._log("ProductComposition", f"Generating products with {strategy} strategy")
         if strategy == "all":
             raw_products = await generate_all_strategies(capabilities, user_input, self.provider)
         else:
             raw_products = await generate_products(capabilities, strategy, user_input, self.provider)
 
-        # Design architecture for each product
         products_with_arch = []
         for product in raw_products:
             self._log("ArchitectureDesign", f"Designing architecture for {product.get('name', '')}")
@@ -127,26 +102,20 @@ class PipelineOrchestrator:
             products_with_arch.append(product)
 
         if on_progress:
-            on_progress({"step": "product_composition", "status": "complete",
-                        "product_count": len(products_with_arch)})
+            on_progress({"step": "product_composition", "status": "complete", "product_count": len(products_with_arch)})
 
-        # ═══════════════════════════════════════════════════════════════════
-        # STEP 5: Product Scoring & Ranking
-        # ═══════════════════════════════════════════════════════════════════
         self._log("Scoring", "Scoring and ranking products")
         ranked_products = rank_products(products_with_arch, selected_repos, capabilities)
-
-        # Rebuild graph with scored products
         final_graph = build_graph(analyzed_repos, capabilities, ranked_products)
         graph_stats = get_graph_stats(final_graph)
 
         if on_progress:
-            on_progress({"step": "scoring", "status": "complete",
-                        "top_score": ranked_products[0]["scores"]["final_score"] if ranked_products else 0})
+            on_progress({
+                "step": "scoring",
+                "status": "complete",
+                "top_score": ranked_products[0]["scores"]["final_score"] if ranked_products else 0,
+            })
 
-        # ═══════════════════════════════════════════════════════════════════
-        # STEP 5.5: Research, Feasibility, Execution Plan, Capability Graph
-        # ═══════════════════════════════════════════════════════════════════
         self._log("ResearchIntelligence", "Extracting research-to-implementation signals")
         research_report: dict[str, Any] = {}
         feasibility_report: dict[str, Any] = {}
@@ -194,87 +163,76 @@ class PipelineOrchestrator:
             memory=memory_summary,
         )
 
-        # ═══════════════════════════════════════════════════════════════════
-        # STEP 6: Starter Repo Generation
-        # ═══════════════════════════════════════════════════════════════════
         self._log("StarterRepoGeneration", "Generating starter repo blueprint")
         starter_blueprints = []
-        for product in ranked_products[:3]:  # Top 3 products get full blueprints
+        for product in ranked_products[:3]:
             try:
                 if product.get("architecture"):
-                    blueprint = await generate_starter_repo(
-                        product, product["architecture"], self.provider
-                    )
+                    blueprint = await generate_starter_repo(product, product["architecture"], self.provider)
                     product["starter_blueprint"] = blueprint
-                    starter_blueprints.append({
-                        "product_name": product.get("name", ""),
-                        "blueprint": blueprint,
-                    })
+                    starter_blueprints.append({"product_name": product.get("name", ""), "blueprint": blueprint})
             except Exception as e:
                 print(f"[Pipeline] Starter repo error: {e}")
 
         if on_progress:
-            on_progress({"step": "starter_repo", "status": "complete",
-                        "blueprints_generated": len(starter_blueprints)})
+            on_progress({"step": "starter_repo", "status": "complete", "blueprints_generated": len(starter_blueprints)})
 
-        # ═══════════════════════════════════════════════════════════════════
-        # STEP 6.5: Automated Execution (Implementation)
-        # ═══════════════════════════════════════════════════════════════════
-        if ranked_products and ranked_products[0].get("starter_blueprint"):
-            self._log("Execution", "Automatically implementing starter repository on disk")
+        # The old implementation only wrote three files and accidentally put generated Python
+        # in a legacy docker_compose_yaml field. The verified builder now creates a runnable
+        # source tree, lets engineering agents extend it from the execution plan, performs
+        # deterministic verification/repair passes, generates a demo, and packages the result.
+        delivery: dict[str, Any] | None = None
+        if ranked_products and ranked_products[0].get("starter_blueprint") and ranked_products[0].get("architecture"):
+            self._log("Engineering", "Implementing the approved product plan into full source code")
             try:
                 top_product = ranked_products[0]
-                blueprint = top_product["starter_blueprint"]
-                workspace_id = f"build_{int(time.time())}"
+                workspace_id = f"build_{int(time.time() * 1000)}"
                 agent = get_execution_agent(workspace_id, self.provider)
-                
-                # Initialize structure
-                agent.simulator.create_structure(blueprint.get("folder_structure", []))
-                
-                # Write core files
-                agent.simulator.write_file("SKILL.md", blueprint.get("readme_content", ""))
-                agent.simulator.write_file("main.py", blueprint.get("docker_compose_yaml", "")) # reusing this field or a new one
-                agent.simulator.write_file(".env.example", blueprint.get("env_example", ""))
-                
-                self._log("Execution", f"Starter code for '{top_product['name']}' saved to output/{workspace_id}")
+                delivery = await build_product_delivery(
+                    product=top_product,
+                    architecture=top_product["architecture"],
+                    blueprint=top_product["starter_blueprint"],
+                    execution_plan=execution_plan,
+                    selected_repos=selected_repos,
+                    agent=agent,
+                )
+                top_product["delivery"] = delivery
+                self._log("Execution", f"Full source for '{top_product['name']}' saved to output/{workspace_id}")
+                self._log(
+                    "ExecutionVerification",
+                    f"Build verification {'passed' if delivery.get('verification', {}).get('passed') else 'needs attention'} "
+                    f"at {delivery.get('verification', {}).get('score', 0)}%",
+                )
             except Exception as e:
-                self._log("Execution", f"Automatic execution failed: {e}")
+                self._log("Execution", f"Automatic full-source build failed: {e}")
 
-        # ═══════════════════════════════════════════════════════════════════
-        # STEP 7: Knowledge Persistence (Memory Indexing)
-        # ═══════════════════════════════════════════════════════════════════
         self._log("KnowledgePersistence", "Indexing results into Graph and Vector memory")
         try:
             v_memory = get_vector_memory()
             g_memory = get_graph_memory()
 
-            # Index Repos
             repo_docs = []
             for repo in selected_repos:
                 repo_id = repo.get("full_name", repo.get("name", ""))
                 repo_docs.append({
                     "text": f"Repository: {repo_id}. Description: {repo.get('description')}. Capability: {repo.get('capability')}",
-                    "metadata": {"id": repo_id, "type": "repo", "name": repo_id}
+                    "metadata": {"id": repo_id, "type": "repo", "name": repo_id},
                 })
                 g_memory.add_node(repo_id, repo_id, "repo", {"description": repo.get("description")})
 
-            # Index Products
             product_docs = []
             for product in ranked_products:
                 prod_id = f"prod_{product['name'].replace(' ', '_')}"
                 product_docs.append({
                     "text": f"Product Idea: {product['name']}. Description: {product['description']}. Strategy: {product.get('strategy')}",
-                    "metadata": {"id": prod_id, "type": "product", "name": product["name"]}
+                    "metadata": {"id": prod_id, "type": "product", "name": product["name"]},
                 })
                 g_memory.add_node(prod_id, product["name"], "product", {"description": product["description"]})
-                
-                # Link product to repos it uses
                 for repo in selected_repos:
                     repo_id = repo.get("full_name", repo.get("name", ""))
                     g_memory.add_edge(prod_id, repo_id, "USES", "uses_repo")
 
             await v_memory.add_documents(repo_docs + product_docs)
-            
         except Exception as e:
             print(f"[Pipeline] Knowledge persistence error: {e}")
 
@@ -293,7 +251,6 @@ class PipelineOrchestrator:
 
         self._log("COMPLETE", f"Pipeline finished: {len(ranked_products)} products, {capability_engine['stats']['total_nodes']} graph nodes")
 
-        # ── Build final result ───────────────────────────────────────────
         result = {
             "intent": intent,
             "selected_repos": [
@@ -317,10 +274,10 @@ class PipelineOrchestrator:
             "feasibility_report": feasibility_report,
             "execution_plan": execution_plan,
             "composed_products": ranked_products,
+            "delivery": delivery,
             "timeline": self.timeline,
             "capabilities": capabilities,
         }
-
         return result
 
 
