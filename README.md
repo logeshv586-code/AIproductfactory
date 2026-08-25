@@ -34,22 +34,38 @@
 ## 🎬 Product demo
 
 <p align="center">
-  <video controls playsinline preload="metadata" width="92%" poster="./docs/images/product-studio-v12.svg">
+  <a href="./docs/media/ai-product-factory-demo.mp4">
+    <img src="./docs/images/ai-product-factory-demo-cover-4k.svg" alt="AI Product Factory 4K product demo — Idea to verified source ZIP" width="100%" />
+  </a>
+</p>
+
+<p align="center">
+  <strong>4K / 3840×2160 demo cover — optimized for sharp GitHub rendering</strong>
+</p>
+
+<p align="center">
+  <video controls playsinline preload="metadata" width="100%" poster="./docs/images/ai-product-factory-demo-cover-4k.svg">
     <source src="./docs/media/ai-product-factory-demo.mp4" type="video/mp4" />
   </video>
 </p>
 
+<details>
+<summary><strong>▶ Animated walkthrough preview</strong></summary>
+<br />
 <p align="center">
   <a href="./docs/media/ai-product-factory-demo.mp4">
     <img src="./docs/media/ai-product-factory-demo-preview.gif" alt="Animated AI Product Factory demo preview from the uploaded recording" width="92%" />
   </a>
 </p>
+</details>
 
 <p align="center">
-  <strong><a href="./docs/media/ai-product-factory-demo.mp4">▶ Open the uploaded AI Product Factory demo video</a></strong>
+  <strong><a href="./docs/media/ai-product-factory-demo.mp4">▶ Open the AI Product Factory demo video</a></strong>
+  &nbsp;·&nbsp;
+  <strong><a href="https://www.canva.com/d/qRNYVuCdMvU3emH">🎨 View the 4K Canva design</a></strong>
 </p>
 
-This README uses the actual uploaded Product Factory demo recording. GitHub clients that render HTML5 media can show the player above; clients that suppress embedded video still show the animated preview generated from the same recording. Clicking either the preview or the link opens the MP4. See [`docs/DEMO.md`](./docs/DEMO.md).
+The demo presentation now leads with a 4K high-resolution cover refined at **3840×2160** for crisp text and UI details on GitHub. The animated walkthrough remains available as a secondary preview, and the MP4 stays linked for playback. GitHub clients that suppress embedded HTML5 video will still display the high-resolution cover without the softness of the previous GIF-first layout. See [`docs/DEMO.md`](./docs/DEMO.md).
 
 ---
 
