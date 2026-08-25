@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   BadgeCheck, CheckCircle2, Clipboard, Code2, FileCode2, MonitorPlay,
   PlayCircle, ShieldCheck, Video,
@@ -50,6 +50,46 @@ function cn(...values: Array<string | false | null | undefined>) {
 }
 
 export function FactoryDemoShowcase() {
+  const [demoUrl, setDemoUrl] = useState('')
+  const [demoError, setDemoError] = useState('')
+
+  useEffect(() => {
+    let cancelled = false
+    let objectUrl = ''
+    const parts = Array.from({ length: 6 }, (_, index) =>
+      `/demo/ai-product-factory-demo.part${String(index).padStart(2, '0')}.b64`,
+    )
+
+    Promise.all(parts.map(async (path) => {
+      const response = await fetch(path, { cache: 'force-cache' })
+      if (!response.ok) throw new Error(`Demo asset failed to load (${response.status})`)
+      const raw = atob((await response.text()).trim())
+      const bytes = new Uint8Array(raw.length)
+      for (let index = 0; index < raw.length; index += 1) bytes[index] = raw.charCodeAt(index)
+      return bytes
+    }))
+      .then((chunks) => {
+        if (cancelled) return
+        const total = chunks.reduce((sum, chunk) => sum + chunk.byteLength, 0)
+        const joined = new Uint8Array(total)
+        let offset = 0
+        for (const chunk of chunks) {
+          joined.set(chunk, offset)
+          offset += chunk.byteLength
+        }
+        objectUrl = URL.createObjectURL(new Blob([joined], { type: 'video/mp4' }))
+        setDemoUrl(objectUrl)
+      })
+      .catch((cause) => {
+        if (!cancelled) setDemoError(cause instanceof Error ? cause.message : 'Demo video could not be loaded.')
+      })
+
+    return () => {
+      cancelled = true
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+    }
+  }, [])
+
   return (
     <section className="mx-auto mt-5 max-w-[1440px] px-4 sm:px-6 lg:px-8">
       <details className="group overflow-hidden rounded-[26px] border border-slate-200 bg-white shadow-[0_24px_70px_-48px_rgba(37,99,235,0.35)]">
@@ -58,8 +98,8 @@ export function FactoryDemoShowcase() {
             <div className="rounded-2xl bg-blue-50 p-2.5 text-blue-700"><Video className="h-5 w-5" /></div>
             <div>
               <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-blue-600">Product demo</div>
-              <div className="mt-1 text-lg font-semibold text-slate-950">Watch AI Product Factory from idea to approval</div>
-              <p className="mt-1 text-xs leading-5 text-slate-500">This walkthrough shows the current research, comparison and approval experience before the full-source build starts.</p>
+              <div className="mt-1 text-lg font-semibold text-slate-950">See AI Product Factory from idea to approval</div>
+              <p className="mt-1 text-xs leading-5 text-slate-500">Lightweight highlights created from the uploaded Product Factory walkthrough, embedded directly in the Studio.</p>
             </div>
           </div>
           <div className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700">
@@ -67,10 +107,13 @@ export function FactoryDemoShowcase() {
           </div>
         </summary>
         <div className="border-t border-slate-100 bg-slate-950 p-2 sm:p-4">
-          <video className="aspect-[1.94/1] w-full rounded-2xl bg-black" controls preload="metadata" playsInline>
-            <source src="/demo/ai-product-factory-demo.mp4" type="video/mp4" />
-            Your browser does not support embedded video playback.
-          </video>
+          {demoUrl ? (
+            <video src={demoUrl} className="aspect-[1.94/1] w-full rounded-2xl bg-black" controls preload="metadata" playsInline />
+          ) : (
+            <div className="grid aspect-[1.94/1] w-full place-items-center rounded-2xl bg-black px-5 text-center text-sm text-slate-300">
+              {demoError || 'Preparing the embedded demo…'}
+            </div>
+          )}
         </div>
       </details>
     </section>
