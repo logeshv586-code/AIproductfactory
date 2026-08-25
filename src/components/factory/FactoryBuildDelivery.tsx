@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import {
-  BadgeCheck, CheckCircle2, Clipboard, Code2, FileCode2, MonitorPlay,
+  BadgeCheck, CheckCircle2, Clipboard, Code2, Download, FileCode2, MonitorPlay,
   PlayCircle, ShieldCheck, Video,
 } from 'lucide-react'
 
@@ -24,7 +24,10 @@ type BuildDelivery = {
   fileCount?: number
   sourceFiles?: SourceFile[]
   previewHtml?: string
+  previewSource?: string
   artifactName?: string
+  artifactBytes?: number
+  downloadUrl?: string
   verification?: {
     passed?: boolean
     score?: number
@@ -47,6 +50,14 @@ export type BuildDeliveryEnvelope = {
 
 function cn(...values: Array<string | false | null | undefined>) {
   return values.filter(Boolean).join(' ')
+}
+
+function humanBytes(value?: number) {
+  const bytes = Number(value || 0)
+  if (!bytes) return ''
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
 export function FactoryDemoShowcase() {
@@ -99,7 +110,7 @@ export function FactoryDemoShowcase() {
             <div>
               <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-blue-600">Product demo</div>
               <div className="mt-1 text-lg font-semibold text-slate-950">See AI Product Factory from idea to approval</div>
-              <p className="mt-1 text-xs leading-5 text-slate-500">Lightweight highlights created from the uploaded Product Factory walkthrough, embedded directly in the Studio.</p>
+              <p className="mt-1 text-xs leading-5 text-slate-500">Uploaded Product Factory walkthrough embedded directly in the Studio.</p>
             </div>
           </div>
           <div className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700">
@@ -131,6 +142,7 @@ export default function FactoryBuildDelivery({ result }: { result: BuildDelivery
   const checks = delivery.verification?.checks || []
   const passed = delivery.verification?.passed === true && result.pipelineVerified === true
   const score = delivery.verification?.score ?? 0
+  const runtimePreview = delivery.previewSource === 'running-generated-application'
 
   async function copySelected() {
     if (!selectedFile?.content) return
@@ -150,29 +162,39 @@ export default function FactoryBuildDelivery({ result }: { result: BuildDelivery
             </div>
             <div>
               <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-600">Build delivery workspace</div>
-              <h2 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">Full source, generated demo and verification evidence</h2>
+              <h2 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">Running product, full source and verification evidence</h2>
               <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-500">
-                The coding agents implemented the approved plan inside a locked workspace. Review exactly what was generated before you use or deploy it.
+                The coding agents implemented the approved plan inside a locked workspace. The preview below is captured from the generated application after its server starts and passes health checks.
               </p>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span className={cn('rounded-full border px-3 py-1.5 text-xs font-semibold', passed ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-amber-50 text-amber-700')}>
               {passed ? 'Verified build' : 'Verification needs attention'}
             </span>
             <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-600">{score}% checks</span>
             <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-600">{delivery.fileCount || sourceFiles.length} files</span>
+            {delivery.downloadUrl && (
+              <a href={delivery.downloadUrl} download className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-700">
+                <Download className="h-4 w-4" /> Download full source ZIP{delivery.artifactBytes ? ` · ${humanBytes(delivery.artifactBytes)}` : ''}
+              </a>
+            )}
           </div>
         </div>
 
         <div className="grid gap-0 xl:grid-cols-[1.08fr_0.92fr]">
           <div className="border-b border-slate-100 p-5 sm:p-6 xl:border-b-0 xl:border-r">
-            <div className="mb-4 flex items-center gap-2">
-              <MonitorPlay className="h-4 w-4 text-blue-600" />
-              <div>
-                <div className="text-sm font-semibold text-slate-900">Generated product screen</div>
-                <div className="text-xs text-slate-500">Self-contained preview created from the approved product and architecture.</div>
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <MonitorPlay className="h-4 w-4 text-blue-600" />
+                <div>
+                  <div className="text-sm font-semibold text-slate-900">Actual generated product screen</div>
+                  <div className="text-xs text-slate-500">{runtimePreview ? 'Captured from the running generated application.' : 'Fallback generated UI source; runtime preview did not pass.'}</div>
+                </div>
               </div>
+              <span className={cn('rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em]', runtimePreview ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700')}>
+                {runtimePreview ? 'Runtime served' : 'Fallback'}
+              </span>
             </div>
             {delivery.previewHtml ? (
               <iframe
@@ -192,7 +214,7 @@ export default function FactoryBuildDelivery({ result }: { result: BuildDelivery
                 <Code2 className="h-4 w-4 text-violet-600" />
                 <div>
                   <div className="text-sm font-semibold text-slate-900">Generated source code</div>
-                  <div className="text-xs text-slate-500">Select a file to inspect the exact generated content.</div>
+                  <div className="text-xs text-slate-500">Inspect the exact files included in the downloadable package.</div>
                 </div>
               </div>
               <button onClick={copySelected} disabled={!selectedFile} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-40">
@@ -245,7 +267,7 @@ export default function FactoryBuildDelivery({ result }: { result: BuildDelivery
             </div>
             <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50 p-3 text-xs leading-5 text-blue-800">
               Workspace: <span className="font-mono font-semibold">{delivery.workspaceId || result.buildId || 'generated-build'}</span>
-              {delivery.artifactName ? <> · packaged as <span className="font-mono font-semibold">{delivery.artifactName}</span></> : null}
+              {delivery.artifactName ? <> · package <span className="font-mono font-semibold">{delivery.artifactName}</span></> : null}
             </div>
           </div>
         </div>
