@@ -122,6 +122,9 @@ export async function POST(request: NextRequest) {
     const graphNodes = Array.isArray(result?.capability_graph_engine?.nodes) ? result.capability_graph_engine.nodes : []
     const topProduct = products[0] || null
     const starterBlueprintPresent = Boolean(topProduct?.starter_blueprint)
+    const delivery = result?.delivery || topProduct?.delivery || null
+    const sourceFiles = Array.isArray(delivery?.sourceFiles) ? delivery.sourceFiles : []
+    const deliveryChecks = Array.isArray(delivery?.verification?.checks) ? delivery.verification.checks : []
 
     const verification = {
       approvedRepoLock: repoLockPassed,
@@ -131,6 +134,9 @@ export async function POST(request: NextRequest) {
       capabilityGraphBuilt: graphNodes.length > 0,
       starterBlueprintGenerated: starterBlueprintPresent,
       architectureGenerated: Boolean(topProduct?.architecture),
+      sourceCodeGenerated: Boolean(delivery?.workspaceId) && Number(delivery?.fileCount || 0) >= 6 && sourceFiles.length >= 6,
+      demoPreviewGenerated: typeof delivery?.previewHtml === 'string' && delivery.previewHtml.includes('Generated build preview'),
+      executableVerificationPassed: delivery?.verification?.passed === true && deliveryChecks.length >= 5,
       pipelineCompleted: Array.isArray(result.timeline) && result.timeline.some((entry: { step?: string }) => entry?.step === 'COMPLETE'),
     }
 
@@ -154,7 +160,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       pipelineVerified,
-      status: pipelineVerified ? 'pipeline_verified' : 'completed_with_unverified_gates',
+      status: pipelineVerified ? 'source_build_verified' : 'completed_with_unverified_gates',
       buildId,
       runId: runId || null,
       strategyId: strategyId || null,
@@ -163,9 +169,12 @@ export async function POST(request: NextRequest) {
       selectedRepos: returnedRepos,
       composedProducts: products,
       graphStats: result.graph_stats || result?.capability_graph_engine?.stats || null,
+      delivery,
       verification,
-      errors: failedGates.length ? [`Unverified pipeline gates: ${failedGates.join(', ')}`] : [],
-      note: 'pipeline_verified means the approved repository lock and Python composition pipeline completed. It does not replace clean-install, runtime, security or end-to-end release verification.',
+      errors: failedGates.length ? [`Unverified build gates: ${failedGates.join(', ')}`] : [],
+      note: pipelineVerified
+        ? 'The approved repository lock, full-source generation, generated demo preview, static/runtime verification gates and pipeline completion all passed for this build artifact.'
+        : 'The approved plan was preserved, but this build is not labeled verified until every executable delivery gate passes.',
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Approved-composition build failed'
