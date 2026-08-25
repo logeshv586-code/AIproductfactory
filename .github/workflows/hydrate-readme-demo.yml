@@ -1,0 +1,42 @@
+name: Hydrate README demo media
+
+on:
+  push:
+    branches:
+      - fix/readme-inline-demo
+    paths:
+      - '.demo-upload/READY'
+
+permissions:
+  contents: write
+
+jobs:
+  hydrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/readme-inline-demo
+          fetch-depth: 0
+      - name: Reconstruct uploaded demo media
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p docs/media
+          cat .demo-upload/mp4/*.b64 | tr -d '\r\n ' | base64 --decode > docs/media/ai-product-factory-demo.mp4
+          cat .demo-upload/gif/*.b64 | tr -d '\r\n ' | base64 --decode > docs/media/ai-product-factory-demo-preview.gif
+          test -s docs/media/ai-product-factory-demo.mp4
+          test -s docs/media/ai-product-factory-demo-preview.gif
+          file docs/media/ai-product-factory-demo.mp4
+          file docs/media/ai-product-factory-demo-preview.gif
+          rm -rf .demo-upload
+          rm -f .github/workflows/hydrate-readme-demo.yml
+      - name: Commit reconstructed media
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Embed uploaded Product Factory demo media'
+          git push origin HEAD:fix/readme-inline-demo
