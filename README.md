@@ -34,16 +34,22 @@
 ## 🎬 Product demo
 
 <p align="center">
+  <video controls playsinline preload="metadata" width="92%" poster="./docs/images/product-studio-v12.svg">
+    <source src="./docs/media/ai-product-factory-demo.mp4" type="video/mp4" />
+  </video>
+</p>
+
+<p align="center">
   <a href="./docs/media/ai-product-factory-demo.mp4">
-    <img src="./docs/images/product-studio-v12.svg" alt="Watch the AI Product Factory demo" width="92%" />
+    <img src="./docs/media/ai-product-factory-demo-preview.gif" alt="Animated AI Product Factory demo preview from the uploaded recording" width="92%" />
   </a>
 </p>
 
 <p align="center">
-  <strong><a href="./docs/media/ai-product-factory-demo.mp4">▶ Watch the AI Product Factory demo video</a></strong>
+  <strong><a href="./docs/media/ai-product-factory-demo.mp4">▶ Open the uploaded AI Product Factory demo video</a></strong>
 </p>
 
-The repository demo is a lightweight walkthrough clip prepared from the Product Factory Studio demonstration. The interactive Studio also contains the uploaded demo experience. See [`docs/DEMO.md`](./docs/DEMO.md).
+This README uses the actual uploaded Product Factory demo recording. GitHub clients that render HTML5 media can show the player above; clients that suppress embedded video still show the animated preview generated from the same recording. Clicking either the preview or the link opens the MP4. See [`docs/DEMO.md`](./docs/DEMO.md).
 
 ---
 
