@@ -6,6 +6,7 @@ import {
   Loader2, LockKeyhole, RefreshCw, ShieldCheck, Sparkles, WandSparkles,
 } from 'lucide-react'
 import FactoryStudioV9 from '@/components/factory/FactoryStudioV9'
+import FactoryBuildDelivery, { FactoryDemoShowcase, type BuildDeliveryEnvelope } from '@/components/factory/FactoryBuildDelivery'
 
 type ProviderId = 'openai' | 'anthropic' | 'gemini' | 'nvidia' | 'deepseek' | 'local'
 
@@ -52,6 +53,7 @@ export default function FactoryStudioRuntime() {
   const [testing, setTesting] = useState(false)
   const [restoring, setRestoring] = useState(true)
   const [error, setError] = useState('')
+  const [latestBuild, setLatestBuild] = useState<BuildDeliveryEnvelope | null>(null)
   const wrappedFetchRef = useRef<typeof window.fetch | null>(null)
 
   const selectedProvider = useMemo(() => providerInfo(provider), [provider])
@@ -96,6 +98,14 @@ export default function FactoryStudioRuntime() {
   }, [])
 
   useEffect(() => {
+    if (!latestBuild?.delivery) return
+    const id = window.setTimeout(() => {
+      document.getElementById('build-delivery')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 250)
+    return () => window.clearTimeout(id)
+  }, [latestBuild])
+
+  useEffect(() => {
     if (!sessionId || !connection) return
 
     const originalFetch = window.fetch.bind(window)
@@ -109,7 +119,16 @@ export default function FactoryStudioRuntime() {
 
       const headers = new Headers(init.headers || (input instanceof Request ? input.headers : undefined))
       headers.set('X-LLM-Session', sessionId)
-      return originalFetch(input, { ...init, headers })
+      const response = await originalFetch(input, { ...init, headers })
+
+      if (url.startsWith('/api/factory/build/approved')) {
+        response.clone().json()
+          .then((data) => {
+            if (data?.success) setLatestBuild(data as BuildDeliveryEnvelope)
+          })
+          .catch(() => undefined)
+      }
+      return response
     }
 
     wrappedFetchRef.current = wrappedFetch
@@ -158,8 +177,6 @@ export default function FactoryStudioRuntime() {
         model: String(data.model),
         expiresInSeconds: Number(data.expiresInSeconds || 0),
       })
-      // The raw key is no longer needed in browser state after the backend has
-      // created the opaque, memory-only runtime session.
       setApiKey('')
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Model connection failed.')
@@ -173,6 +190,7 @@ export default function FactoryStudioRuntime() {
     window.sessionStorage.removeItem(SESSION_KEY)
     setSessionId('')
     setConnection(null)
+    setLatestBuild(null)
     setApiKey('')
     setError('')
     if (id) {
@@ -226,7 +244,9 @@ export default function FactoryStudioRuntime() {
             </div>
           </div>
         </div>
+        <FactoryDemoShowcase />
         <FactoryStudioV9 />
+        <FactoryBuildDelivery result={latestBuild} />
       </div>
     )
   }
