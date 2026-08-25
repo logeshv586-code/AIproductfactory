@@ -1,17 +1,17 @@
 {
-  "date": "2026-08-24",
+  "date": "2026-08-25",
   "status": "VERIFIED_GUARDRAIL",
-  "claim": "NOT CLAIMED: On 2026-08-24, the research/build gate correctly stayed closed because the evidence threshold was not met. No end-to-end product-build claim is published for this run.",
+  "claim": "NOT CLAIMED: On 2026-08-25, the research/build gate correctly stayed closed because the evidence threshold was not met. No end-to-end product-build claim is published for this run.",
   "problem": {
-    "source": "Hacker News",
-    "title": "Show HN: Make your logo extra bright on HDR screens",
-    "excerpt": "Certain logos started standing out to me on LinkedIn as brighter&#x2F;whiter than everything else around them. I dug in and found out this is accomplished by adding a gain-map to an existing JPEG, visible only on HDR screens like a newer MacBook Pro. LinkedIn is the only social…",
-    "url": "https://news.ycombinator.com/item?id=49402521",
-    "engagement": 149,
-    "publishedAt": "2026-08-22T18:43:03Z",
-    "score": 47.2
+    "source": "Stack Overflow",
+    "title": "Can't deploy to GitHub Pages after next-intl: Production build couldn't find next-intl config file",
+    "excerpt": "NOTE: This post is closed due to \"Not suitable for this site\" Issue: Next.js GitHub Action failed with error when running production build -- cannot find next-intl config file (request.ts). Desired Behavior: Deployment should succeed with GitHub Action and match repo's local dev…",
+    "url": "https://stackoverflow.com/questions/79996679/cant-deploy-to-github-pages-after-next-intl-production-build-couldnt-find-nex",
+    "engagement": 4.88,
+    "publishedAt": "2026-08-20T03:58:31.000Z",
+    "score": 55
   },
-  "idea": "Build a practical end-to-end product for people affected by this real public problem: \"Show HN: Make your logo extra bright on HDR screens\". Evidence context: Certain logos started standing out to me on LinkedIn as brighter&#x2F;whiter than everything else around them. I dug in and found out this is accomplished by adding a gain-map to an existing JPEG, visible only on HDR screens like a newer MacBook Pro. LinkedIn is the only social… The product should reduce manual effort, make the main workflow simple for non-experts, provide measurable completion or verification, and prefer reliable integrations over a thin single-feature demo.",
+  "idea": "Build a practical end-to-end product for people affected by this real public problem: \"Can't deploy to GitHub Pages after next-intl: Production build couldn't find next-intl config file\". Evidence context: NOTE: This post is closed due to \"Not suitable for this site\" Issue: Next.js GitHub Action failed with error when running production build -- cannot find next-intl config file (request.ts). Desired Behavior: Deployment should succeed with GitHub Action and match repo's local dev… The product should reduce manual effort, make the main workflow simple for non-experts, provide measurable completion or verification, and prefer reliable integrations over a thin single-feature demo.",
   "sourceResults": [
     {
       "source": "Hacker News",
@@ -29,9 +29,9 @@
       "count": 40
     }
   ],
-  "candidateCount": 104,
+  "candidateCount": 105,
   "researchGatePassed": false,
-  "recommendationQuality": 72,
+  "recommendationQuality": 59,
   "selectedPlan": null,
   "pipelineVerified": false,
   "verification": {},
