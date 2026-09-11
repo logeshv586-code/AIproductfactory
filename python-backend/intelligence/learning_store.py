@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
+import tempfile
 from typing import Any
 
 from intelligence.prompt_utils import as_dict
@@ -28,6 +30,20 @@ def default_learning_path() -> str:
     )
 
 
+def _default_learning_data() -> dict[str, Any]:
+    return {
+        "repository_quality": {},     # full_name -> {"quality_score", "used_in", "approved", "failures"}
+        "capability_mappings": {},    # capability_name -> {"best_repo", "successes", "failures"}
+        "architecture_decisions": [], # {"pattern", "domain", "outcome", "confidence"}
+        "user_approvals": [],         # {"strategy_id", "name", "domain", "ts"}
+        "successful_integrations": [],# {"capabilities", "repos", "outcome", "ts"}
+        "failed_strategies": [],      # {"strategy_id", "reason", "ts"}
+        "repo_notes": {},             # full_name -> {"notes": str}
+        "product_memories": [],       # full product records (v6 Phase 6)
+        "tournaments": [],            # strategy tournament records (v6 Phase 4)
+    }
+
+
 class LearningStore:
     """JSON-file-backed persistent knowledge store."""
 
@@ -35,33 +51,78 @@ class LearningStore:
         self.path = path or default_learning_path()
         self._data: dict[str, Any] = self._load()
 
+    @property
+    def backup_path(self) -> str:
+        return f"{self.path}.bak"
+
+    @staticmethod
+    def _read_json(path: str) -> dict[str, Any]:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if not isinstance(data, dict):
+            raise ValueError("learning store root must be a JSON object")
+        return data
+
     def _load(self) -> dict[str, Any]:
-        try:
-            if os.path.exists(self.path):
-                with open(self.path, "r", encoding="utf-8") as f:
-                    return json.load(f)
-        except Exception:
-            pass
-        return {
-            "repository_quality": {},     # full_name -> {"quality_score", "used_in", "approved", "failures"}
-            "capability_mappings": {},    # capability_name -> {"best_repo", "successes", "failures"}
-            "architecture_decisions": [], # {"pattern", "domain", "outcome", "confidence"}
-            "user_approvals": [],         # {"strategy_id", "name", "domain", "ts"}
-            "successful_integrations": [],# {"capabilities", "repos", "outcome", "ts"}
-            "failed_strategies": [],      # {"strategy_id", "reason", "ts"}
-            "repo_notes": {},             # full_name -> {"notes": str}
-            "product_memories": [],       # full product records (v6 Phase 6)
-            "tournaments": [],            # strategy tournament records (v6 Phase 4)
-        }
+        if os.path.exists(self.path):
+            try:
+                return self._read_json(self.path)
+            except (OSError, json.JSONDecodeError, ValueError) as e:
+                print(f"[LearningStore] primary store unreadable: {e}")
+                if os.path.exists(self.backup_path):
+                    try:
+                        recovered = self._read_json(self.backup_path)
+                        print(f"[LearningStore] recovered from backup: {self.backup_path}")
+                        return recovered
+                    except (OSError, json.JSONDecodeError, ValueError) as backup_error:
+                        print(f"[LearningStore] backup store unreadable: {backup_error}")
+        return _default_learning_data()
 
     # ── Persistence ─────────────────────────────────────────────────────────
     def save(self) -> None:
+        """Persist state with an atomic same-directory replacement and backup."""
+        directory = os.path.dirname(self.path) or "."
+        os.makedirs(directory, exist_ok=True)
+        temp_path: str | None = None
         try:
-            os.makedirs(os.path.dirname(self.path) or ".", exist_ok=True)
-            with open(self.path, "w", encoding="utf-8") as f:
+            fd, temp_path = tempfile.mkstemp(prefix=".learning-", suffix=".tmp", dir=directory, text=True)
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
                 json.dump(self._data, f, ensure_ascii=False, indent=2)
+                f.flush()
+                os.fsync(f.fileno())
+
+            # Preserve only a known-readable primary as the recovery point. A
+            # corrupt primary must not overwrite an existing good backup.
+            if os.path.exists(self.path):
+                try:
+                    self._read_json(self.path)
+                except (OSError, json.JSONDecodeError, ValueError):
+                    pass
+                else:
+                    shutil.copy2(self.path, self.backup_path)
+
+            os.replace(temp_path, self.path)
+            temp_path = None
+
+            # Best-effort directory fsync makes the rename durable on filesystems
+            # that support opening directories. Windows may reject this operation.
+            try:
+                dir_fd = os.open(directory, os.O_RDONLY)
+            except OSError:
+                dir_fd = None
+            if dir_fd is not None:
+                try:
+                    os.fsync(dir_fd)
+                finally:
+                    os.close(dir_fd)
         except Exception as e:
             print(f"[LearningStore] save failed: {e}")
+        finally:
+            if temp_path and os.path.exists(temp_path):
+                try:
+                    os.remove(temp_path)
+                except OSError:
+                    pass
 
     def to_dict(self) -> dict[str, Any]:
         import copy
@@ -94,7 +155,7 @@ class LearningStore:
         if failure:
             entry["failures"] += 1
             entry["quality_score"] = max(0.1, entry["quality_score"] - 0.15)
-        entry["ts"] = int(time.time() * 1000)  # for outcome↔approval matching
+        entry["ts"] = int(time.time() * 1000)
         self.save()
 
     def record_capability_mapping(self, capability_name: str, repo: str, *, success: bool = True) -> None:
@@ -109,13 +170,8 @@ class LearningStore:
     def record_architecture_decision(self, pattern: str, domain: str, outcome: str = "accepted", confidence: float = 0.6) -> None:
         import time
         self._data["architecture_decisions"].append(
-            {
-                "pattern": pattern,
-                "domain": domain,
-                "outcome": outcome,
-                "confidence": round(min(1.0, max(0.0, confidence)), 3),
-                "ts": int(time.time() * 1000),
-            }
+            {"pattern": pattern, "domain": domain, "outcome": outcome,
+             "confidence": round(min(1.0, max(0.0, confidence)), 3), "ts": int(time.time() * 1000)}
         )
         self._data["architecture_decisions"] = self._data["architecture_decisions"][-100:]
         self.save()
@@ -123,12 +179,7 @@ class LearningStore:
     def record_successful_integration(self, capabilities: list[str], repos: list[str]) -> None:
         import time
         self._data["successful_integrations"].append(
-            {
-                "capabilities": capabilities,
-                "repos": repos,
-                "outcome": "success",
-                "ts": int(time.time() * 1000),
-            }
+            {"capabilities": capabilities, "repos": repos, "outcome": "success", "ts": int(time.time() * 1000)}
         )
         self._data["successful_integrations"] = self._data["successful_integrations"][-100:]
         self.save()
@@ -136,24 +187,14 @@ class LearningStore:
     def record_failed_strategy(self, strategy_id: str, reason: str) -> None:
         import time
         self._data["failed_strategies"].append(
-            {
-                "strategy_id": strategy_id,
-                "reason": reason,
-                "ts": int(time.time() * 1000),
-            }
+            {"strategy_id": strategy_id, "reason": reason, "ts": int(time.time() * 1000)}
         )
         self._data["failed_strategies"] = self._data["failed_strategies"][-100:]
         self.save()
 
     # ── Product Memory (v6 Phase 6) ─────────────────────────────────────────
     def record_product_memory(self, run_id: str, memory: dict[str, Any]) -> None:
-        """
-        Persist a complete product record (DNA, intent, capabilities,
-        repositories, architecture, strategy, debates, confidences, simulation,
-        self-critique, learning evidence used, outcome). Replaces any prior
-        record with the same run_id and keeps the newest 50.
-        """
-        self._data.setdefault("product_memories", [])  # legacy files lack the key
+        self._data.setdefault("product_memories", [])
         record = dict(memory)
         record["run_id"] = run_id
         mems = [m for m in self._data["product_memories"] if as_dict(m).get("run_id") != run_id]
@@ -162,7 +203,6 @@ class LearningStore:
         self.save()
 
     def product_memories(self, limit: int = 0) -> list[dict[str, Any]]:
-        """All stored product records, newest first. ``limit`` = 0 returns all."""
         mems = list(self._data.get("product_memories", []))
         mems.reverse()
         return mems[:limit] if limit else mems
@@ -172,15 +212,8 @@ class LearningStore:
 
     # ── Strategy Tournament (v6 Phase 4) ────────────────────────────────────
     def record_tournament(self, tournament_id: str, tournament: dict[str, Any]) -> None:
-        """
-        Persist a completed strategy tournament — winner, runner-up, full
-        ranking, per-strategy dimension scores, pairwise comparisons and the
-        decision report — so future tournaments (and the Product Memory) can
-        learn from this decision. Replaces any prior record with the same
-        tournament_id and keeps the newest 50.
-        """
         import time
-        self._data.setdefault("tournaments", [])  # legacy files lack the key
+        self._data.setdefault("tournaments", [])
         record = dict(tournament)
         record["tournament_id"] = tournament_id
         record["ts"] = int(time.time() * 1000)
@@ -190,7 +223,6 @@ class LearningStore:
         self.save()
 
     def tournaments(self, limit: int = 0) -> list[dict[str, Any]]:
-        """All stored tournaments, newest first. ``limit`` = 0 returns all."""
         toks = list(self._data.get("tournaments", []))
         toks.reverse()
         return toks[:limit] if limit else toks
@@ -200,7 +232,6 @@ class LearningStore:
 
     # ── Retrieval (hints for future runs) ───────────────────────────────────
     def repo_hint(self, full_name: str) -> float | None:
-        """Return a learned quality boost (-0.3..+0.3) for a repo, if known."""
         entry = self._data["repository_quality"].get(full_name)
         if not entry:
             return None
