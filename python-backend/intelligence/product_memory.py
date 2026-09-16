@@ -246,7 +246,7 @@ class ProductMemory:
         matches: list[dict[str, Any]] = []
         for mem in memories:
             stored_dna = as_dict(mem.get("product_dna"))
-            dna_sim = _dna_similarity(draft, stored_dna or draft)
+            dna_sim = _dna_similarity(draft, stored_dna)
             cap_sim = _capability_overlap(
                 as_list(draft.get("capabilities")),
                 _stored_capabilities(mem),
