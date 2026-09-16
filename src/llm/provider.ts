@@ -18,6 +18,16 @@ export interface LLMMessage {
   name?: string;
 }
 
+export interface LLMToolCall {
+  id?: string;
+  type?: string;
+  function?: {
+    name: string;
+    arguments: string;
+  };
+  [key: string]: unknown;
+}
+
 export interface LLMResponse {
   text: string;
   usage: { promptTokens: number; completionTokens: number };
@@ -25,7 +35,7 @@ export interface LLMResponse {
   provider: LLMProviderType;
   costEstimate: number;
   latency: number; 
-  toolCalls?: any[];
+  toolCalls?: LLMToolCall[];
 }
 
 export interface LLMOptions {
@@ -38,6 +48,44 @@ export interface LLMOptions {
   useCache?: boolean;
   cacheVersion?: string;
   validateResponse?: (response: LLMResponse) => boolean;
+}
+
+export class LLMProviderError extends Error {
+  readonly status?: number;
+  readonly provider?: LLMProviderType;
+  readonly details?: unknown;
+
+  constructor(
+    message: string,
+    options?: { status?: number; provider?: LLMProviderType; details?: unknown }
+  ) {
+    super(message);
+    this.name = "LLMProviderError";
+    this.status = options?.status;
+    this.provider = options?.provider;
+    this.details = options?.details;
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
+export interface ProviderMetrics {
+  success: number;
+  failure: number;
+  attempts: number;
+  successRate: number;
+  p50LatencyMs: number | null;
+  p90LatencyMs: number | null;
+  fallbacks: number;
+  healthScore: number;
+  lastErrorAt?: number;
+}
+
+export interface ProviderSummaryRecord {
+  successRate: string;
+  p50Latency: string;
+  p90Latency: string;
+  fallbacks: number;
+  healthScore: string;
 }
 
 const DEFAULT_REQUEST_TIMEOUT_MS = Number(process.env.LLM_REQUEST_TIMEOUT_MS || 15000);
@@ -72,8 +120,8 @@ class TelemetryStore {
     if (isFallback) this.stats[provider].fallbacks++;
   }
 
-  getMetrics() {
-    const summary: any = {};
+  getMetrics(): Record<string, ProviderMetrics> {
+    const summary: Record<string, ProviderMetrics> = {};
     for (const [p, s] of Object.entries(this.stats)) {
       const sortedLatencies = [...s.latencies].sort((a, b) => a - b);
       const attempts = s.success + s.failure;
@@ -92,9 +140,9 @@ class TelemetryStore {
     return summary;
   }
 
-  getSummary() {
+  getSummary(): Record<string, ProviderSummaryRecord> {
     const metrics = this.getMetrics();
-    return Object.fromEntries(Object.entries(metrics).map(([provider, m]: [string, any]) => [
+    return Object.fromEntries(Object.entries(metrics).map(([provider, m]) => [
       provider,
       {
         successRate: `${(m.successRate * 100).toFixed(1)}%`,
@@ -117,9 +165,9 @@ class TelemetryStore {
     return Math.max(0.05, successRate - latencyPenalty - fallbackPenalty);
   }
 
-  toPrometheus(prefix = "llm") {
+  toPrometheus(prefix = "llm"): string {
     const lines: string[] = [];
-    for (const [provider, m] of Object.entries(this.getMetrics()) as [string, any][]) {
+    for (const [provider, m] of Object.entries(this.getMetrics())) {
       const label = `{provider="${provider}"}`;
       lines.push(`${prefix}_requests_total${label} ${m.attempts}`);
       lines.push(`${prefix}_success_total${label} ${m.success}`);
@@ -250,7 +298,7 @@ abstract class LLMAdapter {
 class OpenAIAdapter extends LLMAdapter {
   async generate(messages: LLMMessage[], options?: LLMOptions): Promise<LLMResponse> {
     const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) throw new Error("OPENAI_API_KEY is not set");
+    if (!apiKey) throw new LLMProviderError("OPENAI_API_KEY is not set", { provider: "openai" });
     const model = options?.model || "gpt-4o-mini";
     const start = Date.now();
 
@@ -265,7 +313,9 @@ class OpenAIAdapter extends LLMAdapter {
       signal: options?.timeout ? AbortSignal.timeout(options.timeout) : undefined,
     });
 
-    if (!response.ok) throw Object.assign(new Error(`OpenAI: ${response.statusText}`), { status: response.status });
+    if (!response.ok) {
+      throw new LLMProviderError(`OpenAI: ${response.statusText}`, { status: response.status, provider: "openai" });
+    }
     const data = await response.json();
     const message = data.choices?.[0]?.message;
     const text = message?.content || message?.reasoning_content || message?.reasoning || "";
@@ -283,7 +333,7 @@ class OpenAIAdapter extends LLMAdapter {
 class NvidiaAdapter extends LLMAdapter {
   async generate(messages: LLMMessage[], options?: LLMOptions): Promise<LLMResponse> {
     const apiKey = process.env.NVIDIA_API_KEY;
-    if (!apiKey) throw new Error("NVIDIA_API_KEY is not set");
+    if (!apiKey) throw new LLMProviderError("NVIDIA_API_KEY is not set", { provider: "nvidia" });
     const model = options?.model || "deepseek-ai/deepseek-v4-pro";
     const baseUrl = process.env.NVIDIA_BASE_URL || "https://integrate.api.nvidia.com/v1";
     const start = Date.now();
@@ -302,8 +352,8 @@ class NvidiaAdapter extends LLMAdapter {
     });
 
     if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      throw Object.assign(new Error(`NVIDIA: ${err.message || response.statusText}`), { status: response.status });
+      const err = (await response.json().catch(() => ({}))) as { message?: string };
+      throw new LLMProviderError(`NVIDIA: ${err.message || response.statusText}`, { status: response.status, provider: "nvidia", details: err });
     }
     const data = await response.json();
     const promptTokens = data.usage?.prompt_tokens || 0;
@@ -326,7 +376,7 @@ class NvidiaAdapter extends LLMAdapter {
 class AnthropicAdapter extends LLMAdapter {
   async generate(messages: LLMMessage[], options?: LLMOptions): Promise<LLMResponse> {
     const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not set");
+    if (!apiKey) throw new LLMProviderError("ANTHROPIC_API_KEY is not set", { provider: "anthropic" });
     const model = options?.model || "claude-3-5-haiku-latest";
     const start = Date.now();
 
@@ -342,7 +392,9 @@ class AnthropicAdapter extends LLMAdapter {
       signal: options?.timeout ? AbortSignal.timeout(options.timeout) : undefined,
     });
 
-    if (!response.ok) throw Object.assign(new Error(`Anthropic: ${response.statusText}`), { status: response.status });
+    if (!response.ok) {
+      throw new LLMProviderError(`Anthropic: ${response.statusText}`, { status: response.status, provider: "anthropic" });
+    }
     const data = await response.json();
     return {
       text: data.content[0].text,
@@ -358,7 +410,7 @@ class AnthropicAdapter extends LLMAdapter {
 class GeminiAdapter extends LLMAdapter {
   async generate(messages: LLMMessage[], options?: LLMOptions): Promise<LLMResponse> {
     const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) throw new Error("GEMINI_API_KEY is not set");
+    if (!apiKey) throw new LLMProviderError("GEMINI_API_KEY is not set", { provider: "gemini" });
     const model = options?.model || "gemini-2.0-flash";
     const start = Date.now();
 
@@ -372,7 +424,9 @@ class GeminiAdapter extends LLMAdapter {
       signal: options?.timeout ? AbortSignal.timeout(options.timeout) : undefined,
     });
 
-    if (!response.ok) throw Object.assign(new Error(`Gemini: ${response.statusText}`), { status: response.status });
+    if (!response.ok) {
+      throw new LLMProviderError(`Gemini: ${response.statusText}`, { status: response.status, provider: "gemini" });
+    }
     const data = await response.json();
     return {
       text: data.candidates[0].content.parts[0].text,
@@ -388,7 +442,7 @@ class GeminiAdapter extends LLMAdapter {
 class DeepSeekAdapter extends LLMAdapter {
   async generate(messages: LLMMessage[], options?: LLMOptions): Promise<LLMResponse> {
     const apiKey = process.env.DEEPSEEK_API_KEY;
-    if (!apiKey) throw new Error("DEEPSEEK_API_KEY is not set");
+    if (!apiKey) throw new LLMProviderError("DEEPSEEK_API_KEY is not set", { provider: "deepseek" });
     const model = options?.model || "deepseek-chat";
     const baseUrl = process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com";
     const start = Date.now();
@@ -406,8 +460,8 @@ class DeepSeekAdapter extends LLMAdapter {
     });
 
     if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      throw Object.assign(new Error(`DeepSeek: ${err.message || response.statusText}`), { status: response.status });
+      const err = (await response.json().catch(() => ({}))) as { message?: string };
+      throw new LLMProviderError(`DeepSeek: ${err.message || response.statusText}`, { status: response.status, provider: "deepseek", details: err });
     }
     const data = await response.json();
     const promptTokens = data.usage?.prompt_tokens || 0;
@@ -459,7 +513,7 @@ export class LLMManager {
       .sort((a, b) => telemetry.getHealthScore(b) - telemetry.getHealthScore(a));
     const providers: LLMProviderType[] = [primaryProvider, ...fallbackProviders];
 
-    let lastError: any;
+    let lastError: unknown;
     for (const p of providers) {
       const adapter = this.adapters[p];
       const limiter = concurrencyLimiters[p] || new Semaphore(5);
@@ -470,21 +524,25 @@ export class LLMManager {
           try {
             const resp = await adapter.generate(messages, { ...effectiveOptions, model: p === primaryProvider ? model : undefined });
             if (effectiveOptions.validateResponse && !effectiveOptions.validateResponse(resp)) {
-              throw Object.assign(new Error("LLM response failed validation"), { status: 422 });
+              throw new LLMProviderError("LLM response failed validation", { status: 422, provider: p });
             }
             if (cacheKey) llmCache.set(cacheKey, resp);
             telemetry.record(p, true, resp.latency, p !== primaryProvider);
             return resp;
-          } catch (e: any) {
+          } catch (e: unknown) {
             lastError = e;
-            if (e.status === 401 || e.status === 400) throw e;
+            const status = e instanceof LLMProviderError ? e.status : (typeof e === "object" && e !== null && "status" in e ? Number((e as { status?: unknown }).status) : undefined);
+            if (status === 401 || status === 400) throw e;
             if (attempt < 2) await new Promise(r => setTimeout(r, Math.pow(2, attempt) * 1000));
           }
         }
         telemetry.record(p, false, undefined, p !== primaryProvider);
       } finally { limiter.release(); }
     }
-    throw lastError;
+    if (lastError instanceof Error) {
+      throw lastError;
+    }
+    throw new LLMProviderError(String(lastError || "All LLM providers failed to respond"));
   }
 
   async generateJSON<T>(schema: z.ZodType<T>, prompt: string, systemPrompt?: string, options?: LLMOptions): Promise<T> {
@@ -512,16 +570,16 @@ export class LLMManager {
     }
   }
 
-  getTelemetry() { return telemetry.getMetrics(); }
-  exportPrometheusMetrics() { return telemetry.toPrometheus(); }
-  printTelemetry() { console.table(telemetry.getSummary()); }
+  getTelemetry(): Record<string, ProviderMetrics> { return telemetry.getMetrics(); }
+  exportPrometheusMetrics(): string { return telemetry.toPrometheus(); }
+  printTelemetry(): void { console.table(telemetry.getSummary()); }
 }
 
 export const llm = new LLMManager();
-export const generate = async (p: string, s?: string, o?: any) => (await llm.generate([{ role: "system", content: s || "" }, { role: "user", content: p }], o)).text;
+export const generate = async (p: string, s?: string, o?: LLMOptions) => (await llm.generate([{ role: "system", content: s || "" }, { role: "user", content: p }], o)).text;
 
-export async function generateJSON<T = any>(prompt: string, systemPrompt?: string, options?: LLMOptions): Promise<T> {
-  return llm.generateJSON(z.any(), prompt, systemPrompt, options) as Promise<T>;
+export async function generateJSON<T = unknown>(prompt: string, systemPrompt?: string, options?: LLMOptions): Promise<T> {
+  return llm.generateJSON(z.any() as z.ZodType<T>, prompt, systemPrompt, options);
 }
 
 export async function embed(text: string): Promise<number[]> {
