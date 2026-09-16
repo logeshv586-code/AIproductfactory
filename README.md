@@ -455,6 +455,7 @@ docs/media/                         README demo media
 
 ## 📚 Documentation
 
+- [Product Reasoning Core architecture proposal](./docs/PRODUCT_REASONING_ARCHITECTURE.md) — repository findings, custom product design, approval contracts and behavior-based release gates; proposed, not yet implemented.
 - [Product demo](./docs/DEMO.md)
 - [Model providers](./docs/MODEL_PROVIDERS.md)
 - [Local models](./docs/LOCAL_MODELS.md)
