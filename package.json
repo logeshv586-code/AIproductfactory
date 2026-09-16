@@ -15,7 +15,8 @@
     "db:reset": "prisma migrate reset",
     "understand:install": "node scripts/install-understand-anything.mjs",
     "understand:update": "node scripts/install-understand-anything.mjs --update",
-    "understand:status": "node scripts/install-understand-anything.mjs --status"
+    "understand:status": "node scripts/install-understand-anything.mjs --status",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
