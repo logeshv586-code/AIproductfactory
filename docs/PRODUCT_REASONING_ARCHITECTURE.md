@@ -1,6 +1,6 @@
 # Product Reasoning Core: architecture proposal
 
-Status: proposed architecture, not a claim of implemented runtime functionality.
+Status: architecture target. The Product Reasoning Core now implements the canonical Studio, contract, build and verification path. See [the implementation map and explicit remaining limits](./PRODUCT_REASONING_IMPLEMENTATION.md). Repository findings below describe the original baseline and are retained to explain the changes; they are not a claim that every target capability is finished.
 
 Repository reviewed: `logeshv586-code/AIproductfactory`, commit `0a9686b5fdebb08e37be20d2ddfae5ad3c440193`, 16 September 2026. This proposal extends the existing Factory; it does not replace it with another generic agent framework.
 

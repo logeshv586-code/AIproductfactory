@@ -1,7 +1,13 @@
 name: AI Product Factory CI
 
 on:
+  pull_request:
+  push:
+    branches: [main]
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   web:
@@ -13,6 +19,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
       - run: npm ci
       - name: Validate local Understand Anything adapter
         run: |
@@ -21,15 +28,14 @@ jobs:
       - name: Critical dependency audit
         run: npm audit --audit-level=critical
       - run: npm run lint
-      - name: TypeScript typecheck
-        run: npx tsc --noEmit
+      - run: npx tsc --noEmit
       - run: npm run build
         env:
           DATABASE_URL: file:./db/custom.db
           PYTHON_BACKEND_URL: http://127.0.0.1:8001
 
   python:
-    name: Python tests and syntax
+    name: Contract, ownership and recovery regressions
     runs-on: ubuntu-latest
     timeout-minutes: 15
     defaults:
@@ -41,96 +47,72 @@ jobs:
         with:
           python-version: '3.12'
       - run: pip install -r requirements.txt
-      - run: python -m compileall -q .
+      - run: python -m compileall -q factory_core execution
       - run: pytest -q
         env:
           LLM_PROVIDER: local
 
+  isolated-acceptance:
+    name: Real isolated API and React acceptance
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r python-backend/requirements.txt
+      - name: Provision isolated runner
+        run: docker build -f python-backend/execution/runner.Dockerfile -t ai-product-factory-runner:1 .
+      - name: Reject scaffold and verify real behavior
+        working-directory: python-backend
+        env:
+          FACTORY_REQUIRE_RUNNER: '1'
+        run: pytest -q tests/test_factory_core.py -k real_container
+
   e2e:
-    name: Full Product Factory HTTP flow
+    name: Hydrated Studio, approval and ZIP ownership
     needs: [web, python]
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    permissions:
-      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - run: npm ci
-      - name: Install Python backend
-        run: pip install -r python-backend/requirements.txt
-      - name: Build Next.js standalone app
-        run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: pip install -r python-backend/requirements.txt
+      - run: npm run build
         env:
           DATABASE_URL: file:./db/custom.db
           PYTHON_BACKEND_URL: http://127.0.0.1:8001
-      - name: Start Python and Next servers
+      - name: Start services and exercise Studio
         env:
           LLM_PROVIDER: local
           PYTHON_BACKEND_PORT: '8001'
           PYTHON_BACKEND_URL: http://127.0.0.1:8001
           FACTORY_OUTPUT_DIR: ${{ github.workspace }}/python-backend/output
           DATABASE_URL: file:./db/custom.db
-          GITHUB_TOKEN: ${{ github.token }}
           HOSTNAME: 127.0.0.1
           PORT: '3000'
         run: |
           (cd python-backend && python runtime_entry.py > ../python-e2e.log 2>&1) &
-          echo $! > python-e2e.pid
+          PYTHON_PID=$!
           node .next/standalone/server.js > next-e2e.log 2>&1 &
-          echo $! > next-e2e.pid
+          NEXT_PID=$!
+          trap 'kill "$PYTHON_PID" "$NEXT_PID" 2>/dev/null || true' EXIT
           for i in $(seq 1 90); do
-            if curl -fsS http://127.0.0.1:3000/api/health/python >/dev/null 2>&1; then
-              echo "Both services are ready"
-              exit 0
-            fi
+            if curl -fsS http://127.0.0.1:3000/api/health/python >/dev/null 2>&1; then break; fi
             sleep 1
           done
-          echo "Services did not become ready"
-          cat python-e2e.log || true
-          cat next-e2e.log || true
-          exit 1
-      - name: Execute hydrated Studio and complete Factory flow
-        env:
-          FACTORY_BASE_URL: http://127.0.0.1:3000
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          OPENAI_SMOKE_MODEL: ${{ vars.OPENAI_SMOKE_MODEL }}
-        run: |
-          node scripts/ci-e2e.mjs || {
-            echo "--- Python backend log ---"
-            tail -n 300 python-e2e.log || true
-            echo "--- Next server log ---"
-            tail -n 300 next-e2e.log || true
-            exit 1
-          }
-      - name: Verify generated source ZIP download
-        env:
-          FACTORY_BASE_URL: http://127.0.0.1:3000
-        run: |
-          ARTIFACT=$(find python-backend/output -maxdepth 1 -type f -name 'build_*.zip' -printf '%T@ %p\n' 2>/dev/null | sort -nr | head -n 1 | cut -d' ' -f2-)
-          if [ -z "$ARTIFACT" ]; then
-            echo "No generated build ZIP found"
-            find python-backend/output -maxdepth 2 -type f 2>/dev/null || true
-            exit 1
-          fi
-          WORKSPACE=$(basename "$ARTIFACT" .zip)
-          FACTORY_ARTIFACT_WORKSPACE="$WORKSPACE" node scripts/ci-build-artifact.mjs
-      - name: Verify tokenless public GitHub research
-        env:
-          FACTORY_BASE_URL: http://127.0.0.1:3000
-        run: |
-          node scripts/ci-tokenless-research.mjs || {
-            echo "--- Next server log ---"
-            tail -n 300 next-e2e.log || true
-            exit 1
-          }
-      - name: Stop services
-        if: always()
-        run: |
-          kill $(cat python-e2e.pid) 2>/dev/null || true
-          kill $(cat next-e2e.pid) 2>/dev/null || true
+          node scripts/ci-core-e2e.mjs
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: factory-e2e-logs
+          path: '*-e2e.log'

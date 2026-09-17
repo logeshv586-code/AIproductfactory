@@ -6,7 +6,7 @@ import {
   KeyRound, Loader2, LockKeyhole, RefreshCw, Search, Server, ShieldCheck,
   Sparkles, WandSparkles,
 } from 'lucide-react'
-import FactoryStudioV11 from '@/components/factory/FactoryStudioV11'
+import FactoryStudioCore from '@/components/factory/FactoryStudioCore'
 
 type ProviderId = 'openai' | 'anthropic' | 'gemini' | 'nvidia' | 'deepseek' | 'ollama' | 'lmstudio' | 'local'
 
@@ -320,7 +320,7 @@ export default function FactoryStudioRuntimeV10() {
             </div>
           </div>
         </div>
-        <FactoryStudioV11 />
+        <FactoryStudioCore />
       </div>
     )
   }

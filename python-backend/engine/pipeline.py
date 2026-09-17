@@ -21,8 +21,6 @@ from agents.architecture_designer import design_architecture
 from engine.repo_selector import select_best_repos
 from engine.scoring import score_product, rank_products
 from engine.starter_repo import generate_starter_repo
-from execution.execution_agent import get_execution_agent
-from execution.product_builder import build_product_delivery
 from graph.graphify import build_graph, get_graph_stats
 from graph.capability_graph import build_capability_graph_engine
 from memory.vector_memory import get_vector_memory
@@ -177,34 +175,8 @@ class PipelineOrchestrator:
         if on_progress:
             on_progress({"step": "starter_repo", "status": "complete", "blueprints_generated": len(starter_blueprints)})
 
-        # The old implementation only wrote three files and accidentally put generated Python
-        # in a legacy docker_compose_yaml field. The verified builder now creates a runnable
-        # source tree, lets engineering agents extend it from the execution plan, performs
-        # deterministic verification/repair passes, generates a demo, and packages the result.
-        delivery: dict[str, Any] | None = None
-        if ranked_products and ranked_products[0].get("starter_blueprint") and ranked_products[0].get("architecture"):
-            self._log("Engineering", "Implementing the approved product plan into full source code")
-            try:
-                top_product = ranked_products[0]
-                workspace_id = f"build_{int(time.time() * 1000)}"
-                agent = get_execution_agent(workspace_id, self.provider)
-                delivery = await build_product_delivery(
-                    product=top_product,
-                    architecture=top_product["architecture"],
-                    blueprint=top_product["starter_blueprint"],
-                    execution_plan=execution_plan,
-                    selected_repos=selected_repos,
-                    agent=agent,
-                )
-                top_product["delivery"] = delivery
-                self._log("Execution", f"Full source for '{top_product['name']}' saved to output/{workspace_id}")
-                self._log(
-                    "ExecutionVerification",
-                    f"Build verification {'passed' if delivery.get('verification', {}).get('passed') else 'needs attention'} "
-                    f"at {delivery.get('verification', {}).get('score', 0)}%",
-                )
-            except Exception as e:
-                self._log("Execution", f"Automatic full-source build failed: {e}")
+        # Builds execute only through the persisted, approved contract workflow.
+        delivery = None
 
         self._log("KnowledgePersistence", "Indexing results into Graph and Vector memory")
         try:

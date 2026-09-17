@@ -25,7 +25,6 @@ from typing import Any
 
 from execution.execution_agent import ExecutionAgent
 
-MAX_TASKS = 8
 MAX_SOURCE_FILES = 100
 MAX_SOURCE_CHARS = 60_000
 
@@ -50,8 +49,6 @@ def _flatten_tasks(plan: dict[str, Any]) -> list[dict[str, Any]]:
             if not isinstance(task, dict):
                 continue
             tasks.append({**task, "phase": phase_name})
-            if len(tasks) >= MAX_TASKS:
-                return tasks
     return tasks
 
 
@@ -326,6 +323,8 @@ def _verify(workspace: Path) -> dict[str, Any]:
     passed_count = sum(1 for item in checks if item["passed"])
     return {
         "passed": passed_count == len(checks),
+        "scope": "runtime-smoke-only",
+        "functionalPassed": False,
         "score": round((passed_count / max(1, len(checks))) * 100),
         "checks": checks,
         "fileCount": len(files),
