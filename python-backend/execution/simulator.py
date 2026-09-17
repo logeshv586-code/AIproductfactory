@@ -10,7 +10,15 @@ class FSSimulator:
         self.workspace_id = workspace_id
         self.virtual_fs = {}  # path -> metadata/content
         self.persist_to_disk = persist_to_disk
-        self.base_path = os.path.join(os.getcwd(), "output", workspace_id)
+
+        # Read FACTORY_OUTPUT_DIR from environment if configured; fallback to local output folder
+        factory_output_dir = os.environ.get("FACTORY_OUTPUT_DIR")
+        if factory_output_dir and factory_output_dir.strip():
+            output_root = Path(factory_output_dir).resolve()
+        else:
+            output_root = Path(os.getcwd()) / "output"
+
+        self.base_path = str(output_root / workspace_id)
         self._base = Path(self.base_path).resolve()
 
         if self.persist_to_disk:
