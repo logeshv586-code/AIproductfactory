@@ -226,6 +226,8 @@ def test_api_approval_poll_download_integrity_and_cross_owner_denial(tmp_path, m
 
 @pytest.mark.skipif(not IsolatedRunner().available() and os.environ.get('FACTORY_REQUIRE_RUNNER') != '1', reason='Requires the isolated Docker runner image')
 def test_real_container_acceptance_rejects_echo_and_accepts_calculation(tmp_path):
+    # The application container runs as UID 10001, unlike pytest's host user.
+    tmp_path.chmod(0o755)
     c = plans(mode='model')[1]
     c.acceptance[0].method = 'POST'
     c.acceptance[0].body = {'a': 2, 'b': 3}
