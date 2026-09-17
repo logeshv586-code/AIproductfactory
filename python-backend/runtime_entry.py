@@ -357,6 +357,9 @@ app = base.app
 @app.middleware("http")
 async def bind_runtime_llm_session(request: Request, call_next):
     session_id = request.headers.get("x-llm-session")
+    if request.url.path.startswith('/factory/') and session_id and _session(session_id) is None:
+        from fastapi.responses import JSONResponse
+        return JSONResponse({'detail': 'Model session expired; reconnect your chosen model before continuing.'}, status_code=401)
     token = _current_session_id.set(session_id)
     try:
         return await call_next(request)

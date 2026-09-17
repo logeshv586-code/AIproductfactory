@@ -176,6 +176,10 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+from factory_core.api import router as factory_core_router
+app.include_router(factory_core_router)
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -515,14 +519,9 @@ class ExecutionRequest(BaseModel):
     task: dict[str, Any]
 
 @app.post("/execution/run_task")
-async def run_task_endpoint(request: ExecutionRequest):
-    """Run a specific implementation task autonomously."""
-    try:
-        agent = get_execution_agent(request.workspace_id)
-        result = await agent.execute_task(request.task)
-        return {"success": True, "result": result, "logs": agent.get_logs()}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+async def execute_legacy_task():
+    raise HTTPException(409, "Direct execution is disabled; approve a saved contract and use /factory/builds")
+
 
 @app.get("/execution/logs/{workspace_id}")
 async def get_execution_logs_endpoint(workspace_id: str):

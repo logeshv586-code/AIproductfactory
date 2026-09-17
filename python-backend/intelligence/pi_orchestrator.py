@@ -704,14 +704,9 @@ class PiOrchestrator:
         graph.set("execution_plan", execution_plan)
         graph.add_trace("execution", "built execution plan", f"{len(execution_plan.get('milestones', []))} milestones")
 
-        # Learning System — record the approval, repo outcomes, capability
-        # mappings and architecture decisions so future runs improve.
+        # Approval is preference evidence, not a successful engineering outcome.
         learning = get_learning_store()
         learning.record_approval(strategy, domain)
-        for cap_name, repo in as_dict(strategy.get("repository_map")).items():
-            if repo:
-                learning.record_capability_mapping(cap_name, repo, success=True)
-                learning.record_repository_outcome(repo, approved=True)
         learning.record_architecture_decision(
             as_str(architecture.get("deployment")) or "docker-compose",
             domain, outcome="accepted", confidence=strategy.get("confidence", 0.7),

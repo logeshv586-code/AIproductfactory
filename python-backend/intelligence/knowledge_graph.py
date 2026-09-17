@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from typing import Any
 
 # All top-level sections. Each maps to a python type:
@@ -291,4 +292,6 @@ def default_run_dir() -> str:
 
 
 def run_path(run_id: str) -> str:
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,96}", run_id):
+        raise ValueError("Invalid run id")
     return os.path.join(default_run_dir(), f"{run_id}.json")

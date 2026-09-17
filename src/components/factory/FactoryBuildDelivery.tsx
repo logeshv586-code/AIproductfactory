@@ -162,21 +162,21 @@ export default function FactoryBuildDelivery({ result }: { result: BuildDelivery
             </div>
             <div>
               <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-600">Build delivery workspace</div>
-              <h2 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">Running product, full source and verification evidence</h2>
+              <h2 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">Product source and verification evidence</h2>
               <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-500">
-                The coding agents implemented the approved plan inside a locked workspace. The preview below is captured from the generated application after its server starts and passes health checks.
+                Inspect the generated files and the checks below. A source ZIP may be available even when implementation or verification is incomplete. A runtime preview appears only when the isolated application was captured.
               </p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <span className={cn('rounded-full border px-3 py-1.5 text-xs font-semibold', passed ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-amber-50 text-amber-700')}>
-              {passed ? 'Verified build' : 'Verification needs attention'}
+              {passed ? 'Verified for approved scope' : 'Unverified source package'}
             </span>
             <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-600">{score}% checks</span>
             <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-600">{delivery.fileCount || sourceFiles.length} files</span>
             {delivery.downloadUrl && (
               <a href={delivery.downloadUrl} download className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-700">
-                <Download className="h-4 w-4" /> Download full source ZIP{delivery.artifactBytes ? ` · ${humanBytes(delivery.artifactBytes)}` : ''}
+                <Download className="h-4 w-4" /> {passed ? 'Download verified source ZIP' : 'Download unverified source ZIP'}{delivery.artifactBytes ? ` · ${humanBytes(delivery.artifactBytes)}` : ''}
               </a>
             )}
           </div>
