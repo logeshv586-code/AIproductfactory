@@ -1,7 +1,49 @@
 import { text } from './nlp-utils'
 import { matchedCapabilities, lexicalRelevance } from './scoring'
-import { json, githubHeaders } from './github'
+import { json, githubHeaders, isRecord, safeString } from './github'
 import type { ResearchProfileV12, DeepResearchSignalV12 } from './types'
+
+// ── External Adapter Response Models ──────────────────────────────────────────
+
+export interface HuggingFaceModelItem {
+  id?: string
+  modelId?: string
+  tags?: string[]
+  lastModified?: string
+  downloads?: number
+  likes?: number
+}
+
+export interface GitLabProjectItem {
+  id?: number
+  name?: string
+  name_with_namespace?: string
+  description?: string | null
+  web_url?: string
+  last_activity_at?: string
+  star_count?: number
+  forks_count?: number
+}
+
+export interface TavilySearchResultItem {
+  title?: string
+  url?: string
+  content?: string
+  score?: number
+}
+
+export interface TavilySearchResponse {
+  results?: TavilySearchResultItem[]
+}
+
+export interface GitHubReleaseItem {
+  name?: string | null
+  tag_name?: string
+  html_url?: string
+  body?: string | null
+  published_at?: string
+  created_at?: string
+}
 
 export function sourceProofSignals(repo: DeepResearchSignalV12) {
   const inspection = repo.inspection
@@ -36,19 +78,23 @@ export async function huggingFace(profile: ResearchProfileV12): Promise<DeepRese
   url.searchParams.set('limit', '8')
   const data = await json(url.toString(), undefined, 12000)
   if (!Array.isArray(data)) return []
-  return data.map((item: any) => {
-    const id = text(item.modelId || item.id)
-    const tags = (Array.isArray(item.tags) ? item.tags : []).join(' ')
-    const corpus = `${id} ${tags}`
-    const matched = matchedCapabilities(profile, corpus)
-    const rel = lexicalRelevance(profile, corpus) * 0.55 + (matched.length / Math.max(1, Math.min(profile.specializedCapabilities.length, 5))) * 0.45
-    return {
-      source: 'Hugging Face', kind: 'model', title: id,
-      url: id ? `https://huggingface.co/${id}` : '', summary: tags.slice(0, 600),
-      publishedAt: item.lastModified, relevance: Number(Math.min(1, Math.max(0, rel)).toFixed(3)),
-      capabilities: matched, metrics: { downloads: item.downloads || 0, likes: item.likes || 0 },
-    }
-  }).filter((signal: DeepResearchSignalV12) => signal.title && Number(signal.relevance || 0) >= 0.66).slice(0, 6)
+  return (data as HuggingFaceModelItem[])
+    .filter(isRecord)
+    .map((item) => {
+      const id = text(item.modelId || item.id)
+      const tags = (Array.isArray(item.tags) ? item.tags : []).join(' ')
+      const corpus = `${id} ${tags}`
+      const matched = matchedCapabilities(profile, corpus)
+      const rel = lexicalRelevance(profile, corpus) * 0.55 + (matched.length / Math.max(1, Math.min(profile.specializedCapabilities.length, 5))) * 0.45
+      return {
+        source: 'Hugging Face', kind: 'model', title: id,
+        url: id ? `https://huggingface.co/${id}` : '', summary: tags.slice(0, 600),
+        publishedAt: safeString(item.lastModified), relevance: Number(Math.min(1, Math.max(0, rel)).toFixed(3)),
+        capabilities: matched, metrics: { downloads: Number(item.downloads || 0), likes: Number(item.likes || 0) },
+      }
+    })
+    .filter((signal: DeepResearchSignalV12) => Boolean(signal.title) && Number(signal.relevance || 0) >= 0.66)
+    .slice(0, 6)
 }
 
 export async function gitlab(profile: ResearchProfileV12): Promise<DeepResearchSignalV12[]> {
@@ -61,18 +107,23 @@ export async function gitlab(profile: ResearchProfileV12): Promise<DeepResearchS
   url.searchParams.set('per_page', '8')
   const data = await json(url.toString(), undefined, 12000)
   if (!Array.isArray(data)) return []
-  return data.map((item: any) => {
-    const corpus = `${item.name_with_namespace || ''} ${item.description || ''}`
-    const caps = matchedCapabilities(profile, corpus)
-    const specialized = caps.filter((cap) => profile.specializedCapabilities.includes(cap))
-    const relevance = Math.min(1, Math.max(0, lexicalRelevance(profile, corpus) * 0.55 + Math.min(1, specialized.length / 2) * 0.45))
-    return {
-      source: 'GitLab', kind: 'repository-lead', title: item.name_with_namespace || item.name || 'GitLab project',
-      url: item.web_url || '', summary: item.description || '', publishedAt: item.last_activity_at,
-      relevance: Number(relevance.toFixed(3)), capabilities: caps,
-      metrics: { stars: item.star_count || 0, forks: item.forks_count || 0 },
-    }
-  }).filter((signal: DeepResearchSignalV12) => Number(signal.relevance || 0) >= 0.70 && (signal.capabilities || []).some((cap) => profile.specializedCapabilities.includes(cap))).slice(0, 5)
+  return (data as GitLabProjectItem[])
+    .filter(isRecord)
+    .map((item) => {
+      const corpus = `${safeString(item.name_with_namespace)} ${safeString(item.description)}`
+      const caps = matchedCapabilities(profile, corpus)
+      const specialized = caps.filter((cap) => profile.specializedCapabilities.includes(cap))
+      const relevance = Math.min(1, Math.max(0, lexicalRelevance(profile, corpus) * 0.55 + Math.min(1, specialized.length / 2) * 0.45))
+      return {
+        source: 'GitLab', kind: 'repository-lead', title: safeString(item.name_with_namespace) || safeString(item.name) || 'GitLab project',
+        url: safeString(item.web_url), summary: safeString(item.description), publishedAt: safeString(item.last_activity_at),
+        relevance: Number(relevance.toFixed(3)), capabilities: caps,
+        metrics: { stars: Number(item.star_count || 0), forks: Number(item.forks_count || 0) },
+      }
+    })
+
+    .filter((signal: DeepResearchSignalV12) => Number(signal.relevance || 0) >= 0.70 && (signal.capabilities || []).some((cap) => profile.specializedCapabilities.includes(cap)))
+    .slice(0, 5)
 }
 
 export async function tavily(profile: ResearchProfileV12): Promise<DeepResearchSignalV12[]> {
@@ -87,20 +138,27 @@ export async function tavily(profile: ResearchProfileV12): Promise<DeepResearchS
     const data = await json('https://api.tavily.com/search', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ api_key: key, query, max_results: 6, include_answer: false, include_raw_content: false }),
-    }, 15000) as any
-    if (!data || !Array.isArray(data.results)) return []
-    return data.results.map((item: any) => {
-      const corpus = `${item.title || ''} ${item.content || ''}`
-      const relevance = lexicalRelevance(profile, corpus)
-      return {
-        source: 'Web research', kind: query.includes('pricing') ? 'pricing-market' : 'existing-product',
-        title: item.title || '', url: item.url || '', summary: String(item.content || '').slice(0, 800),
-        relevance: Number(relevance.toFixed(3)), capabilities: matchedCapabilities(profile, corpus),
-      } satisfies DeepResearchSignalV12
-    }).filter((signal: DeepResearchSignalV12) => Number(signal.relevance || 0) >= 0.68)
+    }, 15000)
+    if (!isRecord(data) || !Array.isArray(data.results)) return []
+    return (data.results as TavilySearchResultItem[])
+      .filter(isRecord)
+      .map((item) => {
+        const title = safeString(item.title)
+        const url = safeString(item.url)
+        const content = safeString(item.content)
+        const corpus = `${title} ${content}`
+        const relevance = lexicalRelevance(profile, corpus)
+        return {
+          source: 'Web research', kind: query.includes('pricing') ? 'pricing-market' : 'existing-product',
+          title, url, summary: content.slice(0, 800),
+          relevance: Number(relevance.toFixed(3)), capabilities: matchedCapabilities(profile, corpus),
+        } satisfies DeepResearchSignalV12
+      })
+      .filter((signal: DeepResearchSignalV12) => Number(signal.relevance || 0) >= 0.68)
   }))
   return groups.flat().slice(0, 12)
 }
+
 
 function atomValue(block: string, tag: string) {
   const match = block.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, 'i'))
@@ -141,8 +199,8 @@ export async function githubReleases(repos: DeepResearchSignalV12[]) {
     const fullName = text(repo.repository?.fullName)
     if (!fullName) return []
     const releases = await json(`https://api.github.com/repos/${fullName}/releases?per_page=1`, { headers: githubHeaders() }, 10000)
-    if (!Array.isArray(releases) || !releases[0]) return []
-    const release = releases[0] as any
+    if (!Array.isArray(releases) || !releases[0] || !isRecord(releases[0])) return []
+    const release = releases[0] as GitHubReleaseItem
     return [{
       source: 'GitHub Releases', kind: 'release', title: `${fullName} · ${release.name || release.tag_name || 'latest release'}`,
       url: release.html_url || `${repo.url}/releases`, summary: String(release.body || 'Latest published release inspected for the shortlisted repository.').slice(0, 600),
@@ -152,3 +210,4 @@ export async function githubReleases(repos: DeepResearchSignalV12[]) {
   }))
   return groups.flat()
 }
+
