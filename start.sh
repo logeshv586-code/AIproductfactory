@@ -1,42 +1,37 @@
 #!/bin/bash
-# AI Product Builder Engine - Startup Script
 
-# Start Python backend
-cd /home/z/my-project/python-backend
-export PATH="$HOME/.local/bin:$PATH"
-PYTHON_BACKEND_PORT=8001 python3 main.py &
-PY_PID=$!
-echo "Python backend started (PID: $PY_PID) on port 8001"
+# 1. Force the script to use the active virtual environment Python
+if [ -d "./venv" ]; then
+    PYTHON_EXEC="./venv/Scripts/python"
+elif [ -d "./python-backend/venv" ]; then
+    PYTHON_EXEC="./python-backend/venv/Scripts/python"
+else
+    PYTHON_EXEC="python"
+fi
 
-# Wait for Python backend to be ready
-for i in $(seq 1 10); do
-  if curl -s http://localhost:8001/health > /dev/null 2>&1; then
-    echo "Python backend is ready!"
-    break
-  fi
-  sleep 1
-done
+# 2. Map Windows Node.js and global installation paths into the environment
+export PATH="$PATH:/c/Program Files/nodejs"
+export PATH="$PATH:/c/Users/$USERNAME/AppData/Roaming/npm"
+export PATH="$PATH:./node_modules/.bin"
 
-# Start Next.js production server
-cd /home/z/my-project
-NODE_ENV=production node .next/standalone/server.js &
-NX_PID=$!
-echo "Next.js server started (PID: $NX_PID) on port 3000"
+# 3. Disable automated dev dependency installers that trigger network drops
+export NEXT_TELEMETRY_DISABLED=1
 
-# Wait for Next.js to be ready
-for i in $(seq 1 10); do
-  if curl -s -o /dev/null http://localhost:3000/ 2>/dev/null; then
-    echo "Next.js is ready!"
-    break
-  fi
-  sleep 1
-done
+echo "Starting Python backend..."
+$PYTHON_EXEC python-backend/runtime_entry.py &
+PYTHON_PID=$!
+echo "Python backend started (PID: $PYTHON_PID) on port 8001"
 
-echo ""
+echo "Starting Next.js server..."
+# Use npx to trigger the dev server smoothly
+npx next dev -p 3000 &
+NODE_PID=$!
+echo "Next.js server started (PID: $NODE_PID) on port 3000"
+
 echo "=== AI Product Builder Engine ==="
 echo "Frontend: http://localhost:3000"
 echo "Python Backend: http://localhost:8001"
 echo "================================="
 
-# Keep script running
+# Keep script alive to monitor background processes
 wait
