@@ -153,16 +153,27 @@ Build the isolated runner from the repository root:
 docker build -f python-backend/execution/runner.Dockerfile -t ai-product-factory-runner:1 .
 ```
 
-Start the backend in one terminal:
+Start both the Python backend and Next.js Studio from the repository root using the cross-platform startup helper:
 
 ```bash
-cd python-backend
-../.venv/bin/python runtime_entry.py
+# Cross-platform npm helper (auto-detects OS)
+npm run dev:all
+
+# Linux / macOS:
+./scripts/dev.sh
+
+# Windows (PowerShell):
+.\scripts\dev.ps1
 ```
 
-Start the Studio in another:
+Alternatively, start the backend and frontend in separate terminals:
 
 ```bash
+# Terminal 1: Python backend
+cd python-backend
+../.venv/bin/python runtime_entry.py
+
+# Terminal 2: Next.js Studio
 npm run dev
 ```
 

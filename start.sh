@@ -1,8 +1,10 @@
 #!/bin/bash
 # AI Product Builder Engine - Startup Script
 
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # Start Python backend
-cd /home/z/my-project/python-backend
+cd "${REPO_ROOT}/python-backend"
 export PATH="$HOME/.local/bin:$PATH"
 PYTHON_BACKEND_PORT=8001 python3 main.py &
 PY_PID=$!
@@ -18,7 +20,7 @@ for i in $(seq 1 10); do
 done
 
 # Start Next.js production server
-cd /home/z/my-project
+cd "${REPO_ROOT}"
 NODE_ENV=production node .next/standalone/server.js &
 NX_PID=$!
 echo "Next.js server started (PID: $NX_PID) on port 3000"
