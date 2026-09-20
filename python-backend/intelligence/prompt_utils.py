@@ -9,38 +9,72 @@ response the caller-provided deterministic fallback is returned.
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
 
 from llm.provider import LLMProvider
 
 
 def _safe_parse(raw: str) -> Any:
-    """Best-effort JSON parse: strip markdown fences, find first {...} block."""
+    """Best-effort JSON parse: handles markdown fences, JSON arrays, and embedded JSON objects."""
     if not raw:
         return None
     cleaned = raw.strip()
-    if cleaned.startswith("```"):
-        cleaned = cleaned.strip("`").strip()
-        if cleaned.lower().startswith("json"):
-            cleaned = cleaned[4:].strip()
+
+    # 1. Direct parse attempt
     try:
         return json.loads(cleaned)
     except Exception:
         pass
-    # fall back to extracting the first balanced JSON object
-    start = cleaned.find("{")
-    if start >= 0:
+
+    # 2. Extract from markdown code fence (```json ... ``` or ``` ... ```)
+    fence_match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", raw, re.IGNORECASE)
+    if fence_match:
+        fenced_content = fence_match.group(1).strip()
+        try:
+            return json.loads(fenced_content)
+        except Exception:
+            pass
+        cleaned = fenced_content
+
+    # 3. Fall back to extracting the first balanced JSON object {...} or array [...]
+    start_brace = cleaned.find("{")
+    start_bracket = cleaned.find("[")
+
+    candidates: list[tuple[int, str, str]] = []
+    if start_brace >= 0:
+        candidates.append((start_brace, "{", "}"))
+    if start_bracket >= 0:
+        candidates.append((start_bracket, "[", "]"))
+
+    # Sort to evaluate whichever opening delimiter appears earlier in the text
+    candidates.sort(key=lambda x: x[0])
+
+    for start, open_char, close_char in candidates:
         depth = 0
+        in_string = False
+        escape = False
         for i in range(start, len(cleaned)):
-            if cleaned[i] == "{":
-                depth += 1
-            elif cleaned[i] == "}":
-                depth -= 1
-                if depth == 0:
-                    try:
-                        return json.loads(cleaned[start : i + 1])
-                    except Exception:
-                        break
+            c = cleaned[i]
+            if escape:
+                escape = False
+                continue
+            if c == "\\":
+                escape = True
+                continue
+            if c == '"':
+                in_string = not in_string
+                continue
+            if not in_string:
+                if c == open_char:
+                    depth += 1
+                elif c == close_char:
+                    depth -= 1
+                    if depth == 0:
+                        try:
+                            return json.loads(cleaned[start : i + 1])
+                        except Exception:
+                            break
     return None
 
 
