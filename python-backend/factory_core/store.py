@@ -40,7 +40,13 @@ class NotFound(ValueError):
 
 class RunStore:
     def __init__(self, path: str | Path | None = None):
-        self.path = str(path or Path(os.environ.get("FACTORY_STATE_DIR", "output/factory_state")) / "runs.sqlite3")
+        if path:
+            self.path = str(path)
+        elif os.environ.get("FACTORY_STATE_DIR"):
+            self.path = str(Path(os.environ["FACTORY_STATE_DIR"]) / "runs.sqlite3")
+        else:
+            output_root = Path(os.environ.get("FACTORY_OUTPUT_DIR", "output"))
+            self.path = str(output_root / "factory_state" / "runs.sqlite3")
         Path(self.path).parent.mkdir(parents=True, exist_ok=True)
         with self.db() as db:
             db.executescript('''

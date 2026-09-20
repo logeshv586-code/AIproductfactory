@@ -2,6 +2,7 @@ import asyncio
 import copy
 import json
 import os
+from pathlib import Path
 import time
 import uuid
 
@@ -316,3 +317,29 @@ def test_missing_runtime_observation_cannot_verify(tmp_path, monkeypatch):
     db, actor, c, a, job = saved(tmp_path, mode='model')
     asyncio.run(execute_build(db, actor, job['buildId'], FilesProvider([{'path': 'app/main.py', 'content': 'x = 1\n'}]), MissingRuntime()))
     assert not db.job(actor, job['buildId'])['pipelineVerified']
+
+
+def test_run_store_respects_output_and_state_env(tmp_path, monkeypatch):
+    # 1. Direct path override
+    explicit_path = tmp_path / "custom" / "custom.sqlite3"
+    store1 = RunStore(explicit_path)
+    assert Path(store1.path).resolve() == explicit_path.resolve()
+
+    # 2. FACTORY_STATE_DIR set
+    state_dir = tmp_path / "custom_state"
+    monkeypatch.setenv("FACTORY_STATE_DIR", str(state_dir))
+    store2 = RunStore()
+    assert Path(store2.path).resolve() == (state_dir / "runs.sqlite3").resolve()
+
+    # 3. FACTORY_STATE_DIR unset, FACTORY_OUTPUT_DIR set
+    monkeypatch.delenv("FACTORY_STATE_DIR", raising=False)
+    output_dir = tmp_path / "custom_output"
+    monkeypatch.setenv("FACTORY_OUTPUT_DIR", str(output_dir))
+    store3 = RunStore()
+    assert Path(store3.path).resolve() == (output_dir / "factory_state" / "runs.sqlite3").resolve()
+
+    # 4. Both unset (falls back to output/factory_state/runs.sqlite3)
+    monkeypatch.delenv("FACTORY_OUTPUT_DIR", raising=False)
+    store4 = RunStore()
+    assert Path(store4.path) == Path("output/factory_state/runs.sqlite3")
+
