@@ -47,7 +47,7 @@ def test_remote_runtime_session_requires_api_key():
     request = runtime.RuntimeModelRequest(
         provider="openai",
         api_key="",
-        model="gpt-5-mini",
+        model="gpt-4o-mini",
     )
 
     with pytest.raises(HTTPException) as exc_info:

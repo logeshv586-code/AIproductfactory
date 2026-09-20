@@ -72,17 +72,17 @@ LLM_PROVIDER=local
 Every model is configurable without code changes:
 
 ```env
-OPENAI_MODEL=gpt-5-mini
+OPENAI_MODEL=gpt-4o-mini
 OPENAI_EMBEDDING_MODEL=text-embedding-3-small
 OPENAI_BASE_URL=https://api.openai.com/v1
 
-ANTHROPIC_MODEL=claude-sonnet-4-20250514
+ANTHROPIC_MODEL=claude-3-5-sonnet-20241022
 ANTHROPIC_BASE_URL=
 
-GEMINI_MODEL=gemini-3.6-flash
+GEMINI_MODEL=gemini-2.0-flash
 GEMINI_EMBEDDING_MODEL=gemini-embedding-001
 
-NVIDIA_MODEL=openai/gpt-oss-20b
+NVIDIA_MODEL=meta/llama-3.1-70b-instruct
 NVIDIA_BASE_URL=https://integrate.api.nvidia.com/v1
 NVIDIA_THINKING=
 ```

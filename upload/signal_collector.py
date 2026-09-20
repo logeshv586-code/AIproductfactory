@@ -95,7 +95,7 @@ Return ONLY valid JSON:
                   f"REPOS:\n{json.dumps(repo_list, indent=2)}")
         try:
             resp = self._client.messages.create(
-                model="claude-sonnet-4-20250514",
+                model="claude-3-5-sonnet-20241022",
                 max_tokens=600,
                 system=self.RANK_SYSTEM,
                 messages=[{"role": "user", "content": prompt}],

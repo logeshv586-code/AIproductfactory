@@ -48,10 +48,10 @@ type LocalModelsResponse = {
 
 const PROVIDERS: ProviderSpec[] = [
   { id: 'deepseek', name: 'DeepSeek', label: 'DeepSeek models', model: 'deepseek-chat', note: 'Official DeepSeek API. You can also use deepseek-reasoner.', bestFor: 'Affordable reasoning and planning', requiresKey: true },
-  { id: 'openai', name: 'OpenAI', label: 'GPT models', model: 'gpt-5-mini', note: 'General reasoning, planning and code generation.', bestFor: 'General product creation', requiresKey: true },
-  { id: 'anthropic', name: 'Anthropic', label: 'Claude models', model: 'claude-sonnet-4-20250514', note: 'Strong long-context reasoning and architecture work.', bestFor: 'Complex requirements and architecture', requiresKey: true },
-  { id: 'gemini', name: 'Google Gemini', label: 'Gemini models', model: 'gemini-3.6-flash', note: 'Fast multimodal and research-oriented workflows.', bestFor: 'Research and multimodal ideas', requiresKey: true },
-  { id: 'nvidia', name: 'NVIDIA NIM', label: 'Hosted/open models', model: 'openai/gpt-oss-20b', note: 'OpenAI-compatible NVIDIA-hosted model execution.', bestFor: 'Hosted open-model workflows', requiresKey: true },
+  { id: 'openai', name: 'OpenAI', label: 'GPT models', model: 'gpt-4o-mini', note: 'General reasoning, planning and code generation.', bestFor: 'General product creation', requiresKey: true },
+  { id: 'anthropic', name: 'Anthropic', label: 'Claude models', model: 'claude-3-5-sonnet-20241022', note: 'Strong long-context reasoning and architecture work.', bestFor: 'Complex requirements and architecture', requiresKey: true },
+  { id: 'gemini', name: 'Google Gemini', label: 'Gemini models', model: 'gemini-2.0-flash', note: 'Fast multimodal and research-oriented workflows.', bestFor: 'Research and multimodal ideas', requiresKey: true },
+  { id: 'nvidia', name: 'NVIDIA NIM', label: 'Hosted/open models', model: 'meta/llama-3.1-70b-instruct', note: 'OpenAI-compatible NVIDIA-hosted model execution.', bestFor: 'Hosted open-model workflows', requiresKey: true },
   { id: 'ollama', name: 'Ollama', label: 'Local models', model: '', note: 'Runs installed Ollama models on your own machine through the OpenAI-compatible API.', bestFor: 'Private local reasoning & building', requiresKey: false, localServer: true, baseUrl: 'http://127.0.0.1:11434/v1' },
   { id: 'lmstudio', name: 'LM Studio', label: 'Local models', model: '', note: 'Uses the LM Studio local server and automatically discovers models exposed by it.', bestFor: 'Easy desktop local AI', requiresKey: false, localServer: true, baseUrl: 'http://127.0.0.1:1234/v1' },
   { id: 'local', name: 'Offline test mode', label: 'No model download', model: 'local-deterministic', note: 'Deterministic fallback for CI and product-flow testing. Not intended as the highest-quality reasoning model.', bestFor: 'Offline testing only', requiresKey: false },

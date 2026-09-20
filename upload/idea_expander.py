@@ -45,7 +45,7 @@ Be concrete and specific. Features should be implementable."""
                         f"Planner directives: {prob_score.directives}")
         user_msg = f"IDEA:\n{idea}{prob_ctx}"
         resp = self._client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-3-5-sonnet-20241022",
             max_tokens=800,
             system=self.SYSTEM,
             messages=[{"role": "user", "content": user_msg}],

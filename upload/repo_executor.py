@@ -74,7 +74,7 @@ Limit public_api to the 5 most important items."""
 
         prompt = f"REPO: {full_name}\n\nFILE TREE:\n{file_tree}\n\nSAMPLE FILES:\n{sample_content}"
         resp = self._client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-3-5-sonnet-20241022",
             max_tokens=600,
             system=self.ANALYZE_SYSTEM,
             messages=[{"role": "user", "content": prompt}],

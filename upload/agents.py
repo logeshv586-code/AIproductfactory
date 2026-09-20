@@ -115,7 +115,7 @@ Be specific about inputs."""
             f"DIRECTIVES: {prob_score.directives}"
         )
         resp = self._client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-3-5-sonnet-20241022",
             max_tokens=1000,
             system=self.SYSTEM,
             messages=[{"role": "user", "content": prompt}],
@@ -169,7 +169,7 @@ Return ONLY valid JSON:
             f"RAG CONTEXT (past builds):\n{json.dumps(rag_context[:3], indent=2)}"
         )
         resp = self._client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-3-5-sonnet-20241022",
             max_tokens=800,
             system=self.SYSTEM,
             messages=[{"role": "user", "content": prompt}],
@@ -216,7 +216,7 @@ Return ONLY valid JSON:
             f"REPOS:\n{json.dumps(repos_info, indent=2)}"
         )
         resp = self._client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-3-5-sonnet-20241022",
             max_tokens=800,
             system=self.SYSTEM,
             messages=[{"role": "user", "content": prompt}],
@@ -263,7 +263,7 @@ Include proper imports, type hints, docstrings, and error handling."""
             f"GLUE CODE NEEDED: {integration_plan.glue_code_needed}"
         )
         resp = self._client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-3-5-sonnet-20241022",
             max_tokens=1500,
             system=self.SYSTEM,
             messages=[{"role": "user", "content": prompt}],

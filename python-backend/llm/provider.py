@@ -75,7 +75,7 @@ class OpenAIProvider(LLMProvider):
 
     def __init__(self, api_key: Optional[str] = None, model: Optional[str] = None):
         self.api_key = api_key or os.environ.get("OPENAI_API_KEY", "")
-        self.model = model or os.environ.get("OPENAI_MODEL", "gpt-5-mini")
+        self.model = model or os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
         self.embedding_model = os.environ.get("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")
         self.base_url = os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1")
         self._client = None
@@ -137,7 +137,7 @@ class AnthropicProvider(LLMProvider):
 
     def __init__(self, api_key: Optional[str] = None, model: Optional[str] = None):
         self.api_key = api_key or os.environ.get("ANTHROPIC_API_KEY", "")
-        self.model = model or os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-20250514")
+        self.model = model or os.environ.get("ANTHROPIC_MODEL", "claude-3-5-sonnet-20241022")
         self.base_url = os.environ.get("ANTHROPIC_BASE_URL", "")
         self._client = None
 
@@ -205,7 +205,7 @@ class GeminiProvider(LLMProvider):
 
     def __init__(self, api_key: Optional[str] = None, model: Optional[str] = None):
         self.api_key = api_key or os.environ.get("GEMINI_API_KEY", "")
-        self.model = model or os.environ.get("GEMINI_MODEL", "gemini-3.6-flash")
+        self.model = model or os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
         self.embedding_model = os.environ.get("GEMINI_EMBEDDING_MODEL", "gemini-embedding-001")
         self._client = None
 
@@ -282,7 +282,7 @@ class NvidiaProvider(LLMProvider):
 
     def __init__(self, api_key: Optional[str] = None, model: Optional[str] = None):
         self.api_key = api_key or os.environ.get("NVIDIA_API_KEY", "")
-        self.model = model or os.environ.get("NVIDIA_MODEL", "openai/gpt-oss-20b")
+        self.model = model or os.environ.get("NVIDIA_MODEL", "meta/llama-3.1-70b-instruct")
         self.base_url = os.environ.get("NVIDIA_BASE_URL", "https://integrate.api.nvidia.com/v1")
         self._client = None
 
@@ -537,10 +537,10 @@ def get_provider_status() -> dict[str, Any]:
     """Return configuration/model metadata without exposing any API keys."""
     models = {
         "deepseek": os.environ.get("DEEPSEEK_MODEL", "deepseek-chat"),
-        "nvidia": os.environ.get("NVIDIA_MODEL", "openai/gpt-oss-20b"),
-        "openai": os.environ.get("OPENAI_MODEL", "gpt-5-mini"),
-        "anthropic": os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-20250514"),
-        "gemini": os.environ.get("GEMINI_MODEL", "gemini-3.6-flash"),
+        "nvidia": os.environ.get("NVIDIA_MODEL", "meta/llama-3.1-70b-instruct"),
+        "openai": os.environ.get("OPENAI_MODEL", "gpt-4o-mini"),
+        "anthropic": os.environ.get("ANTHROPIC_MODEL", "claude-3-5-sonnet-20241022"),
+        "gemini": os.environ.get("GEMINI_MODEL", "gemini-2.0-flash"),
     }
     return {
         "mode": _canonical_provider_name(os.environ.get("LLM_PROVIDER", "auto")),
