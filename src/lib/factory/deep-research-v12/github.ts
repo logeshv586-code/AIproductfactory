@@ -2,6 +2,75 @@ import { text, list, terms, normalize, clamp, daysSince } from './nlp-utils'
 import { matchedCapabilities, lexicalRelevance, repositoryHealth } from './scoring'
 import type { ResearchProfileV12, DeepResearchSignalV12, SourceLink } from './types'
 
+// ── Typed GitHub API Models ───────────────────────────────────────────────────
+
+export interface GitHubApiRepoItem {
+  full_name?: string
+  name?: string
+  archived?: boolean
+  fork?: boolean
+  default_branch?: string
+  html_url?: string
+  stargazers_count?: number
+  forks_count?: number
+  open_issues_count?: number
+  pushed_at?: string
+  updated_at?: string
+  created_at?: string
+  description?: string | null
+  topics?: string[]
+  language?: string | null
+  license?: {
+    key?: string
+    name?: string
+    spdx_id?: string | null
+  } | null
+}
+
+export interface GitHubContentItem {
+  name?: string
+  path?: string
+  type?: string
+  content?: string
+  encoding?: string
+  size?: number
+  html_url?: string
+  url?: string
+}
+
+export interface GitHubTreeNode {
+  path?: string
+  type?: string
+  sha?: string
+  size?: number
+}
+
+export interface GitHubTreeResponse {
+  sha?: string
+  truncated?: boolean
+  tree?: GitHubTreeNode[]
+}
+
+export interface GitHubSearchResult {
+  total_count?: number
+  incomplete_results?: boolean
+  items?: GitHubApiRepoItem[]
+}
+
+// ── Defensive Runtime Boundary Guards ─────────────────────────────────────────
+
+export function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+export function hasArray<T = unknown>(value: unknown, prop: string): value is Record<string, unknown> & { [K in typeof prop]: T[] } {
+  return isRecord(value) && Array.isArray(value[prop])
+}
+
+export function safeString(value: unknown, fallback = ''): string {
+  return typeof value === 'string' ? value : fallback
+}
+
 export function githubHeaders() {
   const token = process.env.GITHUB_TOKEN
   const headers: Record<string, string> = {
@@ -13,7 +82,7 @@ export function githubHeaders() {
   return headers
 }
 
-export async function json(url: string, init?: RequestInit, timeout = 15000) {
+export async function json(url: string, init?: RequestInit, timeout = 15000): Promise<unknown> {
   try {
     const response = await fetch(url, { ...init, cache: 'no-store', signal: AbortSignal.timeout(timeout) })
     if (!response.ok) return null
@@ -21,11 +90,11 @@ export async function json(url: string, init?: RequestInit, timeout = 15000) {
   } catch { return null }
 }
 
-export function decodeBase64(value: unknown) {
+export function decodeBase64(value: unknown): string {
   try { return typeof value === 'string' ? Buffer.from(value.replace(/\n/g, ''), 'base64').toString('utf8') : '' } catch { return '' }
 }
 
-export function filePriority(path: string, profile: ResearchProfileV12) {
+export function filePriority(path: string, profile: ResearchProfileV12): number {
   const lower = path.toLowerCase()
   if (/node_modules|vendor|dist|build|\.min\.|lock$|\.png$|\.jpg$|\.jpeg$|\.gif$|\.svg$|\.ico$/.test(lower)) return -100
   let score = 0
@@ -37,7 +106,7 @@ export function filePriority(path: string, profile: ResearchProfileV12) {
   return score
 }
 
-export function architectureHints(paths: string[], corpus: string) {
+export function architectureHints(paths: string[], corpus: string): string[] {
   const hints: string[] = []
   const joined = `${paths.join(' ')} ${corpus.slice(0, 24000)}`.toLowerCase()
   if (/dockerfile|docker-compose/.test(joined)) hints.push('Containerized deployment assets detected')
@@ -52,28 +121,43 @@ export function architectureHints(paths: string[], corpus: string) {
   return [...new Set(hints)].slice(0, 8)
 }
 
-export async function fetchRepoFile(fullName: string, path: string, branch: string) {
+export async function fetchRepoFile(fullName: string, path: string, branch: string): Promise<string> {
   const encodedPath = path.split('/').map(encodeURIComponent).join('/')
-  const data = await json(`https://api.github.com/repos/${fullName}/contents/${encodedPath}?ref=${encodeURIComponent(branch)}`, { headers: githubHeaders() }, 10000) as any
-  return data && !Array.isArray(data) ? decodeBase64(data.content).slice(0, 22000) : ''
+  const data = await json(`https://api.github.com/repos/${fullName}/contents/${encodedPath}?ref=${encodeURIComponent(branch)}`, { headers: githubHeaders() }, 10000)
+  if (!isRecord(data) || Array.isArray(data)) return ''
+  const content = safeString(data.content)
+  return content ? decodeBase64(content).slice(0, 22000) : ''
 }
 
-export async function inspectRepository(item: any, profile: ResearchProfileV12, queryFocuses: string[]): Promise<DeepResearchSignalV12 | null> {
+export async function inspectRepository(
+  item: GitHubApiRepoItem,
+  profile: ResearchProfileV12,
+  queryFocuses: string[]
+): Promise<DeepResearchSignalV12 | null> {
   const fullName = text(item.full_name)
   if (!fullName || item.archived || item.fork) return null
   const branch = text(item.default_branch) || 'main'
   const repoUrl = text(item.html_url) || `https://github.com/${fullName}`
-  const readmeData = await json(`https://api.github.com/repos/${fullName}/readme`, { headers: githubHeaders() }, 10000) as any
-  const readme = decodeBase64(readmeData?.content).slice(0, 60000)
-  const root = await json(`https://api.github.com/repos/${fullName}/contents?ref=${encodeURIComponent(branch)}`, { headers: githubHeaders() }, 10000) as any
-  const rootPaths = Array.isArray(root) ? root.map((entry: any) => text(entry.path)).filter(Boolean) : []
+  const readmeData = await json(`https://api.github.com/repos/${fullName}/readme`, { headers: githubHeaders() }, 10000)
+  const readmeRaw = isRecord(readmeData) ? safeString(readmeData.content) : ''
+  const readme = decodeBase64(readmeRaw).slice(0, 60000)
+  const root = await json(`https://api.github.com/repos/${fullName}/contents?ref=${encodeURIComponent(branch)}`, { headers: githubHeaders() }, 10000)
+  const rootPaths = Array.isArray(root)
+    ? root.map((entry) => (isRecord(entry) ? text(entry.path) : '')).filter(Boolean)
+    : []
 
   const hasToken = Boolean(process.env.GITHUB_TOKEN)
   let treePaths = rootPaths
   const shouldDeepInspect = hasToken || Number(item.stargazers_count || 0) >= 50 || queryFocuses.some((focus) => focus === 'Existing product closest to the full idea')
   if (shouldDeepInspect) {
-    const tree = await json(`https://api.github.com/repos/${fullName}/git/trees/${encodeURIComponent(branch)}?recursive=1`, { headers: githubHeaders() }, 14000) as any
-    if (tree && Array.isArray(tree.tree)) treePaths = tree.tree.filter((entry: any) => entry.type === 'blob').map((entry: any) => text(entry.path)).filter(Boolean).slice(0, 7000)
+    const tree = await json(`https://api.github.com/repos/${fullName}/git/trees/${encodeURIComponent(branch)}?recursive=1`, { headers: githubHeaders() }, 14000)
+    if (isRecord(tree) && Array.isArray(tree.tree)) {
+      treePaths = (tree.tree as GitHubTreeNode[])
+        .filter((entry) => isRecord(entry) && entry.type === 'blob')
+        .map((entry) => text(entry.path))
+        .filter(Boolean)
+        .slice(0, 7000)
+    }
   }
 
   const sampleLimit = hasToken ? 6 : 3
@@ -94,7 +178,7 @@ export async function inspectRepository(item: any, profile: ResearchProfileV12, 
   const specializedCoverage = profile.specializedCapabilities.length ? specialized.length / profile.specializedCapabilities.length : 0
   const directCapabilitySignal = specialized.length ? Math.min(1, 0.42 + specializedCoverage * 0.58) : 0
   const readmeScore = readme.length >= 5000 ? 1 : readme.length >= 1500 ? 0.82 : readme.length >= 400 ? 0.62 : readme.length ? 0.42 : 0
-  const codeScore = sampled.filter((item) => item.length >= 120).length / Math.max(1, sampleLimit)
+  const codeScore = sampled.filter((entry) => entry.length >= 120).length / Math.max(1, sampleLimit)
   const inspectionScore = Math.round(clamp(readmeScore * 0.30 + codeScore * 0.35 + Math.min(1, treePaths.length / 80) * 0.12 + Math.min(1, verified.length / 4) * 0.23) * 100)
   const health = repositoryHealth(item)
   const relevance = clamp(lexical * 0.30 + directCapabilitySignal * 0.42 + (inspectionScore / 100) * 0.18 + (health.healthScore / 100) * 0.10)
@@ -104,14 +188,15 @@ export async function inspectRepository(item: any, profile: ResearchProfileV12, 
 
   const warnings: string[] = []
   if (!readme.length) warnings.push('README could not be inspected')
-  if (!sampled.some((item) => item.length >= 120)) warnings.push('Representative source code could not be sampled')
+  if (!sampled.some((entry) => entry.length >= 120)) warnings.push('Representative source code could not be sampled')
   if (!text(item.license?.spdx_id) || ['NOASSERTION', 'OTHER'].includes(text(item.license?.spdx_id).toUpperCase())) warnings.push('License metadata requires manual verification')
   if (daysSince(item.pushed_at || item.updated_at) > 730) warnings.push('Repository activity is older than two years')
 
+  const readmeHtmlUrl = isRecord(readmeData) ? safeString(readmeData.html_url) : ''
   const sourceLinks: SourceLink[] = [
     { label: `${fullName} repository`, url: repoUrl, kind: 'repository' },
-    ...(readmeData?.html_url ? [{ label: 'README inspected', url: String(readmeData.html_url), kind: 'readme' }] : []),
-    ...keyPaths.map((path) => ({ label: path, url: `${repoUrl}/blob/${encodeURIComponent(branch)}/${path.split('/').map(encodeURIComponent).join('/')}`, kind: 'source-file' })),
+    ...(readmeHtmlUrl ? [{ label: 'README inspected', url: readmeHtmlUrl, kind: 'readme' as const }] : []),
+    ...keyPaths.map((path) => ({ label: path, url: `${repoUrl}/blob/${encodeURIComponent(branch)}/${path.split('/').map(encodeURIComponent).join('/')}`, kind: 'source-file' as const })),
   ]
   const hints = architectureHints(treePaths, corpus)
   const keyFiles = keyPaths.map((path) => ({
@@ -174,7 +259,7 @@ export async function inspectRepository(item: any, profile: ResearchProfileV12, 
 }
 
 export async function githubCandidates(profile: ResearchProfileV12, seedRepos: string[]) {
-  const byName = new Map<string, { item: any; focuses: Set<string> }>()
+  const byName = new Map<string, { item: GitHubApiRepoItem; focuses: Set<string> }>()
   const queryLimit = process.env.GITHUB_TOKEN ? profile.queries.length : Math.min(6, profile.queries.length)
   const queries = profile.queries.slice(0, queryLimit)
 
@@ -182,8 +267,11 @@ export async function githubCandidates(profile: ResearchProfileV12, seedRepos: s
     const url = new URL('https://api.github.com/search/repositories')
     url.searchParams.set('q', `${plan.query} in:name,description,readme archived:false fork:false`)
     url.searchParams.set('per_page', process.env.GITHUB_TOKEN ? '12' : '8')
-    const data = await json(url.toString(), { headers: githubHeaders() }, 15000) as any
-    return data && Array.isArray(data.items) ? data.items.map((item: any) => ({ item, focus: plan.focus })) : []
+    const data = await json(url.toString(), { headers: githubHeaders() }, 15000)
+    if (!isRecord(data) || !Array.isArray(data.items)) return []
+    return (data.items as GitHubApiRepoItem[])
+      .filter(isRecord)
+      .map((item) => ({ item, focus: plan.focus }))
   }))
 
   for (const result of groups.flat()) {
@@ -196,9 +284,9 @@ export async function githubCandidates(profile: ResearchProfileV12, seedRepos: s
 
   const exactSeeds = await Promise.all(seedRepos.slice(0, process.env.GITHUB_TOKEN ? 8 : 3).map(async (repo) => {
     const item = await json(`https://api.github.com/repos/${repo}`, { headers: githubHeaders() }, 10000)
-    return item ? { item, focus: 'Product graph seed; must still pass deep relevance proof' } : null
+    return isRecord(item) ? { item: item as GitHubApiRepoItem, focus: 'Product graph seed; must still pass deep relevance proof' } : null
   }))
-  for (const result of exactSeeds.filter(Boolean) as Array<{ item: any; focus: string }>) {
+  for (const result of exactSeeds.filter(Boolean) as Array<{ item: GitHubApiRepoItem; focus: string }>) {
     const key = text(result.item?.full_name).toLowerCase()
     if (!key) continue
     const current = byName.get(key) || { item: result.item, focuses: new Set<string>() }
@@ -226,3 +314,4 @@ export async function githubCandidates(profile: ResearchProfileV12, seedRepos: s
       .sort((a, b) => Number(b.relevance || 0) - Number(a.relevance || 0)),
   }
 }
+

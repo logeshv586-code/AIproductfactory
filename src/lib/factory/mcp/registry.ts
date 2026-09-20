@@ -2,25 +2,25 @@
  * MCP Tool Registry — Central registry for all MCP tools
  * Ported from mcp_registry.py — adapted for TypeScript
  */
-import { webSearch } from '@/lib/search'
+import { webSearch, type SearchResult } from '@/lib/search'
 
-export interface MCPTool {
+export interface MCPTool<TArgs extends unknown[] = unknown[], TResult = unknown> {
   name: string
   description: string
   tags: string[]
-  handler: (...args: any[]) => any
-  schema: Record<string, any>
-  validateResult?: (result: any) => boolean
+  handler: (...args: TArgs) => Promise<TResult> | TResult
+  schema: Record<string, unknown>
+  validateResult?: (result: unknown) => boolean
   timeoutMs?: number
   maxAttempts?: number
-  fallbackResult?: any | ((args: any[], error: unknown) => any)
+  fallbackResult?: TResult | ((args: TArgs, error: unknown) => TResult)
 }
 
-export interface MCPRunnerOptions {
+export interface MCPRunnerOptions<TArgs extends unknown[] = unknown[], TResult = unknown> {
   timeoutMs?: number
-  validateResult?: (result: any) => boolean
+  validateResult?: (result: unknown) => boolean
   maxAttempts?: number
-  fallbackResult?: any | ((args: any[], error: unknown) => any)
+  fallbackResult?: TResult | ((args: TArgs, error: unknown) => TResult)
 }
 
 export interface MCPToolMetrics {
@@ -34,6 +34,30 @@ export interface MCPToolMetrics {
   healthScore: number
 }
 
+export interface MCPToolDescriptor {
+  name: string
+  description: string
+  schema: Record<string, unknown>
+  tags: string[]
+  metrics: MCPToolMetrics
+}
+
+export interface MCPFunctionDeclaration {
+  type: 'function'
+  function: {
+    name: string
+    description: string
+    parameters: Record<string, unknown>
+  }
+}
+
+export interface MCPLogger {
+  debug?(message: string, ...args: unknown[]): void
+  info?(message: string, ...args: unknown[]): void
+  warn?(message: string, ...args: unknown[]): void
+  error?(message: string, ...args: unknown[]): void
+}
+
 const DEFAULT_TOOL_TIMEOUT_MS = Number(process.env.MCP_TOOL_TIMEOUT_MS || 10000)
 const DEFAULT_TOOL_MAX_ATTEMPTS = Number(process.env.MCP_TOOL_MAX_ATTEMPTS || 2)
 const MIN_TOOL_SUCCESS_RATE = Number(process.env.MCP_TOOL_MIN_SUCCESS_RATE || 0.6)
@@ -41,11 +65,44 @@ const MIN_TOOL_HEALTH_SCORE = Number(process.env.MCP_TOOL_MIN_HEALTH_SCORE || 0.
 const MIN_TOOL_CALLS_BEFORE_SKIP = Number(process.env.MCP_TOOL_MIN_CALLS_BEFORE_SKIP || 3)
 
 export class MCPRegistry {
-  private tools: Map<string, MCPTool> = new Map()
+  private tools: Map<string, MCPTool<any, any>> = new Map()
   private metrics: Map<string, { calls: number; successes: number; failures: number; totalLatencyMs: number; lastLatencyMs: number; lastErrorAt: string | null }> = new Map()
+  private customLogger: MCPLogger | null = null
 
-  register(tool: MCPTool) {
-    this.tools.set(tool.name, tool)
+  setLogger(logger: MCPLogger | null) {
+    this.customLogger = logger
+  }
+
+  private logDebug(message: string, ...args: unknown[]) {
+    if (this.customLogger) {
+      this.customLogger.debug?.(message, ...args)
+      return
+    }
+    if (process.env.NODE_ENV === 'test') return
+    if (process.env.NODE_ENV === 'production' && process.env.DEBUG_MCP !== '1') return
+    console.log(message, ...args)
+  }
+
+  private logWarn(message: string, ...args: unknown[]) {
+    if (this.customLogger) {
+      this.customLogger.warn?.(message, ...args)
+      return
+    }
+    if (process.env.NODE_ENV === 'test') return
+    console.warn(message, ...args)
+  }
+
+  private logError(message: string, ...args: unknown[]) {
+    if (this.customLogger) {
+      this.customLogger.error?.(message, ...args)
+      return
+    }
+    if (process.env.NODE_ENV === 'test') return
+    console.error(message, ...args)
+  }
+
+  register<TArgs extends unknown[] = unknown[], TResult = unknown>(tool: MCPTool<TArgs, TResult>) {
+    this.tools.set(tool.name, tool as MCPTool<any, any>)
     this.metrics.set(tool.name, {
       calls: 0,
       successes: 0,
@@ -54,14 +111,14 @@ export class MCPRegistry {
       lastLatencyMs: 0,
       lastErrorAt: null,
     })
-    console.log(`[MCP] registered: ${tool.name}`)
+    this.logDebug(`[MCP] registered: ${tool.name}`)
   }
 
   listTools(tag?: string): string[] {
     return this.getRankedTools(tag).map(tool => tool.name)
   }
 
-  describe(name: string): Record<string, any> {
+  describe(name: string): MCPToolDescriptor {
     const tool = this.tools.get(name)
     if (!tool) throw new Error(`Tool '${name}' not found`)
     return {
@@ -69,25 +126,33 @@ export class MCPRegistry {
       description: tool.description,
       schema: tool.schema,
       tags: tool.tags,
-      metrics: this.getMetrics(name),
+      metrics: this.getMetrics(name) as MCPToolMetrics,
     }
   }
 
-  async mcpRunner(toolName: string, ...args: any[]): Promise<any> {
+  async mcpRunner<TResult = unknown, TArgs extends unknown[] = unknown[]>(toolName: string, ...args: TArgs): Promise<TResult> {
     const tool = this.tools.get(toolName)
     if (!tool) throw new Error(`Tool '${toolName}' not registered in MCP registry`)
-    console.log(`[MCP] calling ${toolName}(${JSON.stringify(args).slice(0, 100)})`)
-    return this.runIsolated(tool, args)
+    this.logDebug(`[MCP] calling ${toolName}(${JSON.stringify(args).slice(0, 100)})`)
+    return this.runIsolated<TResult, TArgs>(tool, args)
   }
 
-  async runTool(toolName: string, args: any[] = [], options: MCPRunnerOptions = {}): Promise<any> {
+  async runTool<TResult = unknown, TArgs extends unknown[] = unknown[]>(
+    toolName: string,
+    args: TArgs = [] as unknown as TArgs,
+    options: MCPRunnerOptions<TArgs, TResult> = {}
+  ): Promise<TResult> {
     const tool = this.tools.get(toolName)
     if (!tool) throw new Error(`Tool '${toolName}' not registered in MCP registry`)
-    console.log(`[MCP] calling ${toolName}(${JSON.stringify(args).slice(0, 100)})`)
-    return this.runIsolated(tool, args, options)
+    this.logDebug(`[MCP] calling ${toolName}(${JSON.stringify(args).slice(0, 100)})`)
+    return this.runIsolated<TResult, TArgs>(tool, args, options)
   }
 
-  private async runIsolated(tool: MCPTool, args: any[], options: MCPRunnerOptions = {}): Promise<any> {
+  private async runIsolated<TResult = unknown, TArgs extends unknown[] = unknown[]>(
+    tool: MCPTool<TArgs, TResult>,
+    args: TArgs,
+    options: MCPRunnerOptions<TArgs, TResult> = {}
+  ): Promise<TResult> {
     const timeoutMs = options.timeoutMs ?? tool.timeoutMs ?? DEFAULT_TOOL_TIMEOUT_MS
     const maxAttempts = Math.max(1, options.maxAttempts ?? tool.maxAttempts ?? DEFAULT_TOOL_MAX_ATTEMPTS)
     const validateResult = options.validateResult ?? tool.validateResult
@@ -100,7 +165,7 @@ export class MCPRegistry {
       try {
         const result = await Promise.race([
           Promise.resolve(tool.handler(...args)),
-          new Promise((_, reject) => {
+          new Promise<never>((_, reject) => {
             controller.signal.addEventListener('abort', () => {
               reject(new Error(`Tool '${tool.name}' timed out after ${timeoutMs}ms`))
             }, { once: true })
@@ -113,20 +178,20 @@ export class MCPRegistry {
 
         this.recordResult(tool.name, true, Date.now() - startedAt)
         return result
-      } catch (error) {
+      } catch (error: unknown) {
         const isFinalAttempt = attempt === maxAttempts
         if (!isFinalAttempt) {
-          console.warn(`[MCP] ${tool.name} attempt ${attempt}/${maxAttempts} failed, retrying`, error)
+          this.logWarn(`[MCP] ${tool.name} attempt ${attempt}/${maxAttempts} failed, retrying`, error)
           continue
         }
 
         this.recordResult(tool.name, false, Date.now() - startedAt)
-        console.warn(`[MCP] ${tool.name} failed:`, error)
+        this.logWarn(`[MCP] ${tool.name} failed:`, error)
 
         const fallbackResult = options.fallbackResult ?? tool.fallbackResult
         if (fallbackResult !== undefined) {
           return typeof fallbackResult === 'function'
-            ? fallbackResult(args, error)
+            ? (fallbackResult as (args: TArgs, error: unknown) => TResult)(args, error)
             : fallbackResult
         }
         throw error
@@ -138,7 +203,7 @@ export class MCPRegistry {
     throw new Error(`Tool '${tool.name}' failed without a terminal error`)
   }
 
-  toLLMTools(): Record<string, any>[] {
+  toLLMTools(): MCPFunctionDeclaration[] {
     return this.getRankedTools(undefined, { healthyOnly: true }).map(t => ({
       type: 'function',
       function: {
@@ -217,12 +282,26 @@ export class MCPRegistry {
   }
 }
 
-// ── Built-in tool factories ──────────────────────────────────────────────────
+// ── Built-in tool contracts & factories ───────────────────────────────────────
 
-export function makeGitHubSearchTool(token?: string): MCPTool {
+export interface GitHubRepoItem {
+  fullName: string
+  stars: number
+  description: string
+  url: string
+  cloneUrl: string
+  language: string | null
+  topics: string[]
+}
+
+export interface GitHubSearchPayload {
+  items: GitHubRepoItem[]
+}
+
+export function makeGitHubSearchTool(token?: string): MCPTool<[query: string, sort?: string, perPage?: number], GitHubSearchPayload> {
   const githubToken = token || process.env.GITHUB_TOKEN
 
-  async function handler(query: string, sort = 'stars', perPage = 5): Promise<any> {
+  async function handler(query: string, sort = 'stars', perPage = 5): Promise<GitHubSearchPayload> {
     const params = new URLSearchParams({ q: query, sort, per_page: perPage.toString() })
     const headers: Record<string, string> = {
       'User-Agent': 'ai-product-factory',
@@ -231,19 +310,20 @@ export function makeGitHubSearchTool(token?: string): MCPTool {
     if (githubToken) headers['Authorization'] = `token ${githubToken}`
 
     const res = await fetch(`https://api.github.com/search/repositories?${params}`, { headers })
-    const data = await res.json()
+    const data = await res.json() as { items?: Record<string, unknown>[] }
 
-    return {
-      items: (data.items || []).map((i: any) => ({
-        fullName: i.full_name,
-        stars: i.stargazers_count,
-        description: i.description || '',
-        url: i.html_url,
-        cloneUrl: i.clone_url,
-        language: i.language,
-        topics: i.topics || [],
-      })),
-    }
+    const rawItems = Array.isArray(data?.items) ? data.items : []
+    const items: GitHubRepoItem[] = rawItems.map((i) => ({
+      fullName: typeof i.full_name === 'string' ? i.full_name : '',
+      stars: typeof i.stargazers_count === 'number' ? i.stargazers_count : 0,
+      description: typeof i.description === 'string' ? i.description : '',
+      url: typeof i.html_url === 'string' ? i.html_url : '',
+      cloneUrl: typeof i.clone_url === 'string' ? i.clone_url : '',
+      language: typeof i.language === 'string' ? i.language : null,
+      topics: Array.isArray(i.topics) ? (i.topics.filter(t => typeof t === 'string') as string[]) : [],
+    }))
+
+    return { items }
   }
 
   return {
@@ -253,7 +333,10 @@ export function makeGitHubSearchTool(token?: string): MCPTool {
     handler,
     maxAttempts: 3,
     fallbackResult: { items: [] },
-    validateResult: (result) => Array.isArray(result?.items),
+    validateResult: (result: unknown): boolean => {
+      if (!result || typeof result !== 'object') return false
+      return Array.isArray((result as { items?: unknown }).items)
+    },
     schema: {
       type: 'object',
       properties: {
@@ -266,8 +349,13 @@ export function makeGitHubSearchTool(token?: string): MCPTool {
   }
 }
 
-export function makeWebSearchTool(): MCPTool {
-  async function handler(query: string, maxResults = 5): Promise<any> {
+export interface WebSearchPayload {
+  query: string
+  results: SearchResult[]
+}
+
+export function makeWebSearchTool(): MCPTool<[query: string, maxResults?: number], WebSearchPayload> {
+  async function handler(query: string, maxResults = 5): Promise<WebSearchPayload> {
     try {
       const results = await webSearch(query, { maxResults })
       return { query, results }
@@ -282,8 +370,11 @@ export function makeWebSearchTool(): MCPTool {
     tags: ['web', 'search'],
     handler,
     maxAttempts: 2,
-    fallbackResult: (args: any[]) => ({ query: args[0] || '', results: [] }),
-    validateResult: (result) => Array.isArray(result?.results),
+    fallbackResult: (args: [query: string, maxResults?: number]) => ({ query: args[0] || '', results: [] }),
+    validateResult: (result: unknown): boolean => {
+      if (!result || typeof result !== 'object') return false
+      return Array.isArray((result as { results?: unknown }).results)
+    },
     schema: {
       type: 'object',
       properties: {
@@ -295,8 +386,16 @@ export function makeWebSearchTool(): MCPTool {
   }
 }
 
-export function makeRAGQueryTool(memory: any): MCPTool {
-  function handler(query: string, topK = 5): any {
+export interface RAGMemorySource {
+  recallContext(query: string, topK?: number): unknown[]
+}
+
+export interface RAGQueryPayload {
+  hits: unknown[]
+}
+
+export function makeRAGQueryTool(memory: RAGMemorySource): MCPTool<[query: string, topK?: number], RAGQueryPayload> {
+  function handler(query: string, topK = 5): RAGQueryPayload {
     const hits = memory.recallContext(query, topK)
     return { hits }
   }
@@ -308,7 +407,10 @@ export function makeRAGQueryTool(memory: any): MCPTool {
     handler,
     maxAttempts: 1,
     fallbackResult: { hits: [] },
-    validateResult: (result) => Array.isArray(result?.hits),
+    validateResult: (result: unknown): boolean => {
+      if (!result || typeof result !== 'object') return false
+      return Array.isArray((result as { hits?: unknown }).hits)
+    },
     schema: {
       type: 'object',
       properties: {
@@ -319,3 +421,4 @@ export function makeRAGQueryTool(memory: any): MCPTool {
     },
   }
 }
+
