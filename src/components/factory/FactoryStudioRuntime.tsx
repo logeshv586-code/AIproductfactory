@@ -23,10 +23,10 @@ const PROVIDERS: Array<{
   model: string
   note: string
 }> = [
-  { id: 'openai', name: 'OpenAI', label: 'GPT models', model: 'gpt-5-mini', note: 'General reasoning, planning and code generation.' },
-  { id: 'anthropic', name: 'Anthropic', label: 'Claude models', model: 'claude-sonnet-4-20250514', note: 'Strong long-context reasoning and architecture work.' },
-  { id: 'gemini', name: 'Google Gemini', label: 'Gemini models', model: 'gemini-3.6-flash', note: 'Fast multimodal and research-oriented workflows.' },
-  { id: 'nvidia', name: 'NVIDIA NIM', label: 'Hosted/open models', model: 'openai/gpt-oss-20b', note: 'OpenAI-compatible NVIDIA-hosted model execution.' },
+  { id: 'openai', name: 'OpenAI', label: 'GPT models', model: 'gpt-4o-mini', note: 'General reasoning, planning and code generation.' },
+  { id: 'anthropic', name: 'Anthropic', label: 'Claude models', model: 'claude-3-5-sonnet-20241022', note: 'Strong long-context reasoning and architecture work.' },
+  { id: 'gemini', name: 'Google Gemini', label: 'Gemini models', model: 'gemini-2.0-flash', note: 'Fast multimodal and research-oriented workflows.' },
+  { id: 'nvidia', name: 'NVIDIA NIM', label: 'Hosted/open models', model: 'meta/llama-3.1-70b-instruct', note: 'OpenAI-compatible NVIDIA-hosted model execution.' },
   { id: 'deepseek', name: 'DeepSeek', label: 'Chat & R1 models', model: 'deepseek-chat', note: 'Official DeepSeek API (deepseek-chat, deepseek-reasoner).' },
   { id: 'local', name: 'Local mode', label: 'No API key', model: 'local-deterministic', note: 'Offline deterministic fallback for testing and development.' },
 ]

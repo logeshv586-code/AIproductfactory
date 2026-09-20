@@ -56,7 +56,7 @@ async function optionalRealProviderSmoke() {
     console.log('[e2e] real OpenAI smoke skipped — OPENAI_API_KEY is not configured')
     return
   }
-  const model = (process.env.OPENAI_SMOKE_MODEL || 'gpt-5-mini').trim()
+  const model = (process.env.OPENAI_SMOKE_MODEL || 'gpt-4o-mini').trim()
   const configured = await post('/api/factory/llm/configure', { provider: 'openai', apiKey, model }, { useSession: false })
   assert(configured.sessionId, 'real OpenAI smoke did not create a session')
   assert(configured.provider === 'openai', 'real OpenAI smoke returned wrong provider')

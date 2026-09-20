@@ -59,7 +59,7 @@ Directives are short instructions for the planner (e.g. "prefer repos with MIT l
         weights = self._weights()
         user_msg = f"IDEA:\n{idea}\n\nCONTEXT:\n{context or 'none'}"
         resp = self._client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-3-5-sonnet-20241022",
             max_tokens=512,
             system=self.SYSTEM,
             messages=[{"role": "user", "content": user_msg}],

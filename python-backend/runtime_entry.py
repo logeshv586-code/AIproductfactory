@@ -65,10 +65,10 @@ ALIASES = {
 
 DEFAULT_MODELS = {
     "deepseek": os.environ.get("DEEPSEEK_MODEL", "deepseek-chat"),
-    "openai": os.environ.get("OPENAI_MODEL", "gpt-5-mini"),
-    "anthropic": os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-20250514"),
-    "gemini": os.environ.get("GEMINI_MODEL", "gemini-3.6-flash"),
-    "nvidia": os.environ.get("NVIDIA_MODEL", "openai/gpt-oss-20b"),
+    "openai": os.environ.get("OPENAI_MODEL", "gpt-4o-mini"),
+    "anthropic": os.environ.get("ANTHROPIC_MODEL", "claude-3-5-sonnet-20241022"),
+    "gemini": os.environ.get("GEMINI_MODEL", "gemini-2.0-flash"),
+    "nvidia": os.environ.get("NVIDIA_MODEL", "meta/llama-3.1-70b-instruct"),
     "ollama": os.environ.get("OLLAMA_MODEL", ""),
     "lmstudio": os.environ.get("LMSTUDIO_MODEL", ""),
     "local": "local-deterministic",
