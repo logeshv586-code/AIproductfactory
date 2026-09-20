@@ -29,6 +29,7 @@ jobs:
         run: npm audit --audit-level=critical
       - run: npm run lint
       - run: npx tsc --noEmit
+      - run: npm test
       - run: npm run build
         env:
           DATABASE_URL: file:./db/custom.db
