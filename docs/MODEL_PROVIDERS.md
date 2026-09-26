@@ -52,6 +52,15 @@ GEMINI_API_KEY=
 
 No provider key is exposed by provider-status metadata or test logs.
 
+### Circuit breaker
+
+Each remote provider has a circuit breaker (tracked separately for chat and embeddings). After `LLM_CIRCUIT_FAILURE_THRESHOLD` consecutive failures (errors, timeouts or empty responses) the circuit opens and that provider is skipped instantly, so failover no longer waits for the request timeout on every call. After `LLM_CIRCUIT_RECOVERY_SECONDS` a single probe request is allowed through: success closes the circuit, failure keeps it open for another cooldown. Current circuit states appear under `circuit` in provider-status metadata.
+
+```env
+LLM_CIRCUIT_FAILURE_THRESHOLD=3
+LLM_CIRCUIT_RECOVERY_SECONDS=60
+```
+
 ## Explicit provider modes
 
 Use one of:
