@@ -10,6 +10,10 @@ Supported runtime providers:
 `LLM_PROVIDER=auto` enables provider failover using `LLM_PROVIDER_ORDER`.
 Explicit provider values are also supported: nvidia, openai, anthropic/claude,
 gemini, local.
+
+Remote calls go through per-provider circuit breakers (see
+`llm.circuit_breaker`) so an outage fails over immediately instead of waiting
+for the request timeout on every call.
 """
 
 from __future__ import annotations
@@ -19,6 +23,11 @@ import os
 from typing import Any, Optional
 
 from llm.base import LLMProvider, deterministic_embedding
+from llm.circuit_breaker import (
+    CircuitBreakerRegistry,
+    CircuitOpenError,
+    get_circuit_breaker_registry,
+)
 from llm.local_provider import LocalProvider
 
 
@@ -398,18 +407,34 @@ class DeepSeekProvider(LLMProvider):
         return deterministic_embedding(text)
 
 
+def _empty_chat(text: str) -> bool:
+    # Remote adapters swallow SDK errors and return "", so an empty reply is
+    # how most provider failures surface.
+    return not text
+
+
+def _empty_embedding(vector: list[float]) -> bool:
+    return not vector or not any(value != 0 for value in vector)
+
+
 class ResilientProvider(LLMProvider):
-    """Wrap one remote provider with timeout and deterministic local fallback."""
+    """Wrap one remote provider with timeout, circuit breaker and local fallback."""
 
     def __init__(
         self,
         primary: LLMProvider,
         fallback: Optional[LLMProvider] = None,
         timeout_seconds: float = 90.0,
+        name: Optional[str] = None,
+        breakers: Optional[CircuitBreakerRegistry] = None,
     ):
         self.primary = primary
         self.fallback = fallback or LocalProvider()
         self.timeout_seconds = timeout_seconds
+        self.name = name or type(primary).__name__
+        registry = breakers or get_circuit_breaker_registry()
+        self.chat_breaker = registry.get(f"{self.name}:chat")
+        self.embedding_breaker = registry.get(f"{self.name}:embedding")
 
     async def chat(
         self,
@@ -419,14 +444,15 @@ class ResilientProvider(LLMProvider):
         enable_thinking: bool | None = None,
     ) -> str:
         try:
-            text = await asyncio.wait_for(
-                self.primary.chat(
+            text = await self.chat_breaker.call(
+                lambda: self.primary.chat(
                     messages,
                     temperature=temperature,
                     max_tokens=max_tokens,
                     enable_thinking=enable_thinking,
                 ),
                 timeout=self.timeout_seconds,
+                is_failure=_empty_chat,
             )
             if text:
                 return text
@@ -441,11 +467,12 @@ class ResilientProvider(LLMProvider):
 
     async def get_embedding(self, text: str) -> list[float]:
         try:
-            vector = await asyncio.wait_for(
-                self.primary.get_embedding(text),
+            vector = await self.embedding_breaker.call(
+                lambda: self.primary.get_embedding(text),
                 timeout=self.timeout_seconds,
+                is_failure=_empty_embedding,
             )
-            if vector and any(value != 0 for value in vector):
+            if not _empty_embedding(vector):
                 return vector
         except Exception as exc:
             print(f"[ResilientProvider] primary embedding fallback: {exc}")
@@ -453,17 +480,23 @@ class ResilientProvider(LLMProvider):
 
 
 class ProviderPool(LLMProvider):
-    """Automatic failover across every configured remote provider."""
+    """Automatic failover across every configured remote provider.
+
+    Providers whose circuit is open are skipped immediately instead of
+    costing a full timeout on every request.
+    """
 
     def __init__(
         self,
         providers: list[tuple[str, LLMProvider]],
         fallback: Optional[LLMProvider] = None,
         timeout_seconds: float = 90.0,
+        breakers: Optional[CircuitBreakerRegistry] = None,
     ):
         self.providers = providers
         self.fallback = fallback or LocalProvider()
         self.timeout_seconds = timeout_seconds
+        self.breakers = breakers or get_circuit_breaker_registry()
         self.last_provider = "local"
 
     async def chat(
@@ -475,18 +508,21 @@ class ProviderPool(LLMProvider):
     ) -> str:
         for name, provider in self.providers:
             try:
-                text = await asyncio.wait_for(
-                    provider.chat(
+                text = await self.breakers.get(f"{name}:chat").call(
+                    lambda provider=provider: provider.chat(
                         messages,
                         temperature=temperature,
                         max_tokens=max_tokens,
                         enable_thinking=enable_thinking,
                     ),
                     timeout=self.timeout_seconds,
+                    is_failure=_empty_chat,
                 )
                 if text:
                     self.last_provider = name
                     return text
+            except CircuitOpenError as exc:
+                print(f"[ProviderPool] skipping {name} chat: {exc}")
             except Exception as exc:
                 print(f"[ProviderPool] {name} chat failed: {exc}")
         self.last_provider = "local"
@@ -505,13 +541,16 @@ class ProviderPool(LLMProvider):
         )
         for name, provider in native_first:
             try:
-                vector = await asyncio.wait_for(
-                    provider.get_embedding(text),
+                vector = await self.breakers.get(f"{name}:embedding").call(
+                    lambda provider=provider: provider.get_embedding(text),
                     timeout=self.timeout_seconds,
+                    is_failure=_empty_embedding,
                 )
-                if vector and any(value != 0 for value in vector):
+                if not _empty_embedding(vector):
                     self.last_provider = name
                     return vector
+            except CircuitOpenError as exc:
+                print(f"[ProviderPool] skipping {name} embedding: {exc}")
             except Exception as exc:
                 print(f"[ProviderPool] {name} embedding failed: {exc}")
         self.last_provider = "local"
@@ -542,6 +581,7 @@ def get_provider_status() -> dict[str, Any]:
         "anthropic": os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-20250514"),
         "gemini": os.environ.get("GEMINI_MODEL", "gemini-3.6-flash"),
     }
+    breakers = get_circuit_breaker_registry().snapshot()
     return {
         "mode": _canonical_provider_name(os.environ.get("LLM_PROVIDER", "auto")),
         "order": _provider_order(),
@@ -552,6 +592,10 @@ def get_provider_status() -> dict[str, Any]:
                 "chat": True,
                 "native_embeddings": name in {"openai", "gemini"},
                 "local_embedding_fallback": True,
+                "circuit": {
+                    operation: breakers.get(f"{name}:{operation}", {}).get("state", "closed")
+                    for operation in ("chat", "embedding")
+                },
             }
             for name in ["deepseek", "nvidia", "openai", "anthropic", "gemini"]
         },
@@ -576,6 +620,6 @@ def get_provider(provider_name: Optional[str] = None) -> LLMProvider:
     if name in PROVIDER_ENV:
         if not _configured(name):
             return LocalProvider()
-        return ResilientProvider(_build_remote(name))
+        return ResilientProvider(_build_remote(name), name=name)
 
     return LocalProvider()
