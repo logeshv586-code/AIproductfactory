@@ -23,11 +23,13 @@ type Build = BuildDeliveryEnvelope & { buildId: string; status: string; tasks: R
 type OfflinePlan = {
   idea: string
   policy: { offline_only?: boolean; external_network?: string; loopback_services?: string; recommended_llm?: string }
+  connection_mode?: 'offline_only' | 'online_extensions_enabled'
   capabilities: Array<{ id: string; category: string; pattern: string; offline_grade: string; local_components: string[] }>
   blueprints: Array<{ id: string; name: string; description: string; capabilities: string[]; local_stack?: string[] }>
+  online_extensions?: Array<{ id: string; name: string; purpose: string; connectors: string[]; offline_fallback: string; approval_required: boolean }>
 }
 const TERMINAL = new Set(['ready', 'blocked', 'failed', 'cancelled'])
-const INITIAL: Brief = { idea: '', audience: '', platform: 'web', priority: 'balanced', privacy: 'cloud_allowed', constraints: [], target_os: ['linux'] }
+const INITIAL: Brief = { idea: '', audience: '', platform: 'web', priority: 'balanced', privacy: 'local_only', constraints: [], target_os: ['linux'] }
 const field = 'mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100'
 const button = 'inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white disabled:opacity-40'
 
@@ -88,7 +90,7 @@ export default function FactoryStudioCore() {
       const response = await fetch('/api/factory/offline/plan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idea: brief.idea }),
+        body: JSON.stringify({ idea: brief.idea, allow_online: brief.privacy === 'cloud_allowed' }),
         cache: 'no-store',
       })
       const payload = await response.json()
@@ -160,15 +162,15 @@ export default function FactoryStudioCore() {
           <label className="text-sm font-medium">Who will use it?<input value={brief.audience} onChange={e => editBrief({ audience: e.target.value })} className={field} /></label>
           <label className="text-sm font-medium">Product type<select value={brief.platform} onChange={e => editBrief({ platform: e.target.value as Platform })} className={field}><option value="web">Website / web application</option><option value="desktop">Desktop application</option><option value="automation">Automation workflow</option></select></label>
           <label className="text-sm font-medium">Priority<select value={brief.priority} onChange={e => editBrief({ priority: e.target.value as Brief['priority'] })} className={field}><option value="speed">Launch quickly</option><option value="balanced">Best balance</option><option value="scale">Operational resilience</option></select></label>
-          <label className="text-sm font-medium">Privacy<select value={brief.privacy} onChange={e => editBrief({ privacy: e.target.value as Brief['privacy'] })} className={field}><option value="cloud_allowed">Cloud AI and public research allowed</option><option value="local_only">Local model only; no external research</option></select></label>
+          <label className="text-sm font-medium">Connection mode<select value={brief.privacy} onChange={e => editBrief({ privacy: e.target.value as Brief['privacy'] })} className={field}><option value="local_only">Offline-first · local models/data only</option><option value="cloud_allowed">Enable online extensions · MCP/live research/connectors</option></select></label>
         </div>
         {brief.platform === 'desktop' && <label className="mt-4 block text-sm font-medium">Target operating system<select value={brief.target_os[0]} onChange={e => editBrief({ target_os: [e.target.value as Brief['target_os'][number]] })} className={field}><option value="windows">Windows</option><option value="macos">macOS</option><option value="linux">Linux</option></select></label>}
         <label className="mt-4 block text-sm font-medium">Must-haves and boundaries <span className="font-normal text-slate-500">(one per line)</span><textarea value={constraints} onChange={e => { setConstraints(e.target.value); editBrief({}) }} rows={2} className={field} placeholder="Existing tools to integrate, budget, offline needs, features to exclude…" /></label>
-        {brief.privacy === 'local_only' && <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50/70 p-5">
+        <div className={`mt-5 rounded-2xl border p-5 ${brief.privacy === 'local_only' ? 'border-emerald-200 bg-emerald-50/70' : 'border-blue-200 bg-blue-50/70'}`}>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <p className="text-sm font-semibold text-emerald-900">Offline Capability Factory</p>
-              <p className="mt-1 max-w-3xl text-sm leading-6 text-emerald-800">Map this idea to local LLM, RAG, agent, voice, vision, MCP, automation and UI building blocks before creating the three engineering plans.</p>
+              <p className={`text-sm font-semibold ${brief.privacy === 'local_only' ? 'text-emerald-900' : 'text-blue-900'}`}>Capability Factory · {brief.privacy === 'local_only' ? 'Offline core' : 'Offline core + online extensions'}</p>
+              <p className={`mt-1 max-w-3xl text-sm leading-6 ${brief.privacy === 'local_only' ? 'text-emerald-800' : 'text-blue-800'}`}>The product is composed from local LLM, RAG, agent, voice, vision, MCP, automation and UI capabilities. Online mode only adds optional connectors/live data on top of the same local product core.</p>
             </div>
             <button onClick={previewOfflinePlan} disabled={offlineBusy || brief.idea.trim().length < 8} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-emerald-300 bg-white px-4 py-2 text-sm font-semibold text-emerald-800 disabled:opacity-40">
               {offlineBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
@@ -186,9 +188,19 @@ export default function FactoryStudioCore() {
                 {!!blueprint.local_stack?.length && <p className="mt-2 text-[11px] leading-5 text-emerald-800">{blueprint.local_stack.slice(0, 5).join(' · ')}</p>}
               </div>)}
             </div>
-            <p className="text-xs text-emerald-800">The final build still uses the normal exact-approval contract, isolated verification and source delivery flow.</p>
+            {!!offlinePlan.online_extensions?.length && <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-blue-800">Optional online extensions</p>
+              <div className="mt-3 grid gap-3 md:grid-cols-2">
+                {offlinePlan.online_extensions.map(extension => <div key={extension.id} className="rounded-lg bg-white p-3">
+                  <p className="text-sm font-semibold text-slate-950">{extension.name}</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-600">{extension.purpose}</p>
+                  <p className="mt-2 text-[11px] text-blue-700">Offline fallback: {extension.offline_fallback}</p>
+                </div>)}
+              </div>
+            </div>}
+            <p className={`text-xs ${brief.privacy === 'local_only' ? 'text-emerald-800' : 'text-blue-800'}`}>The offline core remains usable without these extensions. Connected actions should be separately authorized and fall back to local data when unavailable.</p>
           </div>}
-        </div>}
+        </div>
         <button onClick={plan} disabled={!!busy || !!activeBuild || brief.idea.trim().length < 8} className={`${button} mt-5`}>{busy === 'research' ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />} Research and create three plans</button>
       </section>
       <p role="status" className="px-2 text-sm leading-6 text-slate-600">{status}</p>
