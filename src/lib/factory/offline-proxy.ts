@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getPythonBackendUrl } from '@/lib/factory/python-health'
 
-const PATH = /^(status|capabilities|products|plan)$/
+const PATH = /^(status|capabilities|products|extensions|plan)$/
 
 export async function proxyOfflineFactory(request: NextRequest, path: string) {
   if (!PATH.test(path)) {
