@@ -2,6 +2,7 @@ import asyncio
 import copy
 import json
 import os
+from pathlib import Path
 import time
 import uuid
 
@@ -316,3 +317,20 @@ def test_missing_runtime_observation_cannot_verify(tmp_path, monkeypatch):
     db, actor, c, a, job = saved(tmp_path, mode='model')
     asyncio.run(execute_build(db, actor, job['buildId'], FilesProvider([{'path': 'app/main.py', 'content': 'x = 1\n'}]), MissingRuntime()))
     assert not db.job(actor, job['buildId'])['pipelineVerified']
+
+
+def test_run_store_respects_output_and_state_env(tmp_path, monkeypatch):
+    explicit_path = tmp_path / "custom" / "custom.sqlite3"
+    store = RunStore(explicit_path)
+    assert Path(store.path).resolve() == explicit_path.resolve()
+
+    state_dir = tmp_path / "state"
+    monkeypatch.setenv("FACTORY_STATE_DIR", str(state_dir))
+    store = RunStore()
+    assert Path(store.path).resolve() == (state_dir / "runs.sqlite3").resolve()
+
+    monkeypatch.delenv("FACTORY_STATE_DIR", raising=False)
+    output_dir = tmp_path / "products"
+    monkeypatch.setenv("FACTORY_OUTPUT_DIR", str(output_dir))
+    store = RunStore()
+    assert Path(store.path).resolve() == (output_dir / "factory_state" / "runs.sqlite3").resolve()
