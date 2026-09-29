@@ -71,7 +71,7 @@ export default function FactoryStudioRuntimeV10() {
   const [provider, setProvider] = useState<ProviderId>('ollama')
   const [apiKey, setApiKey] = useState('')
   const [model, setModel] = useState(providerInfo('ollama').model)
-  const [baseUrl, setBaseUrl] = useState('')
+  const [baseUrl, setBaseUrl] = useState(providerInfo('ollama').baseUrl || '')
   const [localModels, setLocalModels] = useState<string[]>([])
   const [localRecommendations, setLocalRecommendations] = useState<LocalRecommendation[]>([])
   const [discovering, setDiscovering] = useState(false)
