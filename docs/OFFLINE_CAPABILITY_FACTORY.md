@@ -110,6 +110,50 @@ The backend exposes reusable product recipes for:
 These are defined in
 `python-backend/capabilities/product_blueprints.py`.
 
+## Offline core + opt-in online extensions
+
+The default product mode is **offline-first**. Every product should compose its
+primary behavior from local models, local retrieval, local storage and local
+tools whenever technically feasible.
+
+When the user explicitly enables connected mode, the Factory may attach
+optional extension adapters such as:
+
+- live web research / browser MCP,
+- GitHub MCP,
+- SaaS MCP connectors,
+- mail/calendar connectors,
+- live finance/travel/maps/business-data APIs,
+- remote browser automation,
+- cloud real-time voice,
+- cloud multimodal/VLM services.
+
+These are **extensions, not foundations**. The intended runtime shape is:
+
+```text
+Local product core
+  ├─ local LLM
+  ├─ local RAG / memory
+  ├─ local DB/files
+  ├─ local UI / agents
+  └─ local tools
+       |
+       +-- optional online extension gateway
+             ├─ MCP
+             ├─ live web
+             ├─ GitHub
+             ├─ SaaS
+             ├─ mail/calendar
+             └─ domain APIs
+```
+
+If an extension is unavailable, the product should keep running and use its
+declared local fallback: cached/imported data, local git, local files, local
+speech/vision, or a manual action export.
+
+The extension registry lives in
+`python-backend/capabilities/online_extensions.py`.
+
 ## How it plugs into the existing Product Factory
 
 The existing Product Factory remains the system of record:
