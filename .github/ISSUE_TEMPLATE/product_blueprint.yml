@@ -1,0 +1,42 @@
+name: Product blueprint
+description: Propose a reusable product family composed from existing capabilities.
+title: "[Blueprint] "
+labels: ["enhancement"]
+body:
+  - type: input
+    id: name
+    attributes:
+      label: Blueprint name
+      placeholder: Private Knowledge Assistant
+    validations:
+      required: true
+  - type: textarea
+    id: users
+    attributes:
+      label: Users and problem
+    validations:
+      required: true
+  - type: textarea
+    id: composition
+    attributes:
+      label: Capability composition
+      placeholder: local_llm_reasoning + rag_hybrid + persistent_memory + generative_ui
+    validations:
+      required: true
+  - type: textarea
+    id: outputs
+    attributes:
+      label: Expected product outputs
+    validations:
+      required: true
+  - type: textarea
+    id: extensions
+    attributes:
+      label: Optional online extensions and fallbacks
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Suggested acceptance checks
+      description: What observable behavior would prove this blueprint works?
+    validations:
+      required: true
