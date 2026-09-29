@@ -9,40 +9,65 @@ response the caller-provided deterministic fallback is returned.
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
 
 from llm.provider import LLMProvider
 
 
 def _safe_parse(raw: str) -> Any:
-    """Best-effort JSON parse: strip markdown fences, find first {...} block."""
+    """Best-effort JSON parse for raw, fenced, object or array responses."""
     if not raw:
         return None
     cleaned = raw.strip()
-    if cleaned.startswith("```"):
-        cleaned = cleaned.strip("`").strip()
-        if cleaned.lower().startswith("json"):
-            cleaned = cleaned[4:].strip()
+
     try:
         return json.loads(cleaned)
     except Exception:
         pass
-    # fall back to extracting the first balanced JSON object
-    start = cleaned.find("{")
-    if start >= 0:
+
+    fence_match = re.search(r"```(?:json)?\\s*([\\s\\S]*?)\\s*```", raw, re.IGNORECASE)
+    if fence_match:
+        fenced = fence_match.group(1).strip()
+        try:
+            return json.loads(fenced)
+        except Exception:
+            cleaned = fenced
+
+    candidates: list[tuple[int, str, str]] = []
+    for opener, closer in (("{", "}"), ("[", "]")):
+        pos = cleaned.find(opener)
+        if pos >= 0:
+            candidates.append((pos, opener, closer))
+    candidates.sort(key=lambda item: item[0])
+
+    for start_at, opener, closer in candidates:
         depth = 0
-        for i in range(start, len(cleaned)):
-            if cleaned[i] == "{":
+        in_string = False
+        escape = False
+        for index in range(start_at, len(cleaned)):
+            char = cleaned[index]
+            if escape:
+                escape = False
+                continue
+            if char == "\\" and in_string:
+                escape = True
+                continue
+            if char == '"':
+                in_string = not in_string
+                continue
+            if in_string:
+                continue
+            if char == opener:
                 depth += 1
-            elif cleaned[i] == "}":
+            elif char == closer:
                 depth -= 1
                 if depth == 0:
                     try:
-                        return json.loads(cleaned[start : i + 1])
+                        return json.loads(cleaned[start_at:index + 1])
                     except Exception:
                         break
     return None
-
 
 async def ask_json(
     provider: LLMProvider,
