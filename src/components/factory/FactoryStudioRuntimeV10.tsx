@@ -68,9 +68,9 @@ function isLocalProvider(provider: ProviderId) {
 }
 
 export default function FactoryStudioRuntimeV10() {
-  const [provider, setProvider] = useState<ProviderId>('deepseek')
+  const [provider, setProvider] = useState<ProviderId>('ollama')
   const [apiKey, setApiKey] = useState('')
-  const [model, setModel] = useState(providerInfo('deepseek').model)
+  const [model, setModel] = useState(providerInfo('ollama').model)
   const [baseUrl, setBaseUrl] = useState('')
   const [localModels, setLocalModels] = useState<string[]>([])
   const [localRecommendations, setLocalRecommendations] = useState<LocalRecommendation[]>([])
@@ -334,10 +334,10 @@ export default function FactoryStudioRuntimeV10() {
             <Sparkles className="h-3.5 w-3.5" /> AI Product Factory
           </div>
           <h1 className="mt-5 text-3xl font-bold tracking-[-0.045em] text-slate-950 sm:text-5xl lg:text-6xl">
-            Use cloud AI or run it privately on your PC.
+            Start offline. Add online AI only when you choose.
           </h1>
           <p className="mx-auto mt-4 max-w-3xl text-sm leading-7 text-slate-600 sm:text-base">
-            Choose a hosted model, Ollama or LM Studio. For local AI, the Studio discovers your installed models and recommends the strongest available choice for research, reasoning and advanced product building.
+            Ollama and LM Studio are the offline-first path. Hosted providers remain available when you intentionally want connected capabilities; local products can keep their core workflows private and attach online extensions separately.
           </p>
         </header>
 
