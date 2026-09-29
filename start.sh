@@ -1,44 +1,70 @@
 #!/bin/bash
-# AI Product Builder Engine - Startup Script
+# AI Product Factory - production startup helper
+set -e
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Start Python backend
-cd "${REPO_ROOT}/python-backend"
-export PATH="$HOME/.local/bin:$PATH"
-PYTHON_BACKEND_PORT=8001 python3 main.py &
+echo "=================================================="
+echo "          AI Product Factory - Server"
+echo "=================================================="
+
+PYTHON_BIN=""
+if [ -x "${REPO_ROOT}/.venv/bin/python" ]; then
+  PYTHON_BIN="${REPO_ROOT}/.venv/bin/python"
+elif [ -x "${REPO_ROOT}/venv/bin/python" ]; then
+  PYTHON_BIN="${REPO_ROOT}/venv/bin/python"
+elif command -v python3 >/dev/null 2>&1; then
+  PYTHON_BIN="python3"
+elif command -v python >/dev/null 2>&1; then
+  PYTHON_BIN="python"
+else
+  echo "Python executable not found." >&2
+  exit 1
+fi
+
+if [ ! -f "${REPO_ROOT}/python-backend/runtime_entry.py" ]; then
+  echo "python-backend/runtime_entry.py not found." >&2
+  exit 1
+fi
+
+if [ ! -f "${REPO_ROOT}/.next/standalone/server.js" ]; then
+  echo "Production build not found. Running npm run build..."
+  (cd "${REPO_ROOT}" && npm run build)
+fi
+
+export PYTHON_BACKEND_PORT="${PYTHON_BACKEND_PORT:-8001}"
+export PORT="${PORT:-3000}"
+
+cleanup() {
+  echo ""
+  echo "Stopping AI Product Factory..."
+  [ -n "${PY_PID:-}" ] && kill "${PY_PID}" 2>/dev/null || true
+  [ -n "${NEXT_PID:-}" ] && kill "${NEXT_PID}" 2>/dev/null || true
+  wait "${PY_PID:-}" "${NEXT_PID:-}" 2>/dev/null || true
+}
+trap cleanup EXIT INT TERM
+
+(
+  cd "${REPO_ROOT}/python-backend"
+  PYTHON_BACKEND_PORT="${PYTHON_BACKEND_PORT}" "${PYTHON_BIN}" runtime_entry.py
+) &
 PY_PID=$!
-echo "Python backend started (PID: $PY_PID) on port 8001"
 
-# Wait for Python backend to be ready
-for i in $(seq 1 10); do
-  if curl -s http://localhost:8001/health > /dev/null 2>&1; then
-    echo "Python backend is ready!"
+for i in $(seq 1 30); do
+  if curl -fsS "http://127.0.0.1:${PYTHON_BACKEND_PORT}/health" >/dev/null 2>&1; then
     break
   fi
   sleep 1
 done
 
-# Start Next.js production server
-cd "${REPO_ROOT}"
-NODE_ENV=production node .next/standalone/server.js &
-NX_PID=$!
-echo "Next.js server started (PID: $NX_PID) on port 3000"
+(
+  cd "${REPO_ROOT}"
+  PORT="${PORT}" node .next/standalone/server.js
+) &
+NEXT_PID=$!
 
-# Wait for Next.js to be ready
-for i in $(seq 1 10); do
-  if curl -s -o /dev/null http://localhost:3000/ 2>/dev/null; then
-    echo "Next.js is ready!"
-    break
-  fi
-  sleep 1
-done
+echo "Studio:  http://127.0.0.1:${PORT}"
+echo "Backend: http://127.0.0.1:${PYTHON_BACKEND_PORT}"
+echo "Press Ctrl+C to stop."
 
-echo ""
-echo "=== AI Product Builder Engine ==="
-echo "Frontend: http://localhost:3000"
-echo "Python Backend: http://localhost:8001"
-echo "================================="
-
-# Keep script running
-wait
+wait "${PY_PID}" "${NEXT_PID}"
