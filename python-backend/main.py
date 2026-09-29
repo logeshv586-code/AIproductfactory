@@ -49,6 +49,9 @@ from intelligence.knowledge_graph import run_path as pi_run_path
 from execution.execution_agent import get_execution_agent
 from llm.provider import get_provider, LLMProvider
 from llm.router import get_provider_router
+from capabilities.offline_catalog import list_offline_capabilities, resolve_capabilities
+from capabilities.offline_policy import offline_status
+from capabilities.product_blueprints import PRODUCT_BLUEPRINTS, match_product_blueprints
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -111,6 +114,11 @@ class ProviderRouteRequest(BaseModel):
     temperature: float = 0.5
     max_tokens: int = 1000
     use_cache: bool = True
+
+
+class OfflinePlanRequest(BaseModel):
+    """Resolve a product idea against the local capability library."""
+    idea: str = Field(..., description="Product idea to compose from offline capabilities")
 
 
 class StrategizeRequest(BaseModel):
@@ -208,8 +216,46 @@ async def health_check():
             "Starter Repo Generation",
         ],
         strategies=["crossPollination", "gapAnalysis", "trendBased", "compositionalAI", "all"],
-        capabilities=["memory", "agent", "rag", "ui", "backend", "automation"],
+        capabilities=[
+            "memory", "agent", "rag", "ui", "backend", "automation",
+            "voice", "vision", "analytics", "document_ai", "tools",
+            "codebase_intelligence", "offline_product_blueprints",
+        ],
     )
+
+
+@app.get("/offline/status")
+async def get_offline_status():
+    """Return air-gap policy status for the current process."""
+    return {"success": True, "data": offline_status()}
+
+
+@app.get("/offline/capabilities")
+async def get_offline_capabilities():
+    """List reusable offline capability primitives available to product composition."""
+    return {"success": True, "data": list_offline_capabilities()}
+
+
+@app.get("/offline/products")
+async def get_offline_products():
+    """List product blueprints that can be composed without cloud inference."""
+    return {"success": True, "data": [item.to_dict() for item in PRODUCT_BLUEPRINTS]}
+
+
+@app.post("/offline/plan")
+async def plan_offline_product(request: OfflinePlanRequest):
+    """Match a product idea to local capabilities and reusable product blueprints."""
+    if not request.idea.strip():
+        raise HTTPException(status_code=400, detail="A product idea is required")
+    return {
+        "success": True,
+        "data": {
+            "idea": request.idea,
+            "policy": offline_status(),
+            "capabilities": resolve_capabilities(request.idea),
+            "blueprints": match_product_blueprints(request.idea),
+        },
+    }
 
 
 @app.post("/pipeline/run")
