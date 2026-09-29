@@ -20,6 +20,12 @@ type Plan = { contract: Contract; contractHash: string }
 type Plans = { runId: string; plans: Plan[]; recommendedPlanId: string; reasoning: string; mode: string; research: { evidence: Array<{ id: string; url: string; claim: string; limitation: string; status: string }>; limitations: string[] } }
 type Approval = { runId: string; approvalId: string; contractHash: string; planId: string }
 type Build = BuildDeliveryEnvelope & { buildId: string; status: string; tasks: Record<string, { success: boolean; summary: string }>; recoverable: boolean; elapsedSeconds: number }
+type OfflinePlan = {
+  idea: string
+  policy: { offline_only?: boolean; external_network?: string; loopback_services?: string; recommended_llm?: string }
+  capabilities: Array<{ id: string; category: string; pattern: string; offline_grade: string; local_components: string[] }>
+  blueprints: Array<{ id: string; name: string; description: string; capabilities: string[]; local_stack?: string[] }>
+}
 const TERMINAL = new Set(['ready', 'blocked', 'failed', 'cancelled'])
 const INITIAL: Brief = { idea: '', audience: '', platform: 'web', priority: 'balanced', privacy: 'cloud_allowed', constraints: [], target_os: ['linux'] }
 const field = 'mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100'
@@ -42,6 +48,8 @@ export default function FactoryStudioCore() {
   const [busy, setBusy] = useState('')
   const [error, setError] = useState('')
   const [status, setStatus] = useState('Describe the outcome you want. We will research it and prepare three plans.')
+  const [offlinePlan, setOfflinePlan] = useState<OfflinePlan | null>(null)
+  const [offlineBusy, setOfflineBusy] = useState(false)
   const chosen = plans?.plans.find(p => p.contract.plan_id === selected)
   const activeBuild = build && !TERMINAL.has(build.status)
 
@@ -69,8 +77,28 @@ export default function FactoryStudioCore() {
   }, [build, refreshBuild])
 
   function editBrief(update: Partial<Brief>) {
-    setBrief(b => ({ ...b, ...update })); setApproval(null); setPlans(null); setSelected('')
+    setBrief(b => ({ ...b, ...update })); setApproval(null); setPlans(null); setSelected(''); setOfflinePlan(null)
     window.localStorage.removeItem('factory-core-run')
+  }
+
+  async function previewOfflinePlan() {
+    if (brief.idea.trim().length < 8) return
+    setOfflineBusy(true); setError('')
+    try {
+      const response = await fetch('/api/factory/offline/plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idea: brief.idea }),
+        cache: 'no-store',
+      })
+      const payload = await response.json()
+      if (!response.ok || payload.success === false) throw new Error(payload.error || 'Offline capability planning failed')
+      setOfflinePlan(payload.data as OfflinePlan)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Offline capability planning failed')
+    } finally {
+      setOfflineBusy(false)
+    }
   }
 
   async function plan() {
@@ -136,6 +164,31 @@ export default function FactoryStudioCore() {
         </div>
         {brief.platform === 'desktop' && <label className="mt-4 block text-sm font-medium">Target operating system<select value={brief.target_os[0]} onChange={e => editBrief({ target_os: [e.target.value as Brief['target_os'][number]] })} className={field}><option value="windows">Windows</option><option value="macos">macOS</option><option value="linux">Linux</option></select></label>}
         <label className="mt-4 block text-sm font-medium">Must-haves and boundaries <span className="font-normal text-slate-500">(one per line)</span><textarea value={constraints} onChange={e => { setConstraints(e.target.value); editBrief({}) }} rows={2} className={field} placeholder="Existing tools to integrate, budget, offline needs, features to exclude…" /></label>
+        {brief.privacy === 'local_only' && <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50/70 p-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-emerald-900">Offline Capability Factory</p>
+              <p className="mt-1 max-w-3xl text-sm leading-6 text-emerald-800">Map this idea to local LLM, RAG, agent, voice, vision, MCP, automation and UI building blocks before creating the three engineering plans.</p>
+            </div>
+            <button onClick={previewOfflinePlan} disabled={offlineBusy || brief.idea.trim().length < 8} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-emerald-300 bg-white px-4 py-2 text-sm font-semibold text-emerald-800 disabled:opacity-40">
+              {offlineBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+              Map offline capabilities
+            </button>
+          </div>
+          {offlinePlan && <div className="mt-4 space-y-4">
+            <div className="flex flex-wrap gap-2">
+              {offlinePlan.capabilities.slice(0, 12).map(capability => <span key={capability.id} className="rounded-full border border-emerald-200 bg-white px-3 py-1 text-xs font-medium text-emerald-900">{capability.id.replaceAll('_', ' ')}</span>)}
+            </div>
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {offlinePlan.blueprints.slice(0, 6).map(blueprint => <div key={blueprint.id} className="rounded-xl border border-emerald-100 bg-white p-4">
+                <p className="text-sm font-semibold text-slate-950">{blueprint.name}</p>
+                <p className="mt-1 text-xs leading-5 text-slate-600">{blueprint.description}</p>
+                {!!blueprint.local_stack?.length && <p className="mt-2 text-[11px] leading-5 text-emerald-800">{blueprint.local_stack.slice(0, 5).join(' · ')}</p>}
+              </div>)}
+            </div>
+            <p className="text-xs text-emerald-800">The final build still uses the normal exact-approval contract, isolated verification and source delivery flow.</p>
+          </div>}
+        </div>}
         <button onClick={plan} disabled={!!busy || !!activeBuild || brief.idea.trim().length < 8} className={`${button} mt-5`}>{busy === 'research' ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />} Research and create three plans</button>
       </section>
       <p role="status" className="px-2 text-sm leading-6 text-slate-600">{status}</p>
