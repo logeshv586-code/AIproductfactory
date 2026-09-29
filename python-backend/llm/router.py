@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from llm.provider import LLMProvider, get_provider
+from capabilities.offline_policy import factory_offline_only
 
 
 PROVIDER_STRATEGY: dict[str, list[str]] = {
@@ -69,6 +70,8 @@ class ProviderRouter:
         }
 
     def select_providers(self, prompt: str, task_type: str | None = None) -> list[str]:
+        if factory_offline_only():
+            return ["local"]
         analysis = self.analyze_complexity(prompt, task_type)
         return PROVIDER_STRATEGY.get(analysis["task_type"], PROVIDER_STRATEGY["general"])
 

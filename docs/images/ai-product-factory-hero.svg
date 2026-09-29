@@ -1,64 +1,79 @@
-<svg width="1400" height="520" viewBox="0 0 1400 520" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <linearGradient id="bg" x1="80" y1="20" x2="1320" y2="500" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#07111F"/>
-      <stop offset="0.52" stop-color="#0B1730"/>
-      <stop offset="1" stop-color="#071018"/>
-    </linearGradient>
-    <linearGradient id="accent" x1="310" y1="112" x2="1050" y2="430" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#67E8F9"/>
-      <stop offset="0.5" stop-color="#60A5FA"/>
-      <stop offset="1" stop-color="#A78BFA"/>
-    </linearGradient>
-    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
-      <feGaussianBlur stdDeviation="10" result="blur"/>
-      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
-    <filter id="soft" x="-40%" y="-40%" width="180%" height="180%">
-      <feGaussianBlur stdDeviation="36"/>
-    </filter>
-  </defs>
-  <rect width="1400" height="520" rx="36" fill="url(#bg)"/>
-  <circle cx="1210" cy="72" r="170" fill="#2563EB" fill-opacity="0.13" filter="url(#soft)"/>
-  <circle cx="188" cy="470" r="180" fill="#06B6D4" fill-opacity="0.11" filter="url(#soft)"/>
-  <g opacity="0.18" stroke="#7DD3FC">
-    <path d="M0 90H1400M0 170H1400M0 250H1400M0 330H1400M0 410H1400"/>
-    <path d="M120 0V520M280 0V520M440 0V520M600 0V520M760 0V520M920 0V520M1080 0V520M1240 0V520"/>
-  </g>
+<svg width="1600" height="900" viewBox="0 0 1600 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <linearGradient id="bg" x1="80" y1="20" x2="1540" y2="880" gradientUnits="userSpaceOnUse"><stop stop-color="#030816"/><stop offset=".48" stop-color="#07182D"/><stop offset="1" stop-color="#030711"/></linearGradient>
+  <linearGradient id="brand" x1="60" y1="70" x2="800" y2="150"><stop stop-color="#67E8F9"/><stop offset=".46" stop-color="#60A5FA"/><stop offset="1" stop-color="#C084FC"/></linearGradient>
+  <linearGradient id="offline" x1="50" y1="390" x2="1510" y2="600"><stop stop-color="#0EA5E9"/><stop offset=".5" stop-color="#22D3EE"/><stop offset="1" stop-color="#2563EB"/></linearGradient>
+  <linearGradient id="online" x1="50" y1="600" x2="1510" y2="760"><stop stop-color="#7C3AED"/><stop offset=".5" stop-color="#A855F7"/><stop offset="1" stop-color="#EC4899"/></linearGradient>
+  <filter id="glow" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="12" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  <filter id="soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="52"/></filter>
+</defs>
+<rect width="1600" height="900" rx="34" fill="url(#bg)"/>
+<circle cx="1365" cy="110" r="260" fill="#2563EB" fill-opacity=".13" filter="url(#soft)"/>
+<circle cx="180" cy="810" r="240" fill="#8B5CF6" fill-opacity=".12" filter="url(#soft)"/>
+<g opacity=".12" stroke="#7DD3FC"><path d="M0 90H1600M0 180H1600M0 270H1600M0 360H1600M0 450H1600M0 540H1600M0 630H1600M0 720H1600M0 810H1600"/><path d="M100 0V900M250 0V900M400 0V900M550 0V900M700 0V900M850 0V900M1000 0V900M1150 0V900M1300 0V900M1450 0V900"/></g>
 
-  <g transform="translate(94 86)">
-    <rect x="0" y="0" width="88" height="88" rx="24" fill="#0E2238" stroke="#67E8F9" stroke-opacity="0.65"/>
-    <path d="M23 44L44 23L65 44L44 65L23 44Z" stroke="url(#accent)" stroke-width="5"/>
-    <circle cx="44" cy="44" r="8" fill="#67E8F9" filter="url(#glow)"/>
-  </g>
+<text x="58" y="46" fill="#8FD9FF" font-family="Arial,Helvetica,sans-serif" font-size="15" font-weight="700" letter-spacing="4">IDEAS → CAPABILITIES → REAL PRODUCTS → VERIFIED EVIDENCE</text>
+<text x="58" y="125" fill="url(#brand)" font-family="Arial,Helvetica,sans-serif" font-size="72" font-weight="900">AI Product Factory</text>
+<text x="60" y="170" fill="#F8FAFC" font-family="Arial,Helvetica,sans-serif" font-size="26" font-weight="700">Offline-first product engineering with opt-in online extensions.</text>
+<text x="60" y="207" fill="#A9BCD0" font-family="Arial,Helvetica,sans-serif" font-size="18">Turn a product idea into a reviewable contract, working source, isolated verification and evidence.</text>
 
-  <text x="210" y="132" fill="#CFFAFE" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700" letter-spacing="4">OPEN-SOURCE PRODUCT INTELLIGENCE</text>
-  <text x="94" y="238" fill="white" font-family="Arial, Helvetica, sans-serif" font-size="66" font-weight="800">AI Product Factory</text>
-  <text x="94" y="292" fill="#B6C5D8" font-family="Arial, Helvetica, sans-serif" font-size="24">Research → reason → compose → architect → build → verify.</text>
-  <text x="94" y="334" fill="#8FA5BE" font-family="Arial, Helvetica, sans-serif" font-size="18">Turn a product idea into evidence-backed architecture and an approved open-source build plan.</text>
-
-  <g font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="700">
-    <rect x="94" y="382" width="158" height="46" rx="23" fill="#10263D" stroke="#76B900" stroke-opacity="0.75"/>
-    <text x="126" y="411" fill="#E7F9C7">NVIDIA</text>
-    <rect x="270" y="382" width="158" height="46" rx="23" fill="#10263D" stroke="#22D3EE" stroke-opacity="0.7"/>
-    <text x="305" y="411" fill="#D6F9FF">OpenAI</text>
-    <rect x="446" y="382" width="174" height="46" rx="23" fill="#10263D" stroke="#FDBA74" stroke-opacity="0.7"/>
-    <text x="476" y="411" fill="#FFE7CF">Anthropic</text>
-    <rect x="638" y="382" width="158" height="46" rx="23" fill="#10263D" stroke="#A78BFA" stroke-opacity="0.75"/>
-    <text x="676" y="411" fill="#EDE9FE">Gemini</text>
-    <rect x="814" y="382" width="192" height="46" rx="23" fill="#10263D" stroke="#94A3B8" stroke-opacity="0.65"/>
-    <text x="843" y="411" fill="#DDE6F0">Local fallback</text>
+<g font-family="Arial,Helvetica,sans-serif">
+  <g transform="translate(58 250)">
+    <rect width="194" height="100" rx="20" fill="#0A1B31" stroke="#38BDF8" stroke-opacity=".8"/><circle cx="36" cy="34" r="14" stroke="#FBBF24" stroke-width="3"/><path d="M31 53H41" stroke="#FBBF24" stroke-width="3"/><text x="65" y="39" fill="white" font-size="18" font-weight="800">Idea</text><text x="20" y="75" fill="#9FB2C7" font-size="13">Problem / opportunity</text>
   </g>
+  <path d="M258 300H300" stroke="#67E8F9" stroke-width="3"/><path d="M292 292L301 300L292 308" stroke="#67E8F9" stroke-width="3"/>
+  <g transform="translate(310 250)"><rect width="220" height="100" rx="20" fill="#0A1B31" stroke="#38BDF8" stroke-opacity=".8"/><text x="20" y="38" fill="white" font-size="18" font-weight="800">Capability Factory</text><text x="20" y="67" fill="#9FB2C7" font-size="13">Compose local building blocks</text><text x="20" y="85" fill="#6FE7F1" font-size="12">RAG · agents · voice · vision</text></g>
+  <path d="M536 300H574" stroke="#67E8F9" stroke-width="3"/><path d="M566 292L575 300L566 308" stroke="#67E8F9" stroke-width="3"/>
+  <g transform="translate(585 250)"><rect width="206" height="100" rx="20" fill="#0A1B31" stroke="#818CF8" stroke-opacity=".8"/><text x="20" y="38" fill="white" font-size="18" font-weight="800">3 Blueprints</text><text x="20" y="67" fill="#9FB2C7" font-size="13">Different product directions</text><text x="20" y="85" fill="#C4B5FD" font-size="12">scope · UX · architecture</text></g>
+  <path d="M798 300H836" stroke="#A78BFA" stroke-width="3"/><path d="M828 292L837 300L828 308" stroke="#A78BFA" stroke-width="3"/>
+  <g transform="translate(847 250)"><rect width="205" height="100" rx="20" fill="#0A1B31" stroke="#A78BFA" stroke-opacity=".8"/><text x="20" y="38" fill="white" font-size="18" font-weight="800">Exact Approval</text><text x="20" y="67" fill="#9FB2C7" font-size="13">Human locks the contract</text><text x="20" y="85" fill="#DDD6FE" font-size="12">hash-bound scope</text></g>
+  <path d="M1058 300H1096" stroke="#67E8F9" stroke-width="3"/><path d="M1088 292L1097 300L1088 308" stroke="#67E8F9" stroke-width="3"/>
+  <g transform="translate(1107 250)"><rect width="183" height="100" rx="20" fill="#0A1B31" stroke="#22D3EE" stroke-opacity=".8"/><text x="20" y="38" fill="white" font-size="18" font-weight="800">Build</text><text x="20" y="67" fill="#9FB2C7" font-size="13">Generate + implement</text><text x="20" y="85" fill="#A5F3FC" font-size="12">bounded tasks</text></g>
+  <path d="M1296 300H1334" stroke="#2DD4BF" stroke-width="3"/><path d="M1326 292L1335 300L1326 308" stroke="#2DD4BF" stroke-width="3"/>
+  <g transform="translate(1345 250)"><rect width="197" height="100" rx="20" fill="#08251F" stroke="#2DD4BF" stroke-opacity=".95"/><text x="20" y="38" fill="white" font-size="18" font-weight="800">Verify + ZIP</text><text x="20" y="67" fill="#A7F3D0" font-size="13">Isolated acceptance</text><text x="20" y="85" fill="#5EEAD4" font-size="12">source + evidence</text></g>
+</g>
 
-  <g transform="translate(1050 165)">
-    <path d="M0 88H82M82 88L132 38M82 88L132 138M132 38H212M132 138H212" stroke="url(#accent)" stroke-width="3" stroke-linecap="round"/>
-    <circle cx="0" cy="88" r="18" fill="#0F2740" stroke="#67E8F9" stroke-width="3"/>
-    <circle cx="82" cy="88" r="24" fill="#102B48" stroke="#60A5FA" stroke-width="3" filter="url(#glow)"/>
-    <circle cx="132" cy="38" r="17" fill="#13243F" stroke="#A78BFA" stroke-width="3"/>
-    <circle cx="132" cy="138" r="17" fill="#13243F" stroke="#22D3EE" stroke-width="3"/>
-    <circle cx="212" cy="38" r="14" fill="#12203A" stroke="#A78BFA" stroke-width="3"/>
-    <circle cx="212" cy="138" r="14" fill="#12203A" stroke="#22D3EE" stroke-width="3"/>
-    <text x="48" y="208" fill="#87A7C6" font-family="Arial, Helvetica, sans-serif" font-size="15" text-anchor="middle">PRODUCT</text>
-    <text x="170" y="208" fill="#87A7C6" font-family="Arial, Helvetica, sans-serif" font-size="15" text-anchor="middle">SYSTEM</text>
+<g transform="translate(50 390)">
+  <rect width="1500" height="190" rx="28" fill="#061B33" stroke="url(#offline)" stroke-width="2"/>
+  <text x="30" y="46" fill="#E0F2FE" font-family="Arial,Helvetica,sans-serif" font-size="30" font-weight="900">Offline Core</text>
+  <text x="30" y="75" fill="#9FC9DF" font-family="Arial,Helvetica,sans-serif" font-size="16">The product must remain useful with no public internet dependency.</text>
+  <text x="1220" y="38" fill="#67E8F9" font-family="Arial,Helvetica,sans-serif" font-size="13" font-weight="700" letter-spacing="2">PRIVATE · LOCAL · COMPOSABLE</text>
+  <g font-family="Arial,Helvetica,sans-serif" font-size="14" font-weight="700" text-anchor="middle">
+    <g transform="translate(25 102)"><rect width="145" height="62" rx="15" fill="#0C2948" stroke="#38BDF8"/><text x="72" y="37" fill="#E0F2FE">Local LLM</text></g>
+    <g transform="translate(182 102)"><rect width="145" height="62" rx="15" fill="#0C2948" stroke="#22D3EE"/><text x="72" y="37" fill="#E0F2FE">RAG</text></g>
+    <g transform="translate(339 102)"><rect width="145" height="62" rx="15" fill="#0C2948" stroke="#22D3EE"/><text x="72" y="37" fill="#E0F2FE">Memory</text></g>
+    <g transform="translate(496 102)"><rect width="145" height="62" rx="15" fill="#0C2948" stroke="#22D3EE"/><text x="72" y="37" fill="#E0F2FE">Voice</text></g>
+    <g transform="translate(653 102)"><rect width="145" height="62" rx="15" fill="#0C2948" stroke="#22D3EE"/><text x="72" y="37" fill="#E0F2FE">Vision</text></g>
+    <g transform="translate(810 102)"><rect width="145" height="62" rx="15" fill="#0C2948" stroke="#38BDF8"/><text x="72" y="37" fill="#E0F2FE">Analytics</text></g>
+    <g transform="translate(967 102)"><rect width="145" height="62" rx="15" fill="#0C2948" stroke="#38BDF8"/><text x="72" y="37" fill="#E0F2FE">Automation</text></g>
+    <g transform="translate(1124 102)"><rect width="145" height="62" rx="15" fill="#0C2948" stroke="#818CF8"/><text x="72" y="37" fill="#E0F2FE">Generative UI</text></g>
+    <g transform="translate(1281 102)"><rect width="190" height="62" rx="15" fill="#0C2948" stroke="#818CF8"/><text x="95" y="29" fill="#E0F2FE">SQLite / DuckDB</text><text x="95" y="47" fill="#E0F2FE">Vector DB</text></g>
   </g>
+</g>
+
+<circle cx="800" cy="600" r="24" fill="#09243A" stroke="#67E8F9" stroke-width="2" filter="url(#glow)"/><text x="800" y="609" text-anchor="middle" fill="#67E8F9" font-family="Arial" font-size="30" font-weight="700">+</text>
+
+<g transform="translate(50 620)">
+  <rect width="1500" height="150" rx="28" fill="#17102F" stroke="url(#online)" stroke-width="2"/>
+  <text x="30" y="42" fill="#F3E8FF" font-family="Arial,Helvetica,sans-serif" font-size="28" font-weight="900">Online Extensions</text>
+  <text x="30" y="70" fill="#CDB7E9" font-family="Arial,Helvetica,sans-serif" font-size="15">Optional adapters attach only when the user enables connected mode.</text>
+  <text x="1160" y="34" fill="#D8B4FE" font-family="Arial,Helvetica,sans-serif" font-size="12" font-weight="700" letter-spacing="2">MCP · LIVE DATA · USER AUTHORIZED</text>
+  <g font-family="Arial,Helvetica,sans-serif" font-size="13" font-weight="700" text-anchor="middle">
+    <g transform="translate(28 88)"><rect width="145" height="42" rx="13" fill="#27174C" stroke="#8B5CF6"/><text x="72" y="27" fill="#F3E8FF">MCP Router</text></g>
+    <g transform="translate(185 88)"><rect width="145" height="42" rx="13" fill="#27174C" stroke="#8B5CF6"/><text x="72" y="27" fill="#F3E8FF">GitHub</text></g>
+    <g transform="translate(342 88)"><rect width="160" height="42" rx="13" fill="#27174C" stroke="#A855F7"/><text x="80" y="27" fill="#F3E8FF">Live Web Research</text></g>
+    <g transform="translate(514 88)"><rect width="155" height="42" rx="13" fill="#27174C" stroke="#A855F7"/><text x="77" y="27" fill="#F3E8FF">SaaS Connectors</text></g>
+    <g transform="translate(681 88)"><rect width="150" height="42" rx="13" fill="#27174C" stroke="#A855F7"/><text x="75" y="27" fill="#F3E8FF">Email / Calendar</text></g>
+    <g transform="translate(843 88)"><rect width="150" height="42" rx="13" fill="#27174C" stroke="#C084FC"/><text x="75" y="27" fill="#F3E8FF">Business APIs</text></g>
+    <g transform="translate(1005 88)"><rect width="160" height="42" rx="13" fill="#27174C" stroke="#C084FC"/><text x="80" y="27" fill="#F3E8FF">Remote Browser</text></g>
+    <g transform="translate(1177 88)"><rect width="285" height="42" rx="13" fill="#27174C" stroke="#EC4899"/><text x="142" y="27" fill="#FCE7F3">Cloud Voice / Vision / Domain APIs</text></g>
+  </g>
+</g>
+
+<g transform="translate(50 800)" font-family="Arial,Helvetica,sans-serif">
+  <text x="0" y="28" fill="#F8FAFC" font-size="24" font-weight="900">Build the missing layers with us.</text>
+  <text x="0" y="58" fill="#8CA7C0" font-size="15">Sync engine · offline proof runner · model registry · domain packs · deployment adapters · eval suite</text>
+  <rect x="1115" y="5" width="385" height="58" rx="29" fill="#071D31" stroke="url(#brand)" stroke-width="2"/>
+  <text x="1307" y="41" text-anchor="middle" fill="#E0F2FE" font-size="17" font-weight="800">STAR · FORK · CONTRIBUTE · SPONSOR</text>
+</g>
 </svg>

@@ -1,0 +1,47 @@
+name: Bug report
+description: Report a reproducible problem in the Factory, Studio, build or verification flow.
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Describe the observable problem and what you expected instead.
+    validations:
+      required: true
+  - type: dropdown
+    id: layer
+    attributes:
+      label: Affected layer
+      options:
+        - Studio UI
+        - Product reasoning / plans
+        - Offline capability layer
+        - Online / MCP extension
+        - Local model runtime
+        - Build execution
+        - Verification / isolated runner
+        - Artifact / ZIP delivery
+        - CI / installation
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction
+      description: Include exact commands, product brief and steps when possible.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: OS, Node, Python, Docker, model provider/model
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Logs / screenshots
+      description: Remove credentials and private data before posting.

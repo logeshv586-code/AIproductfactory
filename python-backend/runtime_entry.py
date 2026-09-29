@@ -30,6 +30,7 @@ import intelligence.pi_orchestrator as pi_orchestrator_module
 import intelligence.pipeline as legacy_pi_module
 from llm.base import LLMProvider, deterministic_embedding
 from llm.local_provider import LocalProvider
+from capabilities.offline_policy import factory_offline_only
 from llm.provider import (
     AnthropicProvider,
     DeepSeekProvider,
@@ -311,6 +312,10 @@ async def _list_local_models(provider_name: str, base_url: str) -> list[str]:
 
 def _provider_for(provider_name: str, api_key: str, model: str, base_url: str = "") -> LLMProvider:
     name = _canonical_provider(provider_name)
+    if factory_offline_only() and name not in LOCAL_SERVER_PROVIDERS | {"local"}:
+        raise ValueError(
+            "FACTORY_OFFLINE_ONLY=1 permits only Ollama, LM Studio, or local deterministic mode."
+        )
     resolved_model = model.strip() or DEFAULT_MODELS.get(name, "")
     if name == "local":
         return LocalProvider()

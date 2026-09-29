@@ -1,234 +1,457 @@
 <p align="center">
-  <img src="./docs/images/ai-product-factory-hero.svg" alt="AI Product Factory — AI Product Engineer" width="100%" />
+  <img src="./docs/images/ai-product-factory-hero.svg" alt="AI Product Factory — offline-first product engineering with optional online extensions" width="100%" />
 </p>
 
 <h1 align="center">AI Product Factory</h1>
 
 <p align="center">
-  <strong>From product idea to researched plan, approved engineering contract, verified implementation and source delivery.</strong>
+  <strong>Ideas → capabilities → approved product contracts → working source → isolated verification.</strong>
 </p>
 
 <p align="center">
-  Idea → Research → Three Plans → Exact Approval → AI Product Engineering → Isolated Verification → Verified Source ZIP
+  <a href="https://github.com/logeshv586-code/AIproductfactory/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/logeshv586-code/AIproductfactory/ci.yml?branch=main&style=for-the-badge&label=CI" alt="CI" /></a>
+  <a href="https://github.com/logeshv586-code/AIproductfactory/stargazers"><img src="https://img.shields.io/github/stars/logeshv586-code/AIproductfactory?style=for-the-badge&logo=github" alt="GitHub stars" /></a>
+  <a href="https://github.com/logeshv586-code/AIproductfactory/forks"><img src="https://img.shields.io/github/forks/logeshv586-code/AIproductfactory?style=for-the-badge&logo=github" alt="GitHub forks" /></a>
+  <a href="https://github.com/sponsors/logeshv586-code"><img src="https://img.shields.io/github/sponsors/logeshv586-code?style=for-the-badge&logo=githubsponsors&label=Sponsor" alt="Sponsor" /></a>
 </p>
-
-AI Product Factory is evolving from prompt-based code generation into an **AI Product Engineer**. It does not immediately turn every request into a generic website. It first reasons about the intended outcome, researches useful evidence and implementation patterns, creates three concrete product plans, locks the selected plan as an exact contract, engineers the approved system and independently verifies what actually works.
-
-The **Product Reasoning Core**, established through PR #40, is the canonical product path. It owns requirements, research evidence, experience direction, component interactions, architecture, implementation tasks, acceptance criteria, approval continuity, resumable execution and evidence-bound delivery across model providers.
-
-Models may propose and write code, but the Factory owns the product contract and release rules. A model cannot silently replace the approved plan, redefine acceptance criteria or claim that a runnable scaffold proves the requested business behavior.
-
-[Architecture](./docs/PRODUCT_REASONING_ARCHITECTURE.md) · [Implementation and limits](./docs/PRODUCT_REASONING_IMPLEMENTATION.md) · [Product demo](./docs/DEMO.md) · [CI](https://github.com/logeshv586-code/AIproductfactory/actions/workflows/ci.yml)
-
-## AI Product Engineer workflow
 
 <p align="center">
-  <img src="./docs/images/factory-pipeline.svg" alt="AI Product Factory engineering pipeline" width="100%" />
+  <a href="#-start-here">Start</a> ·
+  <a href="#-the-q--answer-view">Why it is different</a> ·
+  <a href="#-capability-factory">Capabilities</a> ·
+  <a href="#-product-blueprints">Products</a> ·
+  <a href="#-contribute-a-missing-layer">Contribute</a> ·
+  <a href="https://github.com/sponsors/logeshv586-code">Sponsor</a>
 </p>
 
-1. **Understand the product outcome.** Capture the idea, users, platform, privacy, priority, constraints and expected business behavior. A static information experience can stay simple; an interactive problem should become an actual product workflow.
-2. **Research before designing.** Inspect relevant public repositories and selected external evidence. Candidate source repositories are tied to a commit revision, inspected README/code evidence and available license information. Missing evidence remains visible instead of being invented.
-3. **Create three product plans.** Produce distinct implementation directions: a focused launch, a complete primary workflow and an operationally resilient option. Each plan includes experience direction, requirements, components, architecture, file paths, task dependencies and observable acceptance checks.
-4. **Approve exactly one contract.** The selected plan is canonicalized and stored with a SHA-256 hash. If the brief changes, the contract changes and approval must happen again.
-5. **Engineer the approved product.** Bounded engineering tasks create the approved React, Python/API, automation or desktop source. Every task operates within explicit files, dependencies and repair/model-call budgets.
-6. **Resume instead of restarting.** Durable jobs, checkpoints, worker leases, idempotent enqueue, cancellation and resume preserve completed work when execution is interrupted.
-7. **Verify independently.** A provisioned Docker runner compiles Python, runs generated tests, typechecks/bundles React and starts the generated application. A separate evaluator applies approved HTTP/browser acceptance criteria and can capture a preview image.
-8. **Deliver source and evidence.** The owner receives an integrity-checked ZIP containing source, the exact contract, source manifest, build manifest, verification evidence and explicit blockers. Missing proof keeps the result **unverified**.
+---
 
-```mermaid
-flowchart TD
-  I["Product idea"] --> R["Research + evidence"]
-  R --> P["Three product plans"]
-  P --> A{"Approve exact contract"}
-  A -->|Revise| I
-  A -->|Approve| E["AI Product Engineering"]
-  E --> T["Specialized implementation tasks"]
-  T --> V{"Independent acceptance"}
-  V -->|Repair within budget| T
-  V -->|All approved checks pass| Z["Verified source ZIP"]
-  V -->|Missing or failed proof| U["Unverified ZIP + blockers"]
+## ⚡ Start here
+
+**AI Product Factory is not a prompt-to-template generator.** It is an open product-engineering system that reasons about an idea, composes reusable capabilities, creates multiple product directions, locks the chosen direction as an exact contract, builds the approved product, and verifies observable behavior before delivery.
+
+The default architecture is **offline-first**:
+
+- local models through **Ollama** or **LM Studio**
+- local RAG, memory, files and databases
+- local voice, vision, analytics and automation where possible
+- optional **MCP / live web / GitHub / SaaS / business APIs** only when the user explicitly enables connected mode
+- local fallbacks so a connected feature does not silently become a core dependency
+
+> **Core rule:** the model can propose and implement. The Factory owns scope, approval, acceptance and release evidence.
+
+---
+
+## ❓ The Q → Answer view
+
+### Q — Why another AI builder?
+
+**A — Because generating code is not the same as engineering a product.**
+
+Most builders optimize for:
+
+`prompt → code`
+
+AI Product Factory is designed around:
+
+`idea → capability composition → product plans → exact approval → engineering → isolated verification → source + evidence`
+
+---
+
+### Q — Does it need the internet?
+
+**A — No. Offline-first is the default.**
+
+A product can use local models, local retrieval, local storage and local tools. When the user enables online extensions, the same product can attach MCP servers, live research, GitHub, email/calendar, SaaS connectors or domain APIs.
+
+```text
+OFFLINE CORE
+  Local LLM
+  Local RAG
+  Memory
+  SQLite / DuckDB / Vector DB
+  Voice / Vision
+  Analytics
+  Automation
+  Generative UI
+       │
+       └──── optional extension gateway
+                    │
+                    ├─ MCP
+                    ├─ GitHub
+                    ├─ Live web
+                    ├─ Email / Calendar
+                    ├─ SaaS
+                    └─ Domain APIs
 ```
 
-## Product Studio
+---
 
-<p align="center">
-  <img src="./docs/images/product-studio-v12.svg" alt="AI Product Factory Studio" width="100%" />
-</p>
+### Q — Can a model silently change the requested product while building?
 
-The Studio is the human control surface for the Product Reasoning Core. The intended experience is not “enter a prompt and hope for code.” It is a reviewable engineering workflow where a user can inspect the proposed product directions, approve one exact plan, follow durable implementation progress and download the resulting source with its verification state.
+**A — No.**
 
-The current Studio path covers plan review, exact-plan approval, build progress, reload/recovery behavior, ownership checks and source ZIP delivery. Offline test mode exists to validate the workflow itself; it cannot earn functional product verification.
+The selected plan is canonicalized and bound to a contract hash. If the product brief changes, approval must happen again.
 
-## What makes this different
+---
 
-Most AI builders optimize for generating code quickly. AI Product Factory is designed around **product continuity and engineering proof**.
+### Q — Does “the app starts” mean the product is finished?
 
-| Typical generation flow | AI Product Factory direction |
+**A — No.**
+
+The Factory separates generated implementation from protected acceptance. A build is only presented as verified when the available isolated checks prove the approved behavior.
+
+---
+
+### Q — Can people extend the Factory without rewriting it?
+
+**A — That is the design goal.**
+
+Capabilities, product blueprints, model providers, online extensions, verification layers and deployment adapters are meant to evolve independently.
+
+---
+
+## 🧠 Capability Factory
+
+Instead of maintaining hundreds of copied demos, the Factory normalizes reusable patterns into composable capabilities.
+
+| Layer | Examples |
 |---|---|
-| Prompt → code | Idea → research → plans → approval → engineering → verification |
-| One opaque solution | Three explicit product contracts to compare |
-| Generic templates | Product-specific React/Python components and workflows |
-| Model decides while building | Approved contract remains the product authority |
-| Restart after failure | Durable jobs, checkpoints and resume |
-| Generated tests can define success | Acceptance checks are protected from implementation agents |
-| “It runs” means done | Requested behavior must have observable evidence |
-| Raw code download | Contract + source + manifests + verification + integrity-checked ZIP |
-| Approval treated as success | Only measured acceptance-passed outcomes inform engineering memory |
+| **Models** | Ollama, LM Studio, hosted providers when enabled |
+| **Agents** | single-agent, specialist teams, planner/reviewer loops, trust gates |
+| **RAG** | local, hybrid, agentic, graph, multimodal |
+| **Memory** | session memory, semantic memory, graph memory |
+| **Data** | CSV/Excel analysis, DuckDB, SQLite, local analytics |
+| **Developer AI** | codebase intelligence, dependency diagnostics, critique/repair |
+| **UI** | generative UI, dashboard canvas, product-specific React flows |
+| **Tools** | local MCP, browser/RPA, approved tool routing |
+| **Voice** | local ASR → agent/RAG → local TTS |
+| **Vision** | local VLM, OCR, OpenCV, video processing |
+| **Automation** | scheduled/event-driven agents, local workflow execution |
+| **Optimization** | context budgeting, local fine-tuning / LoRA workflows |
 
-### Core engineering principles
+See [Offline Capability Factory](./docs/OFFLINE_CAPABILITY_FACTORY.md).
 
-- **Reason before generating.** Understand the user problem and choose the appropriate product form before writing source.
-- **Human approval is binding.** Engineering must implement the selected contract rather than silently reranking or reinterpreting it.
-- **Original experience over repeated templates.** References and templates are ingredients, not the finished product.
-- **Evidence over confidence.** Completion claims must map to executable or observable checks.
-- **Repair without scope drift.** Agents may fix implementation defects inside the approved contract and budgets, but cannot redefine the product without new approval.
-- **Model independence.** Cloud providers, Ollama, LM Studio and future models should operate behind the same product rules.
-- **Safe source use.** Open-source repositories remain pinned reasoning inputs unless their code and licenses are intentionally incorporated.
-- **Honest verification.** Native installers, external services, credentials, real-model quality and environment-specific behavior remain unverified until actually exercised.
+---
 
-## AI Product Engineer architecture direction
+## 🧩 Product blueprints
 
-The Product Reasoning Core provides the shared authority for a progressively stronger virtual product-engineering team:
+The capability layer can be composed into reusable product families without turning them into fixed templates.
 
-| Engineering role | Responsibility |
+Current blueprint directions include:
+
+| Product family | Typical composition |
 |---|---|
-| Product strategist | Clarifies the real problem, users, value and appropriate product form |
-| Research agent | Finds evidence, implementation patterns and source candidates with revision/license context |
-| UX / experience engineer | Creates original flows, interactions and component behavior for the selected domain |
-| Solution architect | Converts the contract into frontend, Python/API, automation, data and integration boundaries |
-| Frontend engineer | Builds purpose-specific React/TypeScript interfaces and interactions |
-| Backend engineer | Builds Python/FastAPI domain APIs and supporting application behavior |
-| Automation engineer | Implements API, event-driven, worker or workflow automation when the contract requires it |
-| Verification agent | Runs protected acceptance criteria independently of implementation agents |
-| Repair agent | Diagnoses failed checks and repairs implementation defects within explicit budgets |
+| **Private Knowledge Assistant** | local LLM + hybrid RAG + graph citations + memory |
+| **Offline Research Workspace** | local corpus + agentic RAG + specialist agents + evidence |
+| **Recruitment Copilot** | resume parsing + matching + interview planning + memory |
+| **Local Data Analyst** | CSV/Excel/DuckDB + charts + local reasoning |
+| **Codebase Copilot** | local git + code intelligence + review + repair + verification |
+| **Customer Support AI** | private docs + RAG + memory + generative UI |
+| **Voice Support AI** | local ASR + RAG + local LLM + TTS |
+| **Document Intelligence** | OCR/VLM + structured extraction + validation + evidence |
+| **Dashboard Builder** | data analysis + chat-to-dashboard composition |
+| **Local Tool / MCP Agent** | allowlisted tools + approvals + execution evidence |
+| **AI Tutor** | course RAG + learner memory + quizzes + adaptive planning |
+| **Local RPA Agent** | Playwright/local browser automation + trust gates |
+| **Visual Inspection AI** | local vision + evidence frames + dashboard |
+| **Content Studio** | local reasoning + voice + media pipeline + review loop |
+| **Domain Model Lab** | local datasets + LoRA/fine-tuning + evaluation |
 
-These responsibilities do not require every product to use every agent. The Factory should compose the smallest engineering team needed for the approved outcome.
+The blueprint is a **starting composition**, not a copied finished application. The approved contract still decides the real product.
 
-## What ships now
+---
 
-| Capability | Current behavior |
-|---|---|
-| Product reasoning | Research-backed three-plan creation with requirements, experience direction, tasks and acceptance criteria |
-| Exact approval | Canonical approved contract bound to a SHA-256 hash; changed briefs require new approval |
-| Custom web products | React/TypeScript UI and Python/FastAPI source generated from the approved domain contract |
-| Desktop products | Electron layout, renderer and packaging configuration; required Python sidecar/IPC remain engineering tasks and native installation remains unverified |
-| Automation products | Python workflow layout plus approved API, retry and recovery behavior; external integrations require their own evidence |
-| Model choice | Existing cloud, Ollama and LM Studio onboarding feeds the same Product Reasoning Core |
-| Local-only privacy | Loopback local model or offline fixture only; external research and cloud fallback disabled |
-| Research evidence | Bounded retrieval with URLs, timestamps, content digests, pinned source excerpts and explicit limitations |
-| Ownership | Opaque browser session, server-side token hash, owned plans/jobs/ZIPs and HttpOnly same-site proxy cookie |
-| Durable execution | SQLite checkpoints, worker leases, idempotent enqueue, explicit resume and cancel |
-| Isolated verification | Docker-based Python/React build and execution plus independent HTTP/browser acceptance evaluation |
-| Engineering memory | Owner-scoped, recent acceptance-passed outcomes can inform planning; approval alone is not engineering success |
-| Delivery | Source browser, preview evidence when available, check results and integrity-checked downloadable ZIP |
+## 🏗️ Product engineering workflow
 
-> **Offline test mode is a workflow fixture.** It validates orchestration, approval and delivery behavior. It does not invent a working product and cannot earn functional verification. Real generation requires a capable configured model.
+```mermaid
+flowchart LR
+  I["Idea"] --> C["Capability Resolver"]
+  C --> P["3 Product Blueprints"]
+  P --> A{"Exact Human Approval"}
+  A -->|Revise| I
+  A -->|Approve| B["Bounded Engineering"]
+  B --> V{"Isolated Verification"}
+  V -->|Repair within budget| B
+  V -->|Pass| Z["Source ZIP + Evidence"]
+  V -->|Missing proof| U["Unverified ZIP + Blockers"]
 
-## Powerful next-stage enhancements
+  C --> O["Offline Core"]
+  C --> E["Optional Online Extensions"]
+  E --> M["MCP / Live Data / SaaS"]
+```
 
-The current foundation is intentionally designed so stronger capabilities can be added without weakening approval or verification.
+### What the Factory protects
 
-1. **Deeper idea-to-product reasoning** — challenge weak assumptions, identify missing capabilities and distinguish when the right answer is a website, application, automation, desktop experience, service or mixed product.
-2. **Research-backed component synthesis** — find relevant OSS patterns, UI interactions and architecture ideas, then create original components adapted to the approved product rather than cloning a repository.
-3. **Dynamic engineering teams** — assign only the product, UX, architecture, frontend, backend, automation, integration, verification and repair roles required by the selected contract.
-4. **Adaptive architecture** — select React, Python, APIs, event-driven workers, automation, desktop packaging and future services based on the actual product requirements rather than a fixed starter.
-5. **Richer acceptance** — expand protected checks to business journeys, accessibility, performance, security, data contracts and integration behavior where the execution environment can prove them.
-6. **Deployment profiles** — add cloud, container, desktop and enterprise deployment adapters as separately verifiable delivery stages rather than treating generated configuration as successful deployment.
-7. **Enterprise identity and governance** — move beyond trusted browser ownership to authenticated users, teams, quotas, policy controls, audit history and distributed scheduling.
-8. **Measured model quality** — evaluate real providers against the same approved contracts and acceptance suites so model choice can be based on engineering outcomes instead of subjective preference.
+- approved requirements
+- file/task boundaries
+- acceptance criteria
+- source provenance
+- model/provider provenance
+- resumable checkpoints
+- ownership of plans/builds/artifacts
+- verification evidence
+- explicit blockers instead of fabricated success
 
-## Quick start
+---
 
-Requires **Node.js 22**, **Python 3.12** and **npm**. Docker is required to execute and independently verify generated code. Without the isolated runner, the Factory can still produce source but must keep the package explicitly unverified.
+## 🔌 Offline core + online extensions
+
+Connected features are adapters, not hidden foundations.
+
+| Online extension | When enabled | Offline fallback |
+|---|---|---|
+| Live Web Research | fresh public research | imported/local corpus |
+| GitHub MCP | repo/issues/PR workflows | local git + cached metadata |
+| SaaS MCP | Notion/CRM/ticketing | local files / SQLite / exports |
+| Email / Calendar | scheduling and workflow actions | local draft/manual-action export |
+| Live business data | finance/travel/maps/inventory APIs | timestamped local snapshot |
+| Remote Browser | approved public web automation | localhost/intranet/browser fixtures |
+| Cloud Voice | real-time hosted voice | Whisper/whisper.cpp + local LLM + Piper/Kokoro |
+| Cloud Vision | hosted multimodal model | local VLM + OCR + OpenCV/FFmpeg |
+
+This means a product can be **useful offline**, then become **more capable online** when the user chooses.
+
+---
+
+## 🛡️ Verification is a product feature
+
+The Product Reasoning Core does not allow implementation agents to redefine what counts as success.
+
+A generated product can be checked through:
+
+- Python compilation and tests
+- TypeScript type checking / React build
+- isolated application startup
+- protected HTTP acceptance checks
+- protected browser acceptance journeys
+- source/contract digest binding
+- verification manifests
+- explicit manual blockers where real credentials, external systems, hardware or target OS behavior cannot be proven
+
+> **Verified means:** the recorded source passed the approved checks available in the verifier.  
+> It does **not** mean universal correctness, production deployment, or untested external integration success.
+
+---
+
+## 🚀 Quick start
+
+### Requirements
+
+- Node.js 22+
+- Python 3.12+
+- npm
+- Docker for isolated verification
+- Ollama or LM Studio for the offline-first model path
+
+### Install
 
 ```bash
+git clone https://github.com/logeshv586-code/AIproductfactory.git
+cd AIproductfactory
+
 npm ci
+
 python3 -m venv .venv
 .venv/bin/pip install -r python-backend/requirements.txt
 ```
 
-Build the isolated runner from the repository root:
+### Start the Studio
 
 ```bash
-docker build -f python-backend/execution/runner.Dockerfile -t ai-product-factory-runner:1 .
+npm run dev:all
 ```
 
-Start both the Python backend and Next.js Studio from the repository root using the cross-platform startup helper:
+Or:
 
 ```bash
-# Cross-platform npm helper (auto-detects OS)
-npm run dev:all
-
-# Linux / macOS:
+# Linux / macOS
 ./scripts/dev.sh
 
-# Windows (PowerShell):
+# Windows PowerShell
 .\scripts\dev.ps1
 ```
 
-Alternatively, start the backend and frontend in separate terminals:
+Open:
 
-```bash
-# Terminal 1: Python backend
-cd python-backend
-../.venv/bin/python runtime_entry.py
+`http://localhost:3000/studio`
 
-# Terminal 2: Next.js Studio
-npm run dev
+The Studio starts from the offline-first path. Choose an installed local model, describe the product, map its capabilities, review the generated plans, approve one exact contract and build it.
+
+---
+
+## 📴 Fully offline mode
+
+For an air-gapped deployment:
+
+```env
+FACTORY_OFFLINE_ONLY=1
+LLM_PROVIDER=local
+OFFLINE_CORPUS_DIR=./offline-data
+OFFLINE_CAPABILITY_LIBRARY=1
 ```
 
-Open **http://localhost:3000/studio**, choose a provider, test the connection and enter the product brief. Cloud keys use the existing runtime session mechanism; generated projects do not receive those keys.
+With `FACTORY_OFFLINE_ONLY=1`:
 
-| Setting | Purpose / default |
-|---|---|
-| `PYTHON_BACKEND_URL` | Next.js backend connection; `http://127.0.0.1:8001` |
-| `PYTHON_BACKEND_PORT` | Python service port; `8001` |
-| `FACTORY_STATE_DIR` | Durable SQLite state; backend-relative `output/factory_state` |
-| `FACTORY_OUTPUT_DIR` | Product workspaces and ZIPs; backend-relative `output` |
-| `FACTORY_RUNNER_IMAGE` | Prebuilt verifier image; `ai-product-factory-runner:1` |
-| `GITHUB_TOKEN` | Optional public research rate-limit improvement |
+- public-network Product Intelligence calls are blocked
+- hosted model sessions are rejected
+- loopback services remain available
+- Ollama / LM Studio can still provide real local inference
+- external research is not silently attempted
 
-Persist both state and output directories across restarts. The current ownership model is browser-session ownership for a trusted deployment, not enterprise authentication. Production multi-user hosting needs authenticated accounts, quotas and deployment-level access controls. Keep the Python service private behind the application proxy.
+Read [Local Models](./docs/LOCAL_MODELS.md) and [Offline Capability Factory](./docs/OFFLINE_CAPABILITY_FACTORY.md).
 
-## Generated project structure
+---
 
-```text
-app/main.py                 Python domain API and React asset serving
-web/src/App.tsx             Product-specific React interactions
-web/src/styles.css          Approved visual direction
-web/package-lock.json       Runner-compatible dependency lock
-workers/workflow.py         Automation profile, when selected
-desktop/                    Electron profile, when selected
-tests/                      Generated implementation tests
-PRODUCT_CONTRACT.json       Exact approved product definition
-SOURCE_MANIFEST.json        Locked repository references
-THIRD_PARTY_NOTICES.md      Selected-source notices
-verification.json           Observed checks and blockers
-build-manifest.json         Contract/code binding and task results
-README.md                   Generated product setup instructions
-.env.example                Configuration placeholders
-```
-
-The isolated runner supports an intentionally provisioned dependency set. Additional packages require a compatible runner image; generated code cannot silently install arbitrary dependencies on the Factory host. Reference repositories are reasoning inputs, not automatically vendored source.
-
-## Verification and contribution
+## 🧪 Development and verification
 
 ```bash
 npm run lint
 npx tsc --noEmit
+npm test
 npm run build
+
 cd python-backend
 ../.venv/bin/python -m pytest -q
 ```
 
-The real-container acceptance test skips locally if Docker or the runner image is unavailable. To require it:
+Build the isolated runner:
 
 ```bash
-FACTORY_REQUIRE_RUNNER=1 ../.venv/bin/python -m pytest -q tests/test_factory_core.py -k real_container
+docker build -f python-backend/execution/runner.Dockerfile \
+  -t ai-product-factory-runner:1 .
 ```
 
-The CI definition is configured for pull requests, pushes to `main` and manual dispatch. Its intended gates include frontend lint/typecheck/build, contract/ownership/recovery regressions, mandatory real Docker acceptance and a hydrated Studio flow covering exact-plan approval and protected ZIP ownership.
+Require the real container acceptance path:
 
-A **verified** result means the exact approved checks passed against the recorded generated source in the available runner. It does **not** imply production deployment, native OS coverage, external-service correctness, credentialed integration success or universal correctness.
+```bash
+FACTORY_REQUIRE_RUNNER=1 \
+../.venv/bin/python -m pytest -q tests/test_factory_core.py -k real_container
+```
 
-See [Product Reasoning Architecture](./docs/PRODUCT_REASONING_ARCHITECTURE.md) and [Implementation and Limits](./docs/PRODUCT_REASONING_IMPLEMENTATION.md) for the detailed design and current boundaries.
+---
+
+## 🌱 Contribute a missing layer
+
+The easiest way to contribute is not “rewrite the Factory.” Pick one missing layer and make it stronger.
+
+### High-value contribution zones
+
+| Missing / evolving layer | What a contribution could add |
+|---|---|
+| **Offline Proof Runner** | prove generated products run with network disabled |
+| **Sync Engine** | connected sync → signed/local snapshots → offline RAG |
+| **Model Registry** | discover local models, roles, capabilities, checksums and licenses |
+| **Embedding Registry** | local embedding/reranker discovery and benchmarking |
+| **Domain Packs** | reusable capability packs for education, operations, developer tools, documents, etc. |
+| **Evaluation Suite** | repeatable product/agent/RAG/voice/vision benchmarks |
+| **Deployment Adapters** | Docker, VPS, desktop, edge and enterprise profiles |
+| **Security Layer** | SBOM, dependency policy, secret scanning, sandbox hardening |
+| **MCP Gateway** | user-approved local + remote MCP routing with fallbacks |
+| **Voice / Vision Adapters** | standardized offline and optional cloud providers |
+| **Generative UI** | richer typed UI artifacts, forms, canvases and workflow surfaces |
+| **Observability** | trace model/tool decisions without leaking secrets |
+| **Product Memory** | learn only from acceptance-passed outcomes |
+
+Before starting a large change, open a **Capability Request** or discussion-quality issue so the architecture and boundaries can be agreed first.
+
+Read [CONTRIBUTING.md](./CONTRIBUTING.md).
+
+---
+
+## 🤝 Contribution philosophy
+
+Good contributions should strengthen at least one of these:
+
+1. **Capability** — the Factory can solve a new class of problem.
+2. **Reliability** — existing capability becomes safer or more deterministic.
+3. **Verification** — the Factory can prove more of what it claims.
+4. **Offline quality** — a cloud dependency becomes local-first or gains a real fallback.
+5. **Extension quality** — an online integration becomes explicit, permissioned and replaceable.
+6. **Developer experience** — installation, testing, debugging or contribution gets easier.
+7. **Product experience** — generated products become more useful, original and reviewable.
+
+A contribution should not weaken exact approval, hide external dependencies, or redefine acceptance from inside implementation code.
+
+---
+
+## 🧭 Repository map
+
+```text
+src/
+  app/                         Next.js Studio + API proxies
+  components/factory/          Product Factory UI
+  lib/factory/                 Studio/backend integration
+
+python-backend/
+  factory_core/                contracts, reasoning, research, durable state
+  capabilities/                offline capabilities, blueprints, online extensions
+  intelligence/                product/repository/market reasoning layers
+  llm/                         provider abstractions and routing
+  execution/                   approved build + isolated verification
+  memory/                      graph/vector memory
+  tests/                       contract and regression coverage
+
+skills/                        reusable local skills
+mini-services/                 MCP/local service experiments
+docs/                          architecture, model and workflow documentation
+.github/                       CI, contribution and issue workflow
+```
+
+---
+
+## 💡 Project principles
+
+- **Offline first, connected by choice**
+- **Compose capabilities, do not clone demos blindly**
+- **Human approval before irreversible build scope**
+- **Evidence over confidence**
+- **Repair without scope drift**
+- **Models are replaceable; product rules are not**
+- **External integrations are explicit**
+- **Open-source references require provenance and license review**
+- **A failed check is more useful than a fake green badge**
+
+---
+
+## ❤️ Sponsor the Factory
+
+AI Product Factory is built as an open system for people who want AI to engineer useful products—not just generate impressive-looking scaffolds.
+
+If you want to support development of the offline runtime, verification infrastructure, capability packs and open contributor ecosystem:
+
+<p align="center">
+  <a href="https://github.com/sponsors/logeshv586-code">
+    <img src="https://img.shields.io/badge/GitHub_Sponsors-Support_AI_Product_Factory-EA4AAA?style=for-the-badge&logo=githubsponsors&logoColor=white" alt="Sponsor AI Product Factory" />
+  </a>
+</p>
+
+Sponsorship does not change the verification rules or give generated claims special treatment. It helps fund the work required to make the system more capable, testable and accessible.
+
+---
+
+## 📚 Deep dives
+
+- [Product Reasoning Architecture](./docs/PRODUCT_REASONING_ARCHITECTURE.md)
+- [Product Reasoning Implementation](./docs/PRODUCT_REASONING_IMPLEMENTATION.md)
+- [Offline Capability Factory](./docs/OFFLINE_CAPABILITY_FACTORY.md)
+- [Local Models](./docs/LOCAL_MODELS.md)
+- [Model Providers](./docs/MODEL_PROVIDERS.md)
+- [Demo](./docs/DEMO.md)
+- [Full Build Delivery](./docs/FULL_BUILD_DELIVERY.md)
+
+---
+
+## ⭐ Help this project grow
+
+If the direction is useful to you:
+
+**Star** the repo so more builders can discover it.  
+**Fork** it and experiment with a capability or product blueprint.  
+**Open an issue** for a missing layer.  
+**Contribute** a tested implementation.  
+**Sponsor** the work if you want to accelerate the open roadmap.
+
+<p align="center">
+  <strong>Build useful systems. Keep humans in control. Prove what works.</strong>
+</p>

@@ -43,7 +43,7 @@ class Brief(StrictModel):
     audience: str = Field(default="", max_length=1000)
     platform: Literal["web", "desktop", "automation"] = "web"
     priority: Literal["speed", "balanced", "scale"] = "balanced"
-    privacy: Literal["cloud_allowed", "local_only"] = "cloud_allowed"
+    privacy: Literal["cloud_allowed", "local_only"] = "local_only"
     constraints: list[str] = Field(default_factory=list, max_length=40)
     target_os: list[Literal["linux", "windows", "macos"]] = Field(default_factory=lambda: ["linux"])
 
