@@ -11,6 +11,8 @@ from typing import Any
 
 import httpx
 
+from capabilities.offline_policy import network_allowed
+
 
 async def request_json(
     url: str,
@@ -28,6 +30,8 @@ async def request_json(
     On any failure (network error, 4xx/5xx, bad JSON) returns ``(0, None)`` or
     ``(status, None)`` — callers should never need a try/except.
     """
+    if not network_allowed(url):
+        return 0, None
     try:
         async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
             resp = await client.request(
@@ -51,6 +55,8 @@ async def fetch_text(
     timeout: float = 20.0,
 ) -> str:
     """Fetch a URL and return its text body ('' on any failure)."""
+    if not network_allowed(url):
+        return ""
     try:
         async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
             resp = await client.get(url, headers=headers, params=params)
