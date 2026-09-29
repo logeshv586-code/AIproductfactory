@@ -1,0 +1,42 @@
+name: Capability request
+description: Propose a missing layer, reusable capability or optional online extension.
+title: "[Capability] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem should the Factory become able to solve?
+    validations:
+      required: true
+  - type: textarea
+    id: capability
+    attributes:
+      label: Proposed capability
+      description: Describe the reusable primitive rather than only one finished app.
+    validations:
+      required: true
+  - type: textarea
+    id: offline
+    attributes:
+      label: Offline-first approach
+      description: How can this work with no public internet? If it cannot, explain why.
+    validations:
+      required: true
+  - type: textarea
+    id: online
+    attributes:
+      label: Optional online extensions
+      description: MCP, SaaS, live data or APIs that could improve the capability when enabled.
+  - type: textarea
+    id: fallback
+    attributes:
+      label: Offline fallback
+      description: What should happen if the online extension is disabled or unavailable?
+  - type: textarea
+    id: verify
+    attributes:
+      label: How can we verify it?
+      description: Suggest automated acceptance, benchmarks or observable evidence.
+    validations:
+      required: true
