@@ -139,3 +139,21 @@ def test_local_model_recommendations_rank_reasoning_and_coding_models():
     assert by_role["Research & reasoning"] == "gpt-oss:20b"
     assert by_role["Product building"] == "qwen2.5-coder:7b"
     assert by_role["Balanced"] in {"qwen3:8b", "gpt-oss:20b"}
+
+
+def test_offline_only_mode_rejects_hosted_provider(monkeypatch):
+    monkeypatch.setenv("FACTORY_OFFLINE_ONLY", "1")
+    with pytest.raises(ValueError) as exc_info:
+        runtime._provider_for("openai", "test-key", "gpt-5-mini")
+    assert "permits only Ollama" in str(exc_info.value)
+
+
+def test_offline_only_mode_allows_loopback_ollama(monkeypatch):
+    monkeypatch.setenv("FACTORY_OFFLINE_ONLY", "1")
+    provider = runtime._provider_for(
+        "ollama",
+        "",
+        "qwen3:8b",
+        "http://127.0.0.1:11434/v1",
+    )
+    assert isinstance(provider, runtime.OpenAICompatibleLocalProvider)
