@@ -174,7 +174,7 @@ export default function FactoryStudioCore() {
             </div>
             <button onClick={previewOfflinePlan} disabled={offlineBusy || brief.idea.trim().length < 8} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-emerald-300 bg-white px-4 py-2 text-sm font-semibold text-emerald-800 disabled:opacity-40">
               {offlineBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
-              Map offline capabilities
+              Map product capabilities
             </button>
           </div>
           {offlinePlan && <div className="mt-4 space-y-4">
