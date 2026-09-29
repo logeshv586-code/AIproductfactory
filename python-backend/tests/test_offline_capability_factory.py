@@ -4,6 +4,7 @@ from capabilities.offline_catalog import capability_by_id, resolve_capabilities
 from capabilities.offline_policy import factory_offline_only, network_allowed
 from capabilities.online_extensions import match_online_extensions
 from capabilities.product_blueprints import match_product_blueprints
+from factory_core.models import Brief
 
 
 def test_offline_policy_blocks_public_network(monkeypatch):
@@ -41,3 +42,8 @@ def test_online_extensions_are_opt_in_and_keep_fallbacks():
     assert "web_research" in ids
     assert all(item["offline_fallback"] for item in extensions)
     assert all(item["approval_required"] is True for item in extensions)
+
+
+def test_brief_defaults_to_offline_first():
+    brief = Brief(idea="Build a private product knowledge workspace")
+    assert brief.privacy == "local_only"
