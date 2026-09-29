@@ -51,6 +51,7 @@ from llm.provider import get_provider, LLMProvider
 from llm.router import get_provider_router
 from capabilities.offline_catalog import list_offline_capabilities, resolve_capabilities
 from capabilities.offline_policy import offline_status
+from capabilities.online_extensions import list_online_extensions, match_online_extensions
 from capabilities.product_blueprints import PRODUCT_BLUEPRINTS, match_product_blueprints
 
 
@@ -117,8 +118,9 @@ class ProviderRouteRequest(BaseModel):
 
 
 class OfflinePlanRequest(BaseModel):
-    """Resolve a product idea against the local capability library."""
+    """Resolve a product idea against offline capabilities plus optional connected extensions."""
     idea: str = Field(..., description="Product idea to compose from offline capabilities")
+    allow_online: bool = Field(default=False, description="Expose optional user-enabled connected extensions")
 
 
 class StrategizeRequest(BaseModel):
@@ -236,6 +238,12 @@ async def get_offline_capabilities():
     return {"success": True, "data": list_offline_capabilities()}
 
 
+@app.get("/offline/extensions")
+async def get_online_extensions():
+    """List optional connected extensions; the offline core does not depend on them."""
+    return {"success": True, "data": list_online_extensions()}
+
+
 @app.get("/offline/products")
 async def get_offline_products():
     """List product blueprints that can be composed without cloud inference."""
@@ -254,6 +262,8 @@ async def plan_offline_product(request: OfflinePlanRequest):
             "policy": offline_status(),
             "capabilities": resolve_capabilities(request.idea),
             "blueprints": match_product_blueprints(request.idea),
+            "online_extensions": match_online_extensions(request.idea) if request.allow_online else [],
+            "connection_mode": "online_extensions_enabled" if request.allow_online else "offline_only",
         },
     }
 
