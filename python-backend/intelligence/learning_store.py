@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 from typing import Any
 
 from intelligence.prompt_utils import as_dict
@@ -41,33 +42,34 @@ class LearningStore:
         self._data: dict[str, Any] = self._load()
 
     def _load(self) -> dict[str, Any]:
-        try:
-            if os.path.exists(self.path):
+        """Safely load JSON store or attempt recovery from backup if corrupt."""
+        if os.path.exists(self.path):
+            try:
                 with open(self.path, "r", encoding="utf-8") as f:
                     return json.load(f)
+            except (OSError, json.JSONDecodeError) as e:
+                print(f"[LearningStore] failed to load main store {self.path}: {e}")
+                
+                # Safe Quarantine: Move corrupt file out of the way
+                corrupt_path = f"{self.path}.corrupt"
+                try:
+                    os.replace(self.path, corrupt_path)
+                    print(f"[LearningStore] quarantined corrupt file to {corrupt_path}")
+                except OSError as err:
+                    print(f"[LearningStore] failed to quarantine corrupt file: {err}")
 
-        except (OSError, json.JSONDecodeError) as e:
-            print(f"[LearningStore] failed to load {self.path}: {e}")
-
-            backup_path = learning_backup_path(self.path)
-
+        # Try recovering from last known-good backup
+        backup_path = learning_backup_path(self.path)
+        if os.path.exists(backup_path):
             try:
-                if os.path.exists(backup_path):
-                    with open(backup_path, "r", encoding="utf-8") as f:
-                        data = json.load(f)
-
-                    print(
-                        f"[LearningStore] recovered from backup "
-                        f"{backup_path}"
-                    )
-                    return data
-
+                with open(backup_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                print(f"[LearningStore] recovered successfully from backup {backup_path}")
+                return data
             except (OSError, json.JSONDecodeError) as backup_error:
-                print(
-                    f"[LearningStore] backup recovery failed for "
-                    f"{backup_path}: {backup_error}"
-                )
+                print(f"[LearningStore] backup recovery failed for {backup_path}: {backup_error}")
 
+        # Default Schema Fallback
         return {
             "repository_quality": {},     # full_name -> {"quality_score", "used_in", "approved", "failures"}
             "capability_mappings": {},    # capability_name -> {"best_repo", "successes", "failures"}
@@ -83,11 +85,7 @@ class LearningStore:
     # ── Persistence ─────────────────────────────────────────────────────────
     def save(self) -> None:
         """
-        Persist learning data atomically.
-
-        The data is first written to a temporary file in the same directory,
-        flushed and fsynced, then the existing live file is moved to a backup
-        before the temporary file replaces the live file.
+        Persist learning data atomically with safe recovery backup.
         """
         temp_path = f"{self.path}.tmp"
         backup_path = learning_backup_path(self.path)
@@ -95,7 +93,7 @@ class LearningStore:
         try:
             os.makedirs(os.path.dirname(self.path) or ".", exist_ok=True)
 
-            # Write the complete JSON document to a temporary file first.
+            # 1. Write data to a temporary file
             with open(temp_path, "w", encoding="utf-8") as f:
                 json.dump(
                     self._data,
@@ -103,29 +101,26 @@ class LearningStore:
                     ensure_ascii=False,
                     indent=2,
                 )
-
-                # Make sure Python has flushed its buffers.
                 f.flush()
-
-                # Make sure the data has been written to stable storage.
                 os.fsync(f.fileno())
 
-            # Preserve the previous known-good version.
+            # 2. Safely create backup copy of live store before replacing
             if os.path.exists(self.path):
-                os.replace(self.path, backup_path)
+                try:
+                    shutil.copy2(self.path, backup_path)
+                except OSError as backup_err:
+                    print(f"[LearningStore] warning: backup creation failed: {backup_err}")
 
-            # Atomically publish the newly written version.
+            # 3. Atomically replace live store with temp file
             os.replace(temp_path, self.path)
 
         except Exception as e:
             print(f"[LearningStore] save failed: {e}")
-
-            # Clean up an incomplete temporary file.
-            try:
-                if os.path.exists(temp_path):
+            if os.path.exists(temp_path):
+                try:
                     os.remove(temp_path)
-            except OSError:
-                pass
+                except OSError:
+                    pass
 
     def to_dict(self) -> dict[str, Any]:
         import copy
@@ -292,12 +287,6 @@ class LearningStore:
         run_id: str,
         memory: dict[str, Any],
     ) -> None:
-        """
-        Persist a complete product record (DNA, intent, capabilities,
-        repositories, architecture, strategy, debates, confidences, simulation,
-        self-critique, learning evidence used, outcome). Replaces any prior
-        record with the same run_id and keeps the newest 50.
-        """
         self._data.setdefault("product_memories", [])
 
         record = dict(memory)
@@ -319,7 +308,6 @@ class LearningStore:
         self,
         limit: int = 0,
     ) -> list[dict[str, Any]]:
-        """All stored product records, newest first. ``limit`` = 0 returns all."""
         mems = list(self._data.get("product_memories", []))
         mems.reverse()
 
@@ -334,13 +322,6 @@ class LearningStore:
         tournament_id: str,
         tournament: dict[str, Any],
     ) -> None:
-        """
-        Persist a completed strategy tournament — winner, runner-up, full
-        ranking, per-strategy dimension scores, pairwise comparisons and the
-        decision report — so future tournaments (and the Product Memory) can
-        learn from this decision. Replaces any prior record with the same
-        tournament_id and keeps the newest 50.
-        """
         import time
 
         self._data.setdefault("tournaments", [])
@@ -365,7 +346,6 @@ class LearningStore:
         self,
         limit: int = 0,
     ) -> list[dict[str, Any]]:
-        """All stored tournaments, newest first. ``limit`` = 0 returns all."""
         toks = list(self._data.get("tournaments", []))
         toks.reverse()
 
@@ -376,7 +356,6 @@ class LearningStore:
 
     # ── Retrieval (hints for future runs) ───────────────────────────────────
     def repo_hint(self, full_name: str) -> float | None:
-        """Return a learned quality boost (-0.3..+0.3) for a repo, if known."""
         entry = self._data["repository_quality"].get(full_name)
 
         if not entry:
@@ -425,7 +404,6 @@ _default_store: LearningStore | None = None
 
 
 def get_learning_store(path: str | None = None) -> LearningStore:
-    """Module-level singleton so the orchestrator and endpoints share state."""
     global _default_store
 
     if _default_store is None or path is not None:
