@@ -79,23 +79,20 @@ class LearningStore:
             "product_memories": [],       # full product records (v6 Phase 6)
             "tournaments": [],            # strategy tournament records (v6 Phase 4)
         }
-
     # ── Persistence ─────────────────────────────────────────────────────────
     def save(self) -> None:
         """
-        Persist learning data atomically.
-
-        The data is first written to a temporary file in the same directory,
-        flushed and fsynced, then the existing live file is moved to a backup
-        before the temporary file replaces the live file.
+        Persist learning data atomically while preserving the last
+        known-good primary file and backup.
         """
         temp_path = f"{self.path}.tmp"
         backup_path = learning_backup_path(self.path)
+        backup_temp_path = f"{backup_path}.tmp"
 
         try:
             os.makedirs(os.path.dirname(self.path) or ".", exist_ok=True)
 
-            # Write the complete JSON document to a temporary file first.
+            # Write the new state to a temporary file first.
             with open(temp_path, "w", encoding="utf-8") as f:
                 json.dump(
                     self._data,
@@ -103,30 +100,39 @@ class LearningStore:
                     ensure_ascii=False,
                     indent=2,
                 )
-
-                # Make sure Python has flushed its buffers.
                 f.flush()
-
-                # Make sure the data has been written to stable storage.
                 os.fsync(f.fileno())
 
-            # Preserve the previous known-good version.
+            # Preserve the current known-good state without removing
+            # the live file first.
             if os.path.exists(self.path):
-                os.replace(self.path, backup_path)
+                with open(self.path, "rb") as source:
+                    with open(backup_temp_path, "wb") as backup:
+                        while True:
+                            chunk = source.read(1024 * 1024)
+                            if not chunk:
+                                break
+                            backup.write(chunk)
 
-            # Atomically publish the newly written version.
+                        backup.flush()
+                        os.fsync(backup.fileno())
+
+                os.replace(backup_temp_path, backup_path)
+
+            # Atomically publish the new state.
             os.replace(temp_path, self.path)
 
         except Exception as e:
             print(f"[LearningStore] save failed: {e}")
 
-            # Clean up an incomplete temporary file.
-            try:
-                if os.path.exists(temp_path):
-                    os.remove(temp_path)
-            except OSError:
-                pass
-
+        finally:
+            # Remove only temporary files.
+            for temporary_path in (temp_path, backup_temp_path):
+                try:
+                    if os.path.exists(temporary_path):
+                        os.remove(temporary_path)
+                except OSError:
+                    pass
     def to_dict(self) -> dict[str, Any]:
         import copy
         return copy.deepcopy(self._data)
