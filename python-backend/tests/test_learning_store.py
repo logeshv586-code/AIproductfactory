@@ -1,4 +1,5 @@
 import json
+import os
 
 from intelligence.learning_store import LearningStore
 
@@ -124,3 +125,39 @@ def test_learned_state_survives_save_and_reload(tmp_path):
 
     assert reloaded.repo_hint("test/repo") == 0.05
     assert reloaded.best_repo_for("memory") == "test/repo"
+
+
+def test_failed_primary_publish_preserves_last_known_good_file(
+    tmp_path,
+    monkeypatch,
+):
+    path = tmp_path / "learning.json"
+
+    store = LearningStore(str(path))
+    store.record_repository_outcome("known/repository")
+
+    original_primary = path.read_text(encoding="utf-8")
+    backup_path = path.with_name("learning.json.bak")
+
+    original_replace = os.replace
+    replace_calls = []
+
+    def fail_primary_publish(source, destination):
+        replace_calls.append((source, destination))
+
+        if len(replace_calls) == 2:
+            raise OSError("simulated primary publish failure")
+
+        original_replace(source, destination)
+
+    monkeypatch.setattr(os, "replace", fail_primary_publish)
+
+    store.record_repository_outcome("new/repository")
+
+    assert len(replace_calls) == 2
+    assert path.exists()
+    assert path.read_text(encoding="utf-8") == original_primary
+    assert backup_path.exists()
+    assert backup_path.read_text(encoding="utf-8") == original_primary
+    assert not path.with_name("learning.json.tmp").exists()
+    assert not path.with_name("learning.json.bak.tmp").exists()
