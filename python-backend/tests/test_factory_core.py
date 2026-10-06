@@ -230,9 +230,9 @@ def test_real_container_acceptance_rejects_echo_and_accepts_calculation(tmp_path
     # The application container runs as UID 10001, unlike pytest's host user.
     tmp_path.chmod(0o755)
     c = plans(mode='model')[1]
+    from factory_core.models import Check
     c.acceptance[0].method = 'POST'
     c.acceptance[0].body = {'a': 2, 'b': 3}
-    from factory_core.models import Check
     c.requirements[0].criteria_ids.extend(['AC-2', 'AC-3'])
     c.acceptance.extend([
         Check.model_validate({'id': 'AC-2', 'requirement_id': 'REQ-1', 'kind': 'http', 'description': 'Invalid operands produce a useful error', 'method': 'POST', 'path': '/sum', 'body': {'a': 'invalid', 'b': 3}, 'expected_status': 400, 'assertions': [{'pointer': '/detail', 'expected': 'Two numbers required'}]}),
@@ -240,6 +240,16 @@ def test_real_container_acceptance_rejects_echo_and_accepts_calculation(tmp_path
     ])
     c = Contract.model_validate(c.model_dump())
     write_files(tmp_path, scaffold(c))
+    source = (tmp_path / 'app/main.py').read_text() + '''
+    from fastapi import HTTPException
+
+    @app.post("/sum")
+    def add(payload: dict):
+        if any(type(payload.get(k)) not in (float, int) for k in ("a", "b")):
+            raise HTTPException(400, "Two numbers required")
+        return {"result": payload["a"] + payload["b"]}
+    '''
+    (tmp_path / 'app/main.py').write_text(source)
     runner = IsolatedRunner()
     assert runner.available(), 'CI requires the Docker runner; this gate must not silently skip'
     assert not runner.verify(tmp_path, c)['passed']
@@ -253,6 +263,73 @@ export default function App() {
 }''')
     result = runner.verify(tmp_path, c)
     assert result['passed'], result
+
+
+@pytest.mark.skipif(not IsolatedRunner().available() and os.environ.get('FACTORY_REQUIRE_RUNNER') != '1', reason='Requires the isolated Docker runner image')
+def test_real_container_offline_proof_blocks_external_browser_requests(tmp_path):
+    # The application container runs as UID 10001, unlike pytest's host user.
+    tmp_path.chmod(0o755)
+
+    c = plans(mode='model')[1]
+    from factory_core.models import Check
+
+    c.acceptance[0].method = 'POST'
+    c.acceptance[0].body = {'a': 2, 'b': 3}
+
+    c.requirements[0].criteria_ids.append('AC-OFFLINE')
+
+    c.acceptance.append(
+        Check.model_validate({
+            'id': 'AC-OFFLINE',
+            'requirement_id': 'REQ-1',
+            'kind': 'browser',
+            'description': 'Offline product page remains usable',
+            'steps': [
+                {
+                    'action': 'text',
+                    'target': 'h1',
+                    'value': 'Offline Proof Fixture',
+                },
+            ],
+        })
+    )
+
+    c = Contract.model_validate(c.model_dump())
+    write_files(tmp_path, scaffold(c))
+    source = (tmp_path / 'app/main.py').read_text() + '''
+    from fastapi import HTTPException
+
+    @app.post("/sum")
+    def add(payload: dict):
+        if any(type(payload.get(k)) not in (float, int) for k in ("a", "b")):
+            raise HTTPException(400, "Two numbers required")
+        return {"result": payload["a"] + payload["b"]}
+    '''
+    (tmp_path / 'app/main.py').write_text(source)
+
+    (tmp_path / 'web/src/App.tsx').write_text('''import {useEffect} from 'react';
+
+export default function App() {
+  useEffect(() => {
+    fetch('https://example.com/offline-proof').catch(() => {});
+  }, []);
+
+  return <main><h1>Offline Proof Fixture</h1></main>;
+}''')
+
+    runner = IsolatedRunner()
+    assert runner.available(), 'CI requires the Docker runner; this gate must not silently skip'
+
+    result = runner.verify(tmp_path, c)
+
+    assert result['startupPassed'], result
+    assert result['acceptancePassed'], result
+    assert 'example.com' in result['externalHostsAttempted'], result
+    assert any(
+        'example.com/offline-proof' in url
+        for url in result['blockedRuntimeDownloads']
+    ), result
+    assert not result['offlineVerified'], result
 
 
 def test_model_planning_validates_retries_and_owns_metadata(monkeypatch):

@@ -65,10 +65,52 @@ class IsolatedRunner:
                 evaluated = run(['run', '--rm', '--network', network, *limits, '-v', f'{checks_file}:/checks/contract.json:ro', '-v', f'{evidence}:/evidence:rw', self.image, 'python', '/opt/runner/acceptance.py', 'http://product:8000', '/checks/contract.json'], timeout=240)
                 if evaluated.returncode:
                     raise RuntimeError(evaluated.stderr[-2000:])
-                result['checks'] = json.loads(evaluated.stdout)['checks']
+
+                evaluation = json.loads(evaluated.stdout)
+                result['checks'] = evaluation['checks']
+                result['externalHostsAttempted'] = evaluation.get('externalHostsAttempted', [])
+                result['blockedRuntimeDownloads'] = evaluation.get('blockedRuntimeDownloads', [])
+                result['networkMode'] = 'disabled'
                 # Missing observations are failures, even if the evaluator aborted early.
                 observed = {x['name'] for x in result['checks']}
-                result['checks'].extend({'name': c.id, 'requirementId': c.requirement_id, 'passed': False, 'detail': 'Acceptance check did not execute'} for c in contract.acceptance if c.id not in observed)
+                result['checks'].extend(
+                    {
+                        'name': c.id,
+                        'requirementId': c.requirement_id,
+                        'passed': False,
+                        'detail': 'Acceptance check did not execute',
+                    }
+                    for c in contract.acceptance
+                    if c.id not in observed
+                )
+
+                startup_passed = any(
+                    check['name'] == 'runtimeReady' and check['passed']
+                    for check in result['checks']
+                )
+
+                acceptance_ids = {check.id for check in contract.acceptance}
+
+                acceptance_checks = [
+                    check
+                    for check in result['checks']
+                    if check['name'] in acceptance_ids
+                ]
+
+                acceptance_passed = (
+                    len(acceptance_checks) == len(acceptance_ids)
+                    and all(check['passed'] for check in acceptance_checks)
+                )
+
+                result['startupPassed'] = startup_passed
+                result['acceptancePassed'] = acceptance_passed
+
+                result['offlineVerified'] = (
+                    startup_passed
+                    and acceptance_passed
+                    and not result['externalHostsAttempted']
+                    and not result['blockedRuntimeDownloads']
+                )
                 screenshot = evidence / 'preview.png'
                 if screenshot.is_file():
                     data = base64.b64encode(screenshot.read_bytes()).decode()
