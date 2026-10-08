@@ -36,12 +36,26 @@ type LocalRecommendation = {
   why: string
 }
 
+type LocalRegistryModel = {
+  id: string
+  provider: ProviderId
+  roles: string[]
+  endpoint: string
+  offline: boolean
+  context_length?: number | null
+  embedding_dimension?: number | null
+  checksum?: string | null
+  license?: string | null
+  source?: string | null
+}
+
 type LocalModelsResponse = {
   success?: boolean
   provider?: ProviderId
   baseUrl?: string
   models?: string[]
   recommendations?: LocalRecommendation[]
+  registry?: LocalRegistryModel[]
   count?: number
   error?: string
 }
@@ -74,6 +88,7 @@ export default function FactoryStudioRuntimeV10() {
   const [baseUrl, setBaseUrl] = useState(providerInfo('ollama').baseUrl || '')
   const [localModels, setLocalModels] = useState<string[]>([])
   const [localRecommendations, setLocalRecommendations] = useState<LocalRecommendation[]>([])
+  const [localRegistry, setLocalRegistry] = useState<LocalRegistryModel[]>([])
   const [discovering, setDiscovering] = useState(false)
   const [localHint, setLocalHint] = useState('')
   const [sessionId, setSessionId] = useState('')
@@ -172,8 +187,10 @@ export default function FactoryStudioRuntimeV10() {
 
       const models = Array.isArray(data.models) ? data.models : []
       const recommendations = Array.isArray(data.recommendations) ? data.recommendations : []
+      const registry = Array.isArray(data.registry) ? data.registry : []
       setLocalModels(models)
       setLocalRecommendations(recommendations)
+      setLocalRegistry(registry)
       if (data.baseUrl) setBaseUrl(data.baseUrl)
 
       const balanced = recommendations.find((item) => item.role === 'Balanced')?.model
@@ -187,6 +204,7 @@ export default function FactoryStudioRuntimeV10() {
     } catch (cause) {
       setLocalModels([])
       setLocalRecommendations([])
+      setLocalRegistry([])
       setLocalHint('')
       if (showFailure) setError(cause instanceof Error ? cause.message : 'Could not reach the local AI server.')
     } finally {
@@ -203,6 +221,7 @@ export default function FactoryStudioRuntimeV10() {
     setApiKey('')
     setLocalModels([])
     setLocalRecommendations([])
+    setLocalRegistry([])
     setLocalHint('')
     setError('')
 
@@ -458,6 +477,43 @@ export default function FactoryStudioRuntimeV10() {
                           </button>
                         )
                       })}
+                    </div>
+                  )}
+
+                  {localRegistry.length > 0 && (
+                    <div className="mt-4 rounded-xl border border-slate-200/80 bg-white/95 p-3.5 shadow-sm">
+                      <div className="flex items-center justify-between text-xs font-semibold text-slate-900">
+                        <span className="flex items-center gap-1.5 text-blue-700">
+                          <BrainCircuit className="h-4 w-4" /> Local Model & Embedding Registry
+                        </span>
+                        <span className="text-[10px] text-slate-500 font-normal">{localRegistry.length} models indexed</span>
+                      </div>
+                      <div className="mt-2.5 divide-y divide-slate-100 text-[11px] max-h-48 overflow-y-auto">
+                        {localRegistry.map((item) => (
+                          <div key={item.id} className="py-2 first:pt-0 last:pb-0 flex flex-col gap-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-mono font-medium text-slate-900 truncate max-w-[240px]">{item.id}</span>
+                              <div className="flex flex-wrap gap-1">
+                                {item.roles.map((r) => (
+                                  <span key={r} className="rounded-full bg-blue-50 px-2 py-0.5 text-[9px] font-semibold text-blue-700 uppercase tracking-wider">
+                                    {r}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-slate-500">
+                              {item.context_length && <span>Ctx: {item.context_length.toLocaleString()} tokens</span>}
+                              {item.embedding_dimension && <span>Dim: {item.embedding_dimension}d</span>}
+                              {item.license && <span>Lic: {item.license}</span>}
+                              {item.checksum && (
+                                <span className="font-mono text-slate-400 truncate max-w-[150px]" title={item.checksum}>
+                                  ID: {item.checksum.slice(0, 15)}…
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
 
