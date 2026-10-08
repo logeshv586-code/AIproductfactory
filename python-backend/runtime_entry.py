@@ -31,6 +31,15 @@ import intelligence.pipeline as legacy_pi_module
 from llm.base import LLMProvider, deterministic_embedding
 from llm.local_provider import LocalProvider
 from capabilities.offline_policy import factory_offline_only
+from capabilities.local_model_registry import (
+    get_local_registry,
+    LocalModelMetadata,
+    compute_model_checksum,
+    infer_roles,
+    detect_context_length,
+    detect_embedding_dimension,
+    detect_license_and_source,
+)
 from llm.provider import (
     AnthropicProvider,
     DeepSeekProvider,
@@ -426,14 +435,74 @@ async def list_runtime_models(
         raise HTTPException(status_code=400, detail="Model discovery is available for Ollama and LM Studio only.")
     normalized_base_url = _normalize_local_base_url(name, base_url)
     models = await _list_local_models(name, normalized_base_url)
+
+    registry = get_local_registry()
+    registry_items = []
+    for model_id in models:
+        roles = infer_roles(model_id)
+        ctx = detect_context_length(model_id)
+        dim = detect_embedding_dimension(model_id)
+        lic, src = detect_license_and_source(model_id)
+        meta = LocalModelMetadata(
+            id=model_id,
+            provider=name,
+            roles=roles,
+            endpoint=normalized_base_url,
+            offline=True,
+            context_length=ctx,
+            embedding_dimension=dim,
+            checksum=compute_model_checksum(model_id, name),
+            license=lic,
+            source=src,
+        )
+        registry.register(meta)
+        registry_items.append(meta.to_dict())
+
     return {
         "success": True,
         "provider": name,
         "baseUrl": normalized_base_url,
         "models": models,
         "recommendations": _recommend_local_models(models),
+        "registry": registry_items,
         "count": len(models),
     }
+
+
+@app.get("/llm/registry")
+async def get_model_registry(role: str | None = Query(default=None)):
+    registry = get_local_registry()
+    if role:
+        items = registry.filter_by_role(role)
+    else:
+        items = registry.list_all()
+    return {
+        "success": True,
+        "role": role,
+        "models": [item.to_dict() for item in items],
+        "count": len(items),
+    }
+
+
+@app.get("/llm/registry/resolve")
+async def resolve_model_role(
+    role: str = Query(...),
+    fallback: bool = Query(default=True),
+):
+    registry = get_local_registry()
+    try:
+        resolved = registry.resolve_role(role, fallback_to_local_deterministic=fallback)
+        if isinstance(resolved, LocalModelMetadata):
+            data = resolved.to_dict()
+        else:
+            data = resolved
+        return {
+            "success": True,
+            "role": role,
+            "resolved": data,
+        }
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
 
 
 @app.post("/llm/runtime/configure")
