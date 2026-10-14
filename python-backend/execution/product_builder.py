@@ -151,9 +151,17 @@ def _baseline_files(product: dict[str, Any], architecture: dict[str, Any], bluep
 def _secret_scan(content: str) -> bool:
     patterns = [
         r"sk-[A-Za-z0-9_-]{20,}",
+        r"sk-ant-[A-Za-z0-9_-]{10,}",
+        r"sk-proj-[A-Za-z0-9_-]{10,}",
         r"ghp_[A-Za-z0-9]{20,}",
+        r"github_pat_[A-Za-z0-9_]{20,}",
+        r"xox[baprs]-[A-Za-z0-9-]{10,}",
+        r"tvly-[A-Za-z0-9_-]{10,}",
         r"AKIA[0-9A-Z]{16}",
         r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----",
+        r"(?i)\bapi[_-]?key\b\s*[:=]\s*['\"]?[A-Za-z0-9_\-]{12,}",
+        r"(?i)\bsecret\b\s*[:=]\s*['\"]?[A-Za-z0-9_\-]{12,}",
+        r"(?i)\bpassword\b\s*[:=]\s*['\"]?[^'\"\s]{8,}",
     ]
     return not any(re.search(pattern, content) for pattern in patterns)
 
