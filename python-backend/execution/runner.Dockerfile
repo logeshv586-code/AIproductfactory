@@ -5,7 +5,7 @@ COPY --from=node /usr/local/lib/node_modules /usr/local/lib/node_modules
 RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm
 COPY python-backend/requirements.txt /opt/runner/requirements.txt
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
-RUN pip install --no-cache-dir -r /opt/runner/requirements.txt playwright==1.55.1 && playwright install --with-deps chromium && chmod -R a+rX /ms-playwright
+RUN pip install --no-cache-dir -r /opt/runner/requirements.txt playwright==1.55.0 && playwright install --with-deps chromium && chmod -R a+rX /ms-playwright
 COPY python-backend/execution/runner_web /opt/runner/web
 RUN cd /opt/runner/web && npm ci --ignore-scripts && node node_modules/esbuild/install.js
 COPY python-backend/execution/runner /opt/runner

@@ -6,6 +6,7 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
+from urllib.parse import urlparse
 
 base, contract_file = sys.argv[1:3]
 contract = json.loads(Path(contract_file).read_text())
@@ -60,6 +61,8 @@ for attempt in range(90):
         pass
     time.sleep(1)
 results.append({'name': 'runtimeReady', 'passed': ready, 'detail': 'Isolated application started' if ready else 'Application did not start within the runner budget'})
+external_hosts_attempted = []
+blocked_runtime_downloads = []
 if ready:
     for check in contract['acceptance']:
         if check['kind'] == 'browser':
@@ -79,7 +82,20 @@ if ready:
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True, args=['--no-sandbox'])
             context = browser.new_context(service_workers='block', viewport={'width': 1280, 'height': 800})
-            context.route('**/*', lambda route: route.continue_() if route.request.url.startswith(base + '/') else route.abort())
+
+            def handle_request(route):
+                url = route.request.url
+                if url.startswith(base + '/'):
+                    route.continue_()
+                    return
+
+                host = urlparse(url).hostname
+                if host:
+                    external_hosts_attempted.append(host)
+                blocked_runtime_downloads.append(url)
+                route.abort()
+
+            context.route('**/*', handle_request)
             for check in contract['acceptance']:
                 if check['kind'] != 'browser':
                     continue
@@ -110,4 +126,8 @@ if ready:
             browser.close()
     except Exception as exc:
         results.append({'name': 'browserRunner', 'passed': False, 'detail': str(exc)[:800]})
-print(json.dumps({'checks': results}))
+print(json.dumps({
+    'checks': results,
+    'externalHostsAttempted': list(dict.fromkeys(external_hosts_attempted)),
+    'blockedRuntimeDownloads': list(dict.fromkeys(blocked_runtime_downloads)),
+}))
