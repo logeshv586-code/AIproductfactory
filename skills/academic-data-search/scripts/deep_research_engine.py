@@ -72,7 +72,23 @@ class ResearchSynthesisEnvelope:
 
 
 def normalize_title(title: str) -> str:
-    return re.sub(r"[^a-z0-9]", "", title.lower())
+    return re.sub(r"[^a-z0-9]", "", (title or "").lower())
+
+
+def clean_doi(raw: str | None) -> str | None:
+    if not raw:
+        return None
+    v = raw.strip().lower()
+    for prefix in ("https://doi.org/", "http://doi.org/", "doi:"):
+        if v.startswith(prefix):
+            v = v[len(prefix):]
+            break
+    v = v.strip().rstrip("/.").strip()
+    return v or None
+
+
+def escape_md(value: str) -> str:
+    return value.replace("[", "\\[").replace("]", "\\]").replace("(", "\\(").replace(")", "\\)").replace("\n", " ").strip()
 
 
 def build_bibtex(paper: ResearchPaper) -> str:
@@ -216,7 +232,10 @@ async def fetch_arxiv(query: str, limit: int = 15) -> list[ResearchPaper]:
         id_el = entry.find("atom:id", ns)
         abs_el = entry.find("atom:summary", ns)
         pub_el = entry.find("atom:published", ns)
-        year = int(pub_el.text[:4]) if (pub_el is not None and pub_el.text) else None
+        try:
+            year = int(pub_el.text[:4]) if (pub_el is not None and pub_el.text and pub_el.text[:4].isdigit()) else None
+        except (ValueError, TypeError):
+            year = None
         authors = [
             Author(name=a.find("atom:name", ns).text.strip())
             for a in entry.findall("atom:author", ns)
@@ -254,7 +273,14 @@ def fuse_and_deduplicate(
         total_raw += len(papers)
         for rank, paper in enumerate(papers, start=1):
             norm_t = normalize_title(paper.title)
-            norm_doi = paper.doi.lower().strip() if paper.doi else None
+            norm_doi = clean_doi(paper.doi)
+
+            if not norm_t:
+                key = f"untitled:{paper.paper_id or id(paper)}"
+                if key not in merged:
+                    merged[key] = paper
+                rrf_scores[key] = rrf_scores.get(key, 0.0) + (1.0 / (rrf_k + rank))
+                continue
 
             if norm_doi and norm_doi in doi_to_key:
                 key = doi_to_key[norm_doi]
@@ -281,7 +307,9 @@ def fuse_and_deduplicate(
                     existing.pdf_url = paper.pdf_url
                 if not existing.doi and paper.doi:
                     existing.doi = paper.doi
-                    doi_to_key[norm_doi] = key
+                    fixed = clean_doi(paper.doi)
+                    if fixed:
+                        doi_to_key[fixed] = key
 
             rrf_scores[key] = rrf_scores.get(key, 0.0) + (1.0 / (rrf_k + rank))
 
@@ -303,7 +331,9 @@ def render_evidence_table(papers: list[ResearchPaper]) -> str:
         "| :---: | :--- | :---: | :---: | :---: | :---: |",
     ]
     for idx, p in enumerate(papers, start=1):
-        title_link = f"[{p.title[:75]}]({p.url})" if p.url else p.title[:75]
+        safe_title = escape_md(p.title[:75])
+        safe_url = (p.url or "").strip().replace(" ", "%20").replace(")", "%29")
+        title_link = f"[{safe_title}]({safe_url})" if p.url else safe_title
         srcs = ", ".join(p.sources)
         lines.append(
             f"| {idx} | {title_link} | {p.year or '—'} | {p.citation_count} ({p.citation_velocity}/yr) | {srcs} | **{p.hybrid_score:.3f}** |"
