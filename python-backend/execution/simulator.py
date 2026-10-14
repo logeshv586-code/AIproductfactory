@@ -1,8 +1,29 @@
 """File System Simulator — virtualized repo creation with workspace confinement."""
 
+import os
+import re
+import tempfile
 from pathlib import Path
 from typing import List
-import os
+
+
+MAX_SIMULATOR_FILE_BYTES = 400_000
+
+_SECRET_PATTERNS = [
+    r"sk-[A-Za-z0-9_-]{20,}",
+    r"sk-ant-[A-Za-z0-9_-]{10,}",
+    r"sk-proj-[A-Za-z0-9_-]{10,}",
+    r"ghp_[A-Za-z0-9]{20,}",
+    r"github_pat_[A-Za-z0-9_]{20,}",
+    r"xox[baprs]-[A-Za-z0-9-]{10,}",
+    r"tvly-[A-Za-z0-9_-]{10,}",
+    r"AKIA[0-9A-Z]{16}",
+    r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----",
+]
+
+
+def _looks_like_secret(content: str) -> bool:
+    return any(re.search(pattern, content) for pattern in _SECRET_PATTERNS)
 
 
 class FSSimulator:
@@ -48,11 +69,28 @@ class FSSimulator:
             raise ValueError("Generated file path must be a non-empty string")
         if not isinstance(content, str):
             content = str(content)
+        encoded = content.encode("utf-8")
+        if len(encoded) > MAX_SIMULATOR_FILE_BYTES:
+            raise ValueError(f"Generated file exceeds {MAX_SIMULATOR_FILE_BYTES} byte cap: {path}")
+        if _looks_like_secret(content):
+            raise ValueError(f"Refusing to persist file with embedded credential pattern: {path}")
         full_path = self._resolve(path)
         self.virtual_fs[path] = {"type": "file", "content": content}
         if self.persist_to_disk:
             full_path.parent.mkdir(parents=True, exist_ok=True)
-            full_path.write_text(content, encoding="utf-8")
+            fd, tmp_name = tempfile.mkstemp(dir=str(full_path.parent), prefix=".factory-tmp-")
+            try:
+                with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                    handle.write(content)
+                    handle.flush()
+                    os.fsync(handle.fileno())
+                os.replace(tmp_name, full_path)
+            except BaseException:
+                try:
+                    os.unlink(tmp_name)
+                except OSError:
+                    pass
+                raise
             print(f"[Simulator] Persisted {path} to disk")
 
     def list_files(self) -> List[str]:
