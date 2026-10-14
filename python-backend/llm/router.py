@@ -6,6 +6,7 @@ falls back across NVIDIA, OpenAI, Anthropic, Gemini and local execution.
 
 from __future__ import annotations
 
+import hashlib
 import time
 from dataclasses import dataclass, field
 from typing import Any
@@ -49,9 +50,33 @@ class ProviderMetric:
 class ProviderRouter:
     """Dynamic provider selection with retry, fallback, cache, and metrics."""
 
+    MAX_CACHE_ENTRIES = 256
+    MAX_METRICS_ENTRIES = 500
+
     def __init__(self) -> None:
         self.metrics: list[ProviderMetric] = []
         self.cache: dict[str, str] = {}
+
+    def clear(self) -> None:
+        self.metrics.clear()
+        self.cache.clear()
+
+    def _cache_key(self, task_type: str, temperature: float, max_tokens: int, enable_thinking: bool | None, prompt: str) -> str:
+        digest = hashlib.sha256(prompt.encode("utf-8")).hexdigest()[:32]
+        return f"{task_type}:{temperature}:{max_tokens}:{enable_thinking}:{len(prompt)}:{digest}"
+
+    def _cache_set(self, key: str, value: str) -> None:
+        if key in self.cache:
+            self.cache[key] = value
+            return
+        while len(self.cache) >= self.MAX_CACHE_ENTRIES:
+            self.cache.pop(next(iter(self.cache)))
+        self.cache[key] = value
+
+    def _record_metric(self, metric: ProviderMetric) -> None:
+        self.metrics.append(metric)
+        while len(self.metrics) > self.MAX_METRICS_ENTRIES:
+            self.metrics.pop(0)
 
     def analyze_complexity(self, prompt: str, task_type: str | None = None) -> dict[str, Any]:
         words = prompt.split()
@@ -86,7 +111,7 @@ class ProviderRouter:
     ) -> dict[str, Any]:
         prompt = "\n".join(m.get("content", "") for m in messages)
         analysis = self.analyze_complexity(prompt, task_type)
-        cache_key = f"{analysis['task_type']}:{temperature}:{max_tokens}:{enable_thinking}:{prompt}"
+        cache_key = self._cache_key(analysis["task_type"], temperature, max_tokens, enable_thinking, prompt)
 
         if use_cache and cache_key in self.cache:
             return {
@@ -109,10 +134,10 @@ class ProviderRouter:
                 )
                 latency_ms = int((time.perf_counter() - started) * 1000)
                 success = bool(text)
-                self.metrics.append(ProviderMetric(provider_name, analysis["task_type"], latency_ms, success))
+                self._record_metric(ProviderMetric(provider_name, analysis["task_type"], latency_ms, success))
                 if success:
                     if use_cache:
-                        self.cache[cache_key] = text
+                        self._cache_set(cache_key, text)
                     return {
                         "text": text,
                         "provider": provider_name,
@@ -124,7 +149,7 @@ class ProviderRouter:
             except Exception as exc:
                 latency_ms = int((time.perf_counter() - started) * 1000)
                 error = str(exc)
-                self.metrics.append(ProviderMetric(provider_name, analysis["task_type"], latency_ms, False, error))
+                self._record_metric(ProviderMetric(provider_name, analysis["task_type"], latency_ms, False, error))
                 errors.append({"provider": provider_name, "error": error})
 
         return {
