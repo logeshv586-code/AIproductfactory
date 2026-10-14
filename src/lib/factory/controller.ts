@@ -225,8 +225,15 @@ export class AIProductFactory {
     fs.mkdirSync(srcDir, { recursive: true })
 
     // Write generated component files
+    const resolvedSrc = path.resolve(srcDir) + path.sep
     for (const comp of state.generatedComponents) {
-      const fpath = path.join(srcDir, comp.filename)
+      const name = String(comp.filename || '')
+      if (!name || name.length > 180) continue
+      if (!/^[A-Za-z0-9._\-\/]+$/.test(name)) continue
+      const fpath = path.resolve(srcDir, name)
+      if (!fpath.startsWith(resolvedSrc)) continue
+      const ext = path.extname(fpath).toLowerCase()
+      if (!['.ts', '.tsx', '.js', '.jsx', '.json', '.md', '.css'].includes(ext)) continue
       fs.mkdirSync(path.dirname(fpath), { recursive: true })
       fs.writeFileSync(fpath, comp.code)
     }
