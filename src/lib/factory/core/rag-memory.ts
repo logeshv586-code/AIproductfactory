@@ -28,7 +28,13 @@ export class RAGMemory {
     try {
       if (fs.existsSync(this.filePath)) {
         const raw = fs.readFileSync(this.filePath, 'utf-8')
-        this.entries = JSON.parse(raw)
+        const parsed = JSON.parse(raw)
+        if (Array.isArray(parsed) && parsed.every(e => e && typeof e.key === 'string')) {
+          this.entries = parsed
+        } else {
+          console.warn('[RAGMemory] ignoring corrupt memory file, resetting')
+          this.entries = []
+        }
       }
     } catch {
       this.entries = []
@@ -38,7 +44,13 @@ export class RAGMemory {
   private save() {
     try {
       fs.mkdirSync(path.dirname(this.filePath), { recursive: true })
-      fs.writeFileSync(this.filePath, JSON.stringify(this.entries, null, 2))
+      const tmp = `${this.filePath}.tmp.${process.pid}`
+      fs.writeFileSync(tmp, JSON.stringify(this.entries, null, 2))
+      try {
+        const bak = `${this.filePath}.bak`
+        if (fs.existsSync(this.filePath)) fs.copyFileSync(this.filePath, bak)
+      } catch {}
+      fs.renameSync(tmp, this.filePath)
     } catch (err) {
       console.error('[RAGMemory] save error:', err)
     }
