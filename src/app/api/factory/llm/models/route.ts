@@ -6,6 +6,20 @@ export const maxDuration = 15
 
 const PYTHON_BACKEND = getPythonBackendUrl()
 
+function isLocalHttpUrl(value: string) {
+  try {
+    const u = new URL(value)
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return false
+    const host = u.hostname.toLowerCase()
+    if (host === 'localhost') return true
+    if (host === '::1' || host === '[::1]') return true
+    if (/^127(\.\d{1,3}){3}$/.test(host)) return true
+    return false
+  } catch {
+    return false
+  }
+}
+
 export async function GET(request: NextRequest) {
   const provider = request.nextUrl.searchParams.get('provider')?.trim() || ''
   const baseUrl = request.nextUrl.searchParams.get('baseUrl')?.trim() || ''
@@ -13,6 +27,13 @@ export async function GET(request: NextRequest) {
   if (!['ollama', 'lmstudio'].includes(provider)) {
     return NextResponse.json(
       { success: false, error: 'Local model discovery supports Ollama and LM Studio.' },
+      { status: 400 },
+    )
+  }
+
+  if (baseUrl && !isLocalHttpUrl(baseUrl)) {
+    return NextResponse.json(
+      { success: false, error: 'baseUrl must be a local http(s) address.' },
       { status: 400 },
     )
   }

@@ -6,6 +6,22 @@ export const maxDuration = 60
 
 const PYTHON_BACKEND = getPythonBackendUrl()
 
+const LOCAL_PROVIDERS = new Set(['ollama', 'lmstudio'])
+
+function isLocalHttpUrl(value: string) {
+  try {
+    const u = new URL(value)
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return false
+    const host = u.hostname.toLowerCase()
+    if (host === 'localhost') return true
+    if (host === '::1' || host === '[::1]') return true
+    if (/^127(\.\d{1,3}){3}$/.test(host)) return true
+    return false
+  } catch {
+    return false
+  }
+}
+
 function sessionHeader(request: NextRequest) {
   return request.headers.get('x-llm-session') || ''
 }
@@ -20,6 +36,14 @@ export async function POST(request: NextRequest) {
 
     if (!provider) {
       return NextResponse.json({ success: false, error: 'Choose an AI provider.' }, { status: 400 })
+    }
+
+    if (!LOCAL_PROVIDERS.has(provider.toLowerCase())) {
+      return NextResponse.json({ success: false, error: 'Only local providers (Ollama, LM Studio) can be configured here.' }, { status: 400 })
+    }
+
+    if (baseUrl && !isLocalHttpUrl(baseUrl)) {
+      return NextResponse.json({ success: false, error: 'baseUrl must be a local http(s) address.' }, { status: 400 })
     }
 
     const response = await fetch(`${PYTHON_BACKEND}/llm/runtime/configure`, {
