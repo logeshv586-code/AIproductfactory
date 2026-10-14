@@ -350,7 +350,7 @@ export default function FactoryStudioV9() {
               <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-start gap-2 text-xs leading-5 text-slate-500">
                   {loading || approving || building ? <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin text-blue-600" /> : <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />}
-                  <span>{status}</span>
+                  <span role="status" aria-live="polite">{status}</span>
                 </div>
                 <button onClick={analyze} disabled={loading || !compiledIdea} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-slate-200 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50">
                   {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
@@ -359,7 +359,7 @@ export default function FactoryStudioV9() {
                 </button>
               </div>
               {error && (
-                <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+                <div role="alert" className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
                   <AlertTriangle className="mr-2 inline h-4 w-4" />{error}
                 </div>
               )}
