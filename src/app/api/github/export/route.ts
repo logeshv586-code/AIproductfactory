@@ -20,13 +20,19 @@ export async function POST(request: NextRequest) {
     }
 
     const exportData = generateExportData(product);
+    const slug = String(product.title || "product")
+      .toLowerCase()
+      .replace(/[^a-z0-9-]+/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "")
+      .slice(0, 60) || "product";
 
     if (format === "yaml") {
       const yamlStr = YAML.stringify(exportData);
       return new NextResponse(yamlStr, {
         headers: {
           "Content-Type": "text/yaml",
-          "Content-Disposition": `attachment; filename="${product.title?.toLowerCase().replace(/\s+/g, "-") || "product"}-architecture.yaml"`,
+          "Content-Disposition": `attachment; filename="${slug}-architecture.yaml"`,
         },
       });
     }
@@ -34,7 +40,7 @@ export async function POST(request: NextRequest) {
     return new NextResponse(JSON.stringify(exportData, null, 2), {
       headers: {
         "Content-Type": "application/json",
-        "Content-Disposition": `attachment; filename="${product.title?.toLowerCase().replace(/\s+/g, "-") || "product"}-architecture.json"`,
+        "Content-Disposition": `attachment; filename="${slug}-architecture.json"`,
       },
     });
   } catch (error: any) {

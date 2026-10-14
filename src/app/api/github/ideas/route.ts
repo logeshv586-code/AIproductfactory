@@ -2,11 +2,23 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 
 // GET /api/github/ideas - List saved ideas
+function safeParseArray(raw: unknown, fallback: unknown[] = []): unknown[] {
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw !== "string" || !raw) return fallback;
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status") || "";
-    const limit = parseInt(searchParams.get("limit") || "50");
+    const requested = parseInt(searchParams.get("limit") || "50", 10);
+    const limit = Number.isFinite(requested) ? Math.min(Math.max(requested, 1), 100) : 50;
 
     const where: any = {};
     if (status) where.status = status;
@@ -27,11 +39,11 @@ export async function GET(request: NextRequest) {
         tagline: idea.tagline,
         description: idea.description,
         targetAudience: idea.targetAudience,
-        keyFeatures: JSON.parse(idea.keyFeatures),
-        techStack: JSON.parse(idea.techStack),
+        keyFeatures: safeParseArray(idea.keyFeatures),
+        techStack: safeParseArray(idea.techStack),
         marketPotential: idea.marketPotential,
         difficulty: idea.difficulty,
-        monetization: JSON.parse(idea.monetization),
+        monetization: safeParseArray(idea.monetization),
         uniqueValue: idea.uniqueValue,
         strategy: idea.strategy,
         status: idea.status,
