@@ -31,9 +31,18 @@ export async function proxyCore(request: NextRequest, path: string) {
     const modelSession = request.headers.get('x-llm-session')
     if (modelSession) headers.set('X-LLM-Session', modelSession)
     if (request.method !== 'GET') headers.set('Content-Type', 'application/json')
+    let outboundBody: string | undefined
+    if (request.method !== 'GET') {
+      const rawBody = await request.text()
+      const MAX_PROXY_BODY = 256 * 1024
+      if (rawBody.length > MAX_PROXY_BODY) {
+        return NextResponse.json({ success: false, error: 'Request body exceeds 256KB limit.' }, { status: 413 })
+      }
+      outboundBody = rawBody || '{}'
+    }
     const response = await fetch(`${backend}/factory/${path}`, {
       method: request.method, headers,
-      body: request.method === 'GET' ? undefined : (await request.text()) || '{}',
+      body: outboundBody,
       signal: AbortSignal.timeout(path === 'plans' ? 570000 : 30000), cache: 'no-store',
     })
     let result: NextResponse
@@ -44,8 +53,24 @@ export async function proxyCore(request: NextRequest, path: string) {
         'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff',
       } })
     } else {
-      const data = await response.json()
-      result = NextResponse.json(response.ok ? data : { success: false, error: typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail || data) }, { status: response.status, headers: { 'Cache-Control': 'private, no-store' } })
+      const contentType = response.headers.get('content-type') || ''
+      let data: unknown = null
+      if (contentType.includes('application/json')) {
+        try {
+          data = await response.json()
+        } catch {
+          const fallback = await response.text().catch(() => '')
+          return NextResponse.json({ success: false, error: `Backend returned malformed JSON: ${fallback.slice(0, 300)}` }, { status: 502, headers: { 'Cache-Control': 'private, no-store' } })
+        }
+      } else {
+        const textBody = await response.text().catch(() => '')
+        if (!response.ok) {
+          return NextResponse.json({ success: false, error: textBody.slice(0, 500) || `Backend responded with status ${response.status}` }, { status: response.status, headers: { 'Cache-Control': 'private, no-store' } })
+        }
+        data = { raw: textBody.slice(0, 2000) }
+      }
+      const payload = data as Record<string, unknown>
+      result = NextResponse.json(response.ok ? payload : { success: false, error: typeof payload.detail === 'string' ? payload.detail : JSON.stringify(payload.detail || payload).slice(0, 2000) }, { status: response.status, headers: { 'Cache-Control': 'private, no-store' } })
     }
     if (newSession) result.cookies.set(SESSION_COOKIE, token, { httpOnly: true, secure: request.nextUrl.protocol === 'https:', sameSite: 'strict', path: '/api/factory', maxAge: 30 * 86400 })
     return result
