@@ -4,6 +4,7 @@
  * Ported from controller.py — full pipeline integration
  */
 import { getMemory } from './core/rag-memory'
+import { makeBuildId } from './build/utils'
 import { ProbabilityEngine } from './core/probability-engine'
 import { IdeaExpander } from './core/idea-expander'
 import { SignalCollector } from './core/signal-collector'
@@ -40,7 +41,7 @@ export interface FactoryState {
 
 function createInitialState(idea: string): FactoryState {
   return {
-    buildId: `build_${Date.now().toString(36)}`,
+    buildId: makeBuildId('build'),
     idea,
     status: 'init',
     probScore: null,

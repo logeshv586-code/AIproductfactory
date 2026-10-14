@@ -17,7 +17,11 @@ export const STEP_PROGRESS: Record<string, number> = {
 }
 
 export function makeBuildId(prefix: 'build' | 'fast' = 'build') {
-  return `${prefix}_${Date.now().toString(36)}`
+  const rand =
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID().slice(0, 8)
+      : Math.random().toString(36).slice(2, 10)
+  return `${prefix}_${Date.now().toString(36)}_${rand}`
 }
 
 export function addTimelineEntry(timeline: TimelineEntry[], step: string, detail: string) {
