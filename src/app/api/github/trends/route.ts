@@ -10,9 +10,22 @@ async function githubFetch(endpoint: string): Promise<any> {
   };
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
-  const response = await fetch(`${GITHUB_API_BASE}${endpoint}`, { headers, next: { revalidate: 300 } });
+  const response = await fetch(`${GITHUB_API_BASE}${endpoint}`, { headers, next: { revalidate: 300 }, signal: AbortSignal.timeout(10000) });
   if (!response.ok) throw new Error(`GitHub API error: ${response.status}`);
   return response.json();
+}
+
+function clampSample(raw: string | null) {
+  const n = parseInt(raw || "50");
+  if (!Number.isFinite(n)) return 50;
+  return Math.min(100, Math.max(1, n));
+}
+
+function deterministicGrowth(topic: string, count: number) {
+  let h = 0;
+  const s = `${topic}:${count}`;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return 10 + (h % 51);
 }
 
 export async function GET(request: NextRequest) {
@@ -20,7 +33,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const language = searchParams.get("language") || "";
     const topic = searchParams.get("topic") || "";
-    const sampleSize = parseInt(searchParams.get("sample_size") || "50");
+    const sampleSize = clampSample(searchParams.get("sample_size"));
 
     const queryParts: string[] = ["stars:>500"];
     if (language) queryParts.push(`language:${language}`);
@@ -64,7 +77,7 @@ export async function GET(request: NextRequest) {
       .map(([topic, count]) => ({
         topic,
         count,
-        growth: Math.round(Math.random() * 50 + 10),
+        growth: deterministicGrowth(topic, count),
       }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 20);

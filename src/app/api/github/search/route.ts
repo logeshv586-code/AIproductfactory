@@ -10,10 +10,18 @@ async function githubFetch(endpoint: string): Promise<any> {
   };
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
-  const response = await fetch(`${GITHUB_API_BASE}${endpoint}`, { headers, next: { revalidate: 300 } });
+  const response = await fetch(`${GITHUB_API_BASE}${endpoint}`, { headers, next: { revalidate: 300 }, signal: AbortSignal.timeout(10000) });
   if (!response.ok) throw new Error(`GitHub API error: ${response.status}`);
   return response.json();
 }
+
+function clampLimit(raw: string | null, fallback: number) {
+  const n = parseInt(raw || String(fallback));
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(100, Math.max(1, n));
+}
+
+const ALLOWED_SORT = new Set(["stars", "forks", "updated"]);
 
 export async function GET(request: NextRequest) {
   try {
@@ -21,8 +29,9 @@ export async function GET(request: NextRequest) {
     const query = searchParams.get("q") || "";
     const language = searchParams.get("language") || "";
     const minStars = searchParams.get("min_stars");
-    const sort = searchParams.get("sort") || "stars";
-    const limit = parseInt(searchParams.get("limit") || "20");
+    const rawSort = searchParams.get("sort") || "stars";
+    const sort = ALLOWED_SORT.has(rawSort) ? rawSort : "stars";
+    const limit = clampLimit(searchParams.get("limit"), 20);
 
     if (!query) {
       return NextResponse.json({ success: false, error: "Search query is required" }, { status: 400 });
