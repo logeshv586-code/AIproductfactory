@@ -6,7 +6,10 @@ export interface PythonHealthStatus {
   error?: string | null
 }
 
-const DEFAULT_PYTHON_BACKEND_URL = process.env.PYTHON_BACKEND_URL || 'http://localhost:8001'
+function resolvePythonBackendUrl(): string {
+  const raw = (process.env.PYTHON_BACKEND_URL || '').trim().replace(/\/+$/, '')
+  return raw || 'http://localhost:8001'
+}
 
 function getHealthProbeUrls(url: string): string[] {
   const urls = new Set<string>([url])
@@ -54,8 +57,9 @@ async function probePythonHealth(url: string): Promise<PythonHealthStatus> {
   }
 }
 
-export async function getPythonHealth(url = DEFAULT_PYTHON_BACKEND_URL): Promise<PythonHealthStatus> {
-  const candidates = getHealthProbeUrls(url)
+export async function getPythonHealth(url?: string): Promise<PythonHealthStatus> {
+  const resolved = url || resolvePythonBackendUrl()
+  const candidates = getHealthProbeUrls(resolved)
   let lastFailure: PythonHealthStatus | null = null
 
   for (const candidate of candidates) {
@@ -69,11 +73,11 @@ export async function getPythonHealth(url = DEFAULT_PYTHON_BACKEND_URL): Promise
   return lastFailure || {
     available: false,
     status: 'unreachable',
-    url,
+    url: resolved,
     error: 'Health probe failed',
   }
 }
 
 export function getPythonBackendUrl() {
-  return DEFAULT_PYTHON_BACKEND_URL
+  return resolvePythonBackendUrl()
 }
