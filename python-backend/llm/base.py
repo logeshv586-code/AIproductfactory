@@ -29,13 +29,55 @@ class LLMProvider(ABC):
         raise NotImplementedError
 
     def parse_json(self, raw: str) -> Any:
-        """Clean markdown fences and parse JSON from a model response."""
-        cleaned = re.sub(r"```json\n?", "", raw)
-        cleaned = re.sub(r"```\n?", "", cleaned).strip()
+        """Clean markdown fences and parse JSON from a model response.
+
+        Handles plain JSON, fenced blocks and prose that embeds an object
+        or array. Returns an empty dict only when nothing parseable remains
+        so callers keep their existing contract.
+        """
+        if not isinstance(raw, str) or not raw.strip():
+            return {}
+        cleaned = raw.strip()
         try:
             return json.loads(cleaned)
         except json.JSONDecodeError:
-            return {}
+            pass
+        fence = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", cleaned, re.IGNORECASE)
+        candidate = fence.group(1).strip() if fence else cleaned
+        try:
+            return json.loads(candidate)
+        except json.JSONDecodeError:
+            pass
+        for opener, closer in (("{", "}"), ("[", "]")):
+            start = candidate.find(opener)
+            if start < 0:
+                continue
+            depth = 0
+            in_string = False
+            escape = False
+            for index in range(start, len(candidate)):
+                char = candidate[index]
+                if escape:
+                    escape = False
+                    continue
+                if char == "\\" and in_string:
+                    escape = True
+                    continue
+                if char == '"':
+                    in_string = not in_string
+                    continue
+                if in_string:
+                    continue
+                if char == opener:
+                    depth += 1
+                elif char == closer:
+                    depth -= 1
+                    if depth == 0:
+                        try:
+                            return json.loads(candidate[start:index + 1])
+                        except json.JSONDecodeError:
+                            break
+        return {}
 
 
 def deterministic_embedding(text: str, dimensions: int = 1536) -> list[float]:
