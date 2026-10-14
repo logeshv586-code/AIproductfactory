@@ -4,12 +4,28 @@ import { getPythonBackendUrl } from '@/lib/factory/python-health'
 const PYTHON_BACKEND = getPythonBackendUrl()
 
 export async function POST(request: NextRequest) {
+  let payload: unknown
   try {
-    const { workspace_id, task } = await request.json()
+    payload = await request.json()
+  } catch {
+    return NextResponse.json({ success: false, error: 'Request body must be valid JSON.' }, { status: 400 })
+  }
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    return NextResponse.json({ success: false, error: 'Request body must be a JSON object.' }, { status: 400 })
+  }
+  const { workspace_id, task } = payload as { workspace_id?: unknown; task?: unknown }
+  if (typeof workspace_id !== 'string' || workspace_id.trim().length === 0) {
+    return NextResponse.json({ success: false, error: 'workspace_id is required.' }, { status: 400 })
+  }
+  if (!task || typeof task !== 'object' || Array.isArray(task)) {
+    return NextResponse.json({ success: false, error: 'task must be an object.' }, { status: 400 })
+  }
+  try {
+    const t = task as Record<string, unknown>
     const normalizedTask = {
-      ...task,
-      title: task?.title || task?.name || 'Implementation Task',
-      description: task?.description || task?.summary || task?.detail || 'Implement the selected pipeline task.',
+      ...t,
+      title: typeof t.title === 'string' && t.title.trim() ? t.title : typeof t.name === 'string' && t.name.trim() ? t.name : 'Implementation Task',
+      description: typeof t.description === 'string' && t.description.trim() ? t.description : typeof t.summary === 'string' ? t.summary : typeof t.detail === 'string' ? t.detail : 'Implement the selected pipeline task.',
     }
     
     const res = await fetch(`${PYTHON_BACKEND}/execution/run_task`, {
