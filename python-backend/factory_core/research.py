@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from urllib.parse import quote
 
 from factory_core.models import Brief, Evidence, Source
+from capabilities.offline_policy import factory_offline_only
 from intelligence.http_client import request_json, fetch_text
 from intelligence.live_source_engine import research_live_sources
 
@@ -66,6 +67,8 @@ async def inspect_repository(name: str) -> tuple[list[Evidence], Source | None]:
 async def research(brief: Brief, intent: dict, fixture: bool = False) -> dict:
     if brief.privacy == "local_only" or fixture:
         return {"evidence": [], "sources": [], "limitations": ["External research disabled for local-only privacy or deterministic fixture mode. Market and source claims remain unverified."]}
+    if factory_offline_only():
+        return {"evidence": [], "sources": [], "limitations": ["External research disabled while FACTORY_OFFLINE_ONLY=1. Market and source claims remain unverified until a connected sync is run."]}
     keywords = [str(x) for x in intent.get("search_keywords", []) if isinstance(x, str)][:3]
     query = " ".join(keywords)[:160] or brief.idea[:120]
     headers = {"Accept": "application/vnd.github+json"}
