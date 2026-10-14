@@ -41,9 +41,16 @@ def network_allowed(url: str) -> bool:
         return True
 
     parsed = urlparse(url)
-    if parsed.scheme.lower() in _LOCAL_SCHEMES:
+    scheme = parsed.scheme.lower()
+    # Protocol-relative URLs like //evil.com/path carry a netloc but no
+    # scheme. They resolve against http(s) and must not pass as local files.
+    if not scheme and parsed.netloc:
+        return False
+    if scheme in _LOCAL_SCHEMES:
+        if scheme == "file" and parsed.netloc not in ("", "localhost"):
+            return _is_loopback(parsed.hostname)
         return True
-    return parsed.scheme.lower() in {"http", "https"} and _is_loopback(parsed.hostname)
+    return scheme in {"http", "https"} and _is_loopback(parsed.hostname)
 
 
 def require_network_allowed(url: str) -> None:
