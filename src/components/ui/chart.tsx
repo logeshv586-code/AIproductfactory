@@ -70,6 +70,18 @@ function ChartContainer({
 }
 
 const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
+  const safeKey = (k: string) => /^[a-zA-Z0-9_-]+$/.test(k) ? k : null
+  const safeColor = (c: string) => {
+    const v = c.trim()
+    if (/[<>{};]/.test(v)) return null
+    if (/url\s*\(/i.test(v)) return null
+    if (/^#[0-9a-fA-F]{3,8}$/.test(v)) return v
+    if (/^(rgb|hsl)a?\(.+\)$/.test(v)) return v
+    if (/^var\(--[a-zA-Z0-9_-]+\)$/.test(v)) return v
+    if (/^[a-zA-Z]+$/.test(v)) return v
+    return null
+  }
+  const safeId = id.replace(/[^a-zA-Z0-9_-]/g, '')
   const colorConfig = Object.entries(config).filter(
     ([, config]) => config.theme || config.color
   )
@@ -84,14 +96,20 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
         __html: Object.entries(THEMES)
           .map(
             ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
+${prefix} [data-chart="${safeId}"] {
 ${colorConfig
   .map(([key, itemConfig]) => {
-    const color =
+    const k = safeKey(key)
+    if (!k) return null
+    const raw =
       itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ||
       itemConfig.color
-    return color ? `  --color-${key}: ${color};` : null
+    if (!raw) return null
+    const color = safeColor(raw)
+    if (!color) return null
+    return `  --color-${k}: ${color};`
   })
+  .filter(Boolean)
   .join("\n")}
 }
 `
