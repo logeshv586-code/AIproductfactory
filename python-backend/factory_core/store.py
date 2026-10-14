@@ -211,5 +211,18 @@ class RunStore:
 
     def history(self, owner: str, platform: str) -> list[dict]:
         with self.db() as db:
-            rows = db.execute("SELECT o.kind,o.payload,o.created,c.payload AS contract FROM outcomes o JOIN contracts c ON c.hash=o.contract_hash WHERE o.owner=? AND o.kind='acceptance_passed' AND o.created>? ORDER BY o.created DESC LIMIT 30", (owner, time.time() - 90 * 86400)).fetchall()
-        return [{"outcome": r["kind"], "result": json.loads(r["payload"]), "name": json.loads(r["contract"])["name"], "platform": platform} for r in rows if json.loads(r["contract"])["brief"]["platform"] == platform][:5]
+            rows = db.execute("SELECT o.kind,o.payload,o.created,c.payload AS contract FROM outcomes o JOIN contracts c ON c.hash=o.contract_hash WHERE o.owner=? AND o.kind='acceptance_passed' AND o.created>? AND json_extract(c.payload, '$.brief.platform')=? ORDER BY o.created DESC LIMIT 30", (owner, time.time() - 90 * 86400, platform)).fetchall()
+        out: list[dict] = []
+        for r in rows:
+            try:
+                result = json.loads(r["payload"])
+                contract = json.loads(r["contract"])
+                name = contract.get("name")
+                if not name:
+                    continue
+            except (ValueError, AttributeError, TypeError):
+                continue
+            out.append({"outcome": r["kind"], "result": result, "name": name, "platform": platform})
+            if len(out) >= 5:
+                break
+        return out
