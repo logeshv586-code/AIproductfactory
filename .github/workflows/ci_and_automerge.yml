@@ -109,4 +109,10 @@ jobs:
             echo "Independent approval is required; no bot self-approval."
             exit 0
           fi
-          gh pr merge "$PR_NUMBER" --repo "$REPO" --squash --delete-branch
+          mergeable=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json mergeable --jq '.mergeable')
+          if [ "$mergeable" != "MERGEABLE" ]; then
+            echo "PR is not mergeable; skipping."
+            exit 0
+          fi
+          head=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json headRefOid --jq '.headRefOid')
+          gh pr merge "$PR_NUMBER" --repo "$REPO" --squash --match-head-commit "$head" --delete-branch

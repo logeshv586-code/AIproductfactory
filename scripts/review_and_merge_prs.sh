@@ -28,7 +28,7 @@ gh pr list --repo "$REPO" --state open --limit 200 \
 
   checks=$(gh pr checks "$number" --repo "$REPO" --json name,state 2>/dev/null || printf '[]')
   green=true
-  for check_name in "$\{required[@]}"; do
+  for check_name in "${required[@]}"; do
     if ! jq -e --arg name "$check_name" \
       'any(.[]; .name == $name and .state == "SUCCESS")' <<<"$checks" >/dev/null; then
       green=false
