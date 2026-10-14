@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import tempfile
 from typing import Any
 
 # All top-level sections. Each maps to a python type:
@@ -263,9 +264,21 @@ class ProductKnowledgeGraph:
         return json.loads(json.dumps(self._data))  # deep copy, JSON-safe
 
     def save(self, path: str) -> None:
-        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(self._data, f, ensure_ascii=False, indent=2)
+        directory = os.path.dirname(os.path.abspath(path)) or "."
+        os.makedirs(directory, exist_ok=True)
+        fd, tmp_name = tempfile.mkstemp(dir=directory, prefix=".graph-tmp-")
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                json.dump(self._data, f, ensure_ascii=False, indent=2)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp_name, path)
+        except BaseException:
+            try:
+                os.unlink(tmp_name)
+            except OSError:
+                pass
+            raise
 
     @classmethod
     def load(cls, path: str) -> "ProductKnowledgeGraph | None":
@@ -274,7 +287,9 @@ class ProductKnowledgeGraph:
         try:
             with open(path, "r", encoding="utf-8") as f:
                 data = json.load(f)
-        except Exception:
+        except (OSError, ValueError):
+            return None
+        if not isinstance(data, dict):
             return None
         graph = cls(idea=data.get("idea", ""), domain=data.get("domain", ""))
         for section in SECTIONS:
