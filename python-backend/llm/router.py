@@ -15,14 +15,14 @@ from capabilities.offline_policy import factory_offline_only
 
 
 PROVIDER_STRATEGY: dict[str, list[str]] = {
-    "planning": ["anthropic", "nvidia", "openai", "gemini", "local"],
-    "codegen": ["nvidia", "openai", "anthropic", "gemini", "local"],
-    "research": ["gemini", "anthropic", "openai", "nvidia", "local"],
+    "planning": ["anthropic", "deepseek", "nvidia", "openai", "gemini", "local"],
+    "codegen": ["deepseek", "nvidia", "openai", "anthropic", "gemini", "local"],
+    "research": ["gemini", "anthropic", "deepseek", "openai", "nvidia", "local"],
     "vision": ["gemini", "openai", "anthropic", "nvidia", "local"],
-    "fast": ["nvidia", "openai", "gemini", "anthropic", "local"],
-    "long_context": ["gemini", "anthropic", "openai", "nvidia", "local"],
+    "fast": ["nvidia", "deepseek", "openai", "gemini", "anthropic", "local"],
+    "long_context": ["gemini", "anthropic", "deepseek", "openai", "nvidia", "local"],
     "local_fallback": ["local"],
-    "general": ["nvidia", "openai", "anthropic", "gemini", "local"],
+    "general": ["nvidia", "deepseek", "openai", "anthropic", "gemini", "local"],
 }
 
 
