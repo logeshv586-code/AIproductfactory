@@ -21,6 +21,13 @@ from .product_blueprints import (
     blueprint_by_id,
     match_product_blueprints,
 )
+from .local_model_registry import (
+    LocalModelMetadata,
+    LocalModelRegistry,
+    get_local_registry,
+    infer_roles,
+    compute_model_checksum,
+)
 
 __all__ = [
     "OFFLINE_CAPABILITIES",
@@ -36,4 +43,9 @@ __all__ = [
     "match_product_blueprints",
     "network_allowed",
     "resolve_capabilities",
+    "LocalModelMetadata",
+    "LocalModelRegistry",
+    "get_local_registry",
+    "infer_roles",
+    "compute_model_checksum",
 ]
