@@ -1,11 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getPythonBackendUrl } from '@/lib/factory/python-health'
 
-const PYTHON_BACKEND = getPythonBackendUrl()
-
 export async function POST(request: NextRequest) {
   try {
-    const { idea, architecture, repos } = await request.json()
+    let body: unknown
+    try {
+      body = await request.json()
+    } catch {
+      return NextResponse.json({ success: false, error: 'Request body must be valid JSON.' }, { status: 400 })
+    }
+    const { idea, architecture, repos } = (body || {}) as { idea?: unknown; architecture?: unknown; repos?: unknown }
+    if (typeof idea !== 'string' || !idea.trim() || idea.length > 2000) {
+      return NextResponse.json({ success: false, error: 'idea is required, must be a non-empty string under 2000 characters.' }, { status: 400 })
+    }
+    if (repos !== undefined && !Array.isArray(repos)) {
+      return NextResponse.json({ success: false, error: 'repos must be an array when provided.' }, { status: 400 })
+    }
+    if (Array.isArray(repos) && repos.length > 50) {
+      return NextResponse.json({ success: false, error: 'repos is limited to 50 entries.' }, { status: 400 })
+    }
+    const PYTHON_BACKEND = getPythonBackendUrl()
     const backendRepos = Array.isArray(repos)
       ? repos.map((repo: any) => ({
           ...repo,
