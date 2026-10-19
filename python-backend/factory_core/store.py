@@ -192,9 +192,12 @@ class RunStore:
 
     def resume(self, owner: str, job_id: str) -> dict:
         with self.db() as db:
-            row = db.execute("SELECT * FROM jobs WHERE id=? AND owner=?", (job_id, owner)).fetchone()
+            row = db.execute("SELECT j.*, r.approval AS current_approval FROM jobs j JOIN runs r ON r.id=j.run_id AND r.owner=j.owner WHERE j.id=? AND j.owner=?", (job_id, owner)).fetchone()
             if not row:
                 raise NotFound("Build not found")
+            # Same rule as enqueue: a superseded approval cannot restart engineering work.
+            if row["approval_id"] != row["current_approval"]:
+                raise Conflict("This build's approval was superseded by a newer plan approval")
             if row["state"] not in {"blocked", "failed", "building", "verifying", "repairing"} or (row["lease_until"] or 0) >= time.time() and row["state"] not in TERMINAL:
                 raise Conflict("Build is already active or cannot be resumed")
             db.execute("UPDATE jobs SET state='queued',lease=NULL,lease_until=0,updated=? WHERE id=?", (time.time(), job_id))
