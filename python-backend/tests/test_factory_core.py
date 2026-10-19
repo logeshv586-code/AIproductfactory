@@ -86,6 +86,17 @@ def test_forged_changed_and_superseded_approvals_rejected(tmp_path):
     with pytest.raises(Conflict): db.enqueue(actor, c.run_id, a['approvalId'], c.contract_hash, 'stale')
 
 
+def test_superseded_approval_cannot_resume_blocked_build(tmp_path):
+    db, actor, c, a, job = saved(tmp_path)
+    lease = db.claim(actor, job['buildId'])
+    db.update(actor, job['buildId'], lease, 'verifying')
+    db.update(actor, job['buildId'], lease, 'blocked')
+    other = next(p for p in db.run(actor, c.run_id)['plans'] if p['contract']['plan_id'] == 'PLAN-A')
+    db.approve(actor, c.run_id, 'PLAN-A', other['contractHash'])
+    with pytest.raises(Conflict, match='superseded'): db.resume(actor, job['buildId'])
+    assert db.job(actor, job['buildId'])['status'] == 'blocked'
+
+
 def test_idempotency_worker_exclusion_and_cancellation(tmp_path):
     db, actor, c, a, job = saved(tmp_path)
     same, created = db.enqueue(actor, c.run_id, a['approvalId'], c.contract_hash, 'request-1')
@@ -219,6 +230,10 @@ def test_api_approval_poll_download_integrity_and_cross_owner_denial(tmp_path, m
             assert client.get('/factory/builds/' + job_id + '/artifact', headers=other).status_code == 404
             (tmp_path / 'products' / (job_id + '.zip')).write_bytes(b'tampered')
             assert client.get('/factory/builds/' + job_id + '/artifact', headers=headers).status_code == 409
+            # Approving another plan supersedes this build; the Studio still offers Resume on its card.
+            assert client.post('/factory/approve', headers=headers, json={'runId': result['runId'], 'planId': 'PLAN-A', 'contractHash': result['plans'][0]['contractHash']}).status_code == 200
+            assert client.post('/factory/builds/' + job_id + '/resume', headers=headers).status_code == 409
+            assert client.get('/factory/builds/' + job_id, headers=headers).json()['status'] == 'blocked'
             assert client.post('/execution/run_task', json={'task': {}, 'workspace_id': 'bypass'}).status_code == 409
     finally:
         del app.state.factory_provider
