@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import time
 from typing import Any, Optional
 
 from llm.base import LLMProvider, deterministic_embedding
@@ -398,18 +399,95 @@ class DeepSeekProvider(LLMProvider):
         return deterministic_embedding(text)
 
 
+def _circuit_breaker_defaults() -> tuple[int, float]:
+    """Read optional process-wide breaker defaults from the environment."""
+    threshold = int(os.environ.get("LLM_CIRCUIT_BREAKER_FAILURE_THRESHOLD", "3"))
+    cooldown = float(os.environ.get("LLM_CIRCUIT_BREAKER_RESET_TIMEOUT_SECONDS", "60"))
+    return threshold, cooldown
+
+
+class CircuitBreaker:
+    """Per-provider breaker with a single probe after the cooldown.
+
+    Failures open the circuit after ``failure_threshold`` consecutive errors.
+    Once the cooldown expires, exactly one concurrent caller is allowed to
+    probe the provider. A successful probe closes the circuit; a failed probe
+    starts a fresh cooldown.
+    """
+
+    def __init__(
+        self,
+        failure_threshold: int = 3,
+        reset_timeout_seconds: float = 60.0,
+    ) -> None:
+        if failure_threshold < 1:
+            raise ValueError("failure_threshold must be at least 1")
+        if reset_timeout_seconds < 0:
+            raise ValueError("reset_timeout_seconds cannot be negative")
+        self.failure_threshold = failure_threshold
+        self.reset_timeout_seconds = reset_timeout_seconds
+        self.failure_count = 0
+        self.opened_at: float | None = None
+        self._half_open_probe_in_flight = False
+        self._lock = asyncio.Lock()
+
+    async def allow_request(self) -> bool:
+        """Return whether a provider call may proceed."""
+        async with self._lock:
+            if self.opened_at is None:
+                return True
+
+            if time.monotonic() - self.opened_at < self.reset_timeout_seconds:
+                return False
+
+            if self._half_open_probe_in_flight:
+                return False
+
+            self._half_open_probe_in_flight = True
+            return True
+
+    async def record_success(self) -> None:
+        async with self._lock:
+            self.failure_count = 0
+            self.opened_at = None
+            self._half_open_probe_in_flight = False
+
+    async def record_failure(self) -> None:
+        async with self._lock:
+            self.failure_count += 1
+            self._half_open_probe_in_flight = False
+            if self.failure_count >= self.failure_threshold:
+                self.opened_at = time.monotonic()
+
+    async def release_probe(self) -> None:
+        """Release a half-open probe slot when its caller is cancelled."""
+        async with self._lock:
+            self._half_open_probe_in_flight = False
+
+
 class ResilientProvider(LLMProvider):
-    """Wrap one remote provider with timeout and deterministic local fallback."""
+    """Wrap one remote provider with a circuit breaker and local fallback."""
 
     def __init__(
         self,
         primary: LLMProvider,
         fallback: Optional[LLMProvider] = None,
         timeout_seconds: float = 90.0,
+        failure_threshold: int | None = None,
+        reset_timeout_seconds: float | None = None,
     ):
+        default_threshold, default_cooldown = _circuit_breaker_defaults()
         self.primary = primary
         self.fallback = fallback or LocalProvider()
         self.timeout_seconds = timeout_seconds
+        self.circuit_breaker = CircuitBreaker(
+            failure_threshold=(
+                default_threshold if failure_threshold is None else failure_threshold
+            ),
+            reset_timeout_seconds=(
+                default_cooldown if reset_timeout_seconds is None else reset_timeout_seconds
+            ),
+        )
 
     async def chat(
         self,
@@ -418,20 +496,27 @@ class ResilientProvider(LLMProvider):
         max_tokens: int = 1000,
         enable_thinking: bool | None = None,
     ) -> str:
-        try:
-            text = await asyncio.wait_for(
-                self.primary.chat(
-                    messages,
-                    temperature=temperature,
-                    max_tokens=max_tokens,
-                    enable_thinking=enable_thinking,
-                ),
-                timeout=self.timeout_seconds,
-            )
-            if text:
-                return text
-        except Exception as exc:
-            print(f"[ResilientProvider] primary chat fallback: {exc}")
+        if await self.circuit_breaker.allow_request():
+            try:
+                text = await asyncio.wait_for(
+                    self.primary.chat(
+                        messages,
+                        temperature=temperature,
+                        max_tokens=max_tokens,
+                        enable_thinking=enable_thinking,
+                    ),
+                    timeout=self.timeout_seconds,
+                )
+                if text:
+                    await self.circuit_breaker.record_success()
+                    return text
+                await self.circuit_breaker.record_failure()
+            except asyncio.CancelledError:
+                await self.circuit_breaker.release_probe()
+                raise
+            except Exception as exc:
+                await self.circuit_breaker.record_failure()
+                print(f"[ResilientProvider] primary chat fallback: {exc}")
         return await self.fallback.chat(
             messages,
             temperature=temperature,
@@ -440,31 +525,52 @@ class ResilientProvider(LLMProvider):
         )
 
     async def get_embedding(self, text: str) -> list[float]:
-        try:
-            vector = await asyncio.wait_for(
-                self.primary.get_embedding(text),
-                timeout=self.timeout_seconds,
-            )
-            if vector and any(value != 0 for value in vector):
-                return vector
-        except Exception as exc:
-            print(f"[ResilientProvider] primary embedding fallback: {exc}")
+        if await self.circuit_breaker.allow_request():
+            try:
+                vector = await asyncio.wait_for(
+                    self.primary.get_embedding(text),
+                    timeout=self.timeout_seconds,
+                )
+                if vector and any(value != 0 for value in vector):
+                    await self.circuit_breaker.record_success()
+                    return vector
+                await self.circuit_breaker.record_failure()
+            except asyncio.CancelledError:
+                await self.circuit_breaker.release_probe()
+                raise
+            except Exception as exc:
+                await self.circuit_breaker.record_failure()
+                print(f"[ResilientProvider] primary embedding fallback: {exc}")
         return await self.fallback.get_embedding(text)
 
 
 class ProviderPool(LLMProvider):
-    """Automatic failover across every configured remote provider."""
+    """Automatic failover across configured remote providers."""
 
     def __init__(
         self,
         providers: list[tuple[str, LLMProvider]],
         fallback: Optional[LLMProvider] = None,
         timeout_seconds: float = 90.0,
+        failure_threshold: int | None = None,
+        reset_timeout_seconds: float | None = None,
     ):
+        default_threshold, default_cooldown = _circuit_breaker_defaults()
         self.providers = providers
         self.fallback = fallback or LocalProvider()
         self.timeout_seconds = timeout_seconds
         self.last_provider = "local"
+        self.circuit_breakers = {
+            name: CircuitBreaker(
+                failure_threshold=(
+                    default_threshold if failure_threshold is None else failure_threshold
+                ),
+                reset_timeout_seconds=(
+                    default_cooldown if reset_timeout_seconds is None else reset_timeout_seconds
+                ),
+            )
+            for name, _provider in providers
+        }
 
     async def chat(
         self,
@@ -474,6 +580,9 @@ class ProviderPool(LLMProvider):
         enable_thinking: bool | None = None,
     ) -> str:
         for name, provider in self.providers:
+            breaker = self.circuit_breakers[name]
+            if not await breaker.allow_request():
+                continue
             try:
                 text = await asyncio.wait_for(
                     provider.chat(
@@ -485,9 +594,15 @@ class ProviderPool(LLMProvider):
                     timeout=self.timeout_seconds,
                 )
                 if text:
+                    await breaker.record_success()
                     self.last_provider = name
                     return text
+                await breaker.record_failure()
+            except asyncio.CancelledError:
+                await breaker.release_probe()
+                raise
             except Exception as exc:
+                await breaker.record_failure()
                 print(f"[ProviderPool] {name} chat failed: {exc}")
         self.last_provider = "local"
         return await self.fallback.chat(
@@ -504,15 +619,24 @@ class ProviderPool(LLMProvider):
             key=lambda item: 0 if item[0] in {"openai", "gemini"} else 1,
         )
         for name, provider in native_first:
+            breaker = self.circuit_breakers[name]
+            if not await breaker.allow_request():
+                continue
             try:
                 vector = await asyncio.wait_for(
                     provider.get_embedding(text),
                     timeout=self.timeout_seconds,
                 )
                 if vector and any(value != 0 for value in vector):
+                    await breaker.record_success()
                     self.last_provider = name
                     return vector
+                await breaker.record_failure()
+            except asyncio.CancelledError:
+                await breaker.release_probe()
+                raise
             except Exception as exc:
+                await breaker.record_failure()
                 print(f"[ProviderPool] {name} embedding failed: {exc}")
         self.last_provider = "local"
         return await self.fallback.get_embedding(text)

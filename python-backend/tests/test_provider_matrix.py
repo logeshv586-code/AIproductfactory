@@ -6,6 +6,7 @@ from types import SimpleNamespace
 from llm.base import LLMProvider
 from llm.provider import (
     AnthropicProvider,
+    CircuitBreaker,
     DeepSeekProvider,
     GeminiProvider,
     NvidiaProvider,
@@ -244,3 +245,117 @@ def test_provider_status_never_exposes_keys(monkeypatch):
     assert status["providers"]["nvidia"]["configured"] is True
     assert status["providers"]["openai"]["configured"] is True
     assert "super-secret" not in rendered
+
+
+def test_circuit_breaker_opens_after_consecutive_failures_and_half_opens():
+    breaker = CircuitBreaker(failure_threshold=2, reset_timeout_seconds=0)
+
+    async def run():
+        assert await breaker.allow_request()
+        await breaker.record_failure()
+        assert await breaker.allow_request()
+        await breaker.record_failure()
+
+        # The cooldown has elapsed, but only one caller may probe.
+        first, second = await asyncio.gather(
+            breaker.allow_request(),
+            breaker.allow_request(),
+        )
+        assert sorted([first, second]) == [False, True]
+
+        await breaker.record_success()
+        assert await breaker.allow_request()
+        assert breaker.failure_count == 0
+        assert breaker.opened_at is None
+
+    asyncio.run(run())
+
+
+def test_provider_pool_skips_open_provider_and_uses_next_provider():
+    class FailingProvider(LLMProvider):
+        def __init__(self):
+            self.calls = 0
+
+        async def chat(self, messages, temperature=0.5, max_tokens=1000, enable_thinking=None):
+            self.calls += 1
+            return ""
+
+        async def get_embedding(self, text):
+            return []
+
+    failing = FailingProvider()
+    healthy = StubProvider(text="healthy-response")
+    pool = ProviderPool(
+        [("unhealthy", failing), ("healthy", healthy)],
+        failure_threshold=2,
+        reset_timeout_seconds=60,
+    )
+
+    async def run():
+        first = await pool.chat([{"role": "user", "content": "hello"}])
+        second = await pool.chat([{"role": "user", "content": "hello again"}])
+        third = await pool.chat([{"role": "user", "content": "hello once more"}])
+        return first, second, third
+
+    assert asyncio.run(run()) == (
+        "healthy-response",
+        "healthy-response",
+        "healthy-response",
+    )
+    # Two failures open the first provider; the third request skips it.
+    assert failing.calls == 2
+    assert pool.last_provider == "healthy"
+
+
+def test_resilient_provider_falls_back_without_calling_open_primary():
+    class FailingProvider(LLMProvider):
+        def __init__(self):
+            self.calls = 0
+
+        async def chat(self, messages, temperature=0.5, max_tokens=1000, enable_thinking=None):
+            self.calls += 1
+            return ""
+
+        async def get_embedding(self, text):
+            return []
+
+    primary = FailingProvider()
+    fallback = StubProvider(text="local-response")
+    provider = ResilientProvider(
+        primary,
+        fallback=fallback,
+        failure_threshold=1,
+        reset_timeout_seconds=60,
+    )
+
+    async def run():
+        first = await provider.chat([{"role": "user", "content": "hello"}])
+        second = await provider.chat([{"role": "user", "content": "hello again"}])
+        return first, second
+
+    assert asyncio.run(run()) == ("local-response", "local-response")
+    assert primary.calls == 1
+
+
+def test_circuit_breaker_reads_environment_defaults(monkeypatch):
+    monkeypatch.setenv("LLM_CIRCUIT_BREAKER_FAILURE_THRESHOLD", "4")
+    monkeypatch.setenv("LLM_CIRCUIT_BREAKER_RESET_TIMEOUT_SECONDS", "12.5")
+    pool = ProviderPool([("remote", StubProvider(text="ok"))])
+
+    breaker = pool.circuit_breakers["remote"]
+    assert breaker.failure_threshold == 4
+    assert breaker.reset_timeout_seconds == 12.5
+
+
+def test_circuit_breaker_releases_half_open_slot_after_cancellation():
+    breaker = CircuitBreaker(failure_threshold=1, reset_timeout_seconds=0)
+
+    async def run():
+        assert await breaker.allow_request()
+        await breaker.record_failure()
+        assert await breaker.allow_request()
+        await breaker.release_probe()
+        # A cancelled probe must not leave the provider permanently blocked.
+        assert await breaker.allow_request()
+
+    asyncio.run(run())

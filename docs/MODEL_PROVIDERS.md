@@ -110,7 +110,16 @@ The backend uses Google's current `google-genai` SDK rather than the legacy `goo
 
 ## Reliability behavior
 
-Remote providers are wrapped with timeout + local fallback in explicit environment-provider mode. `auto` mode tries configured providers in order before using local fallback. The provider router can also select different providers for planning, code generation, research, vision-oriented reasoning, fast extraction, and long-context work.
+Remote providers are wrapped with timeout + local fallback in explicit environment-provider mode. `auto` mode tries configured providers in order before using local fallback. Each remote provider has an independent circuit breaker: after three consecutive failures it is temporarily skipped, and after the cooldown one request is allowed to probe recovery. A successful probe closes the circuit; a failed probe opens it again. This prevents repeated long timeouts against an unhealthy provider while preserving ordered failover.
+
+Tune the defaults for server deployments with:
+
+```env
+LLM_CIRCUIT_BREAKER_FAILURE_THRESHOLD=3
+LLM_CIRCUIT_BREAKER_RESET_TIMEOUT_SECONDS=60
+```
+
+The threshold must be at least `1`; the cooldown must be zero or greater. The values are read when providers are created. Constructor arguments can override them in tests or embedded use. The provider router can also select different providers for planning, code generation, research, vision-oriented reasoning, fast extraction, and long-context work.
 
 A customer-created Studio runtime session is different: it intentionally pins the selected provider and model so the run does not silently switch to a different paid provider.
 
