@@ -1,9 +1,11 @@
+
 name: AI Product Factory CI
 
 on:
   pull_request:
   push:
-    branches: [main]
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -11,88 +13,140 @@ permissions:
 
 jobs:
   web:
-    name: Next.js lint, typecheck and build
+    name: Next.js Lint, Typecheck and Build
     runs-on: ubuntu-latest
     timeout-minutes: 20
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
-      - name: Validate local Understand Anything adapter
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate Understand Anything adapter
         run: |
           node --check scripts/install-understand-anything.mjs
           npm run understand:status
-      - name: Critical dependency audit
+
+      - name: Security audit
         run: npm audit --audit-level=critical
-      - run: npm run lint
-      - run: npx tsc --noEmit
-      - run: npm test
-      - run: npm run build
+
+      - name: Run lint
+        run: npm run lint
+
+      - name: TypeScript check
+        run: npx tsc --noEmit
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build Next.js application
+        run: npm run build
         env:
           DATABASE_URL: file:./db/custom.db
           PYTHON_BACKEND_URL: http://127.0.0.1:8001
 
   python:
-    name: Contract, ownership and recovery regressions
+    name: Python Backend Tests
     runs-on: ubuntu-latest
     timeout-minutes: 15
+
     defaults:
       run:
         working-directory: python-backend
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: pip install -r requirements.txt
-      - run: python -m compileall -q factory_core execution
-      - run: pytest -q
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Compile Python files
+        run: python -m compileall -q factory_core execution
+
+      - name: Run Python tests
+        run: pytest -q
         env:
           LLM_PROVIDER: local
 
   isolated-acceptance:
-    name: Real isolated API and React acceptance
+    name: Isolated API Acceptance Tests
     runs-on: ubuntu-latest
     timeout-minutes: 25
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: pip install -r python-backend/requirements.txt
-      - name: Provision isolated runner
+
+      - name: Install dependencies
+        run: pip install -r python-backend/requirements.txt
+
+      - name: Build isolated Docker runner
         run: docker build -f python-backend/execution/runner.Dockerfile -t ai-product-factory-runner:1 .
-      - name: Reject scaffold and verify real behavior
+
+      - name: Verify real container execution
         working-directory: python-backend
         env:
           FACTORY_REQUIRE_RUNNER: '1'
         run: pytest -q tests/test_factory_core.py -k real_container
 
   e2e:
-    name: Hydrated Studio, approval and ZIP ownership
-    needs: [web, python]
+    name: End-to-End Studio Tests
+    needs:
+      - web
+      - python
     runs-on: ubuntu-latest
     timeout-minutes: 20
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-      - uses: actions/setup-python@v5
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: npm ci
-      - run: npx playwright install --with-deps chromium
-      - run: pip install -r python-backend/requirements.txt
-      - run: npm run build
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Install Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Install Python dependencies
+        run: pip install -r python-backend/requirements.txt
+
+      - name: Build application
+        run: npm run build
         env:
           DATABASE_URL: file:./db/custom.db
           PYTHON_BACKEND_URL: http://127.0.0.1:8001
-      - name: Start services and exercise Studio
+
+      - name: Start services and run E2E tests
         env:
           LLM_PROVIDER: local
           PYTHON_BACKEND_PORT: '8001'
@@ -101,18 +155,27 @@ jobs:
           DATABASE_URL: file:./db/custom.db
           HOSTNAME: 127.0.0.1
           PORT: '3000'
+
         run: |
           (cd python-backend && python runtime_entry.py > ../python-e2e.log 2>&1) &
           PYTHON_PID=$!
+
           node .next/standalone/server.js > next-e2e.log 2>&1 &
           NEXT_PID=$!
+
           trap 'kill "$PYTHON_PID" "$NEXT_PID" 2>/dev/null || true' EXIT
+
           for i in $(seq 1 90); do
-            if curl -fsS http://127.0.0.1:3000/api/health/python >/dev/null 2>&1; then break; fi
+            if curl -fsS http://127.0.0.1:3000/api/health/python >/dev/null 2>&1; then
+              break
+            fi
             sleep 1
           done
+
           node scripts/ci-core-e2e.mjs
-      - uses: actions/upload-artifact@v4
+
+      - name: Upload E2E logs on failure
+        uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: factory-e2e-logs
